@@ -1,0 +1,429 @@
+---
+description: Global project rules for nuxt-cms-core
+alwaysApply: true
+---
+
+# nuxt-cms-core Project Rules
+
+## Project Philosophy
+
+- This project is a reusable CMS Core for Nuxt 4.
+- The CMS is designed for content management, not page building.
+- Developers build website structure in code.
+- The database stores editable content only.
+- Business logic belongs to client projects.
+- CMS Core contains only reusable functionality.
+- Keep the architecture simple, maintainable and scalable.
+- Avoid overengineering.
+
+---
+
+## Architecture
+
+- Use Nuxt Layer + Nuxt Module architecture.
+- CMS Core must remain framework-independent except for Nuxt integration.
+- Database provider must be replaceable.
+- Never tightly couple the project to Supabase.
+- All data access must go through repositories.
+- Components must never communicate with Supabase directly.
+- Keep clear boundaries between Core and Client Project.
+
+---
+
+## CMS Boundaries
+
+CMS Core MAY contain:
+
+- Admin panel
+- Edit Mode
+- Authentication
+- Media Library
+- Forms
+- Localization
+- Generic CMS Components
+- Generic Repositories
+- Generic Composables
+- Generic Utilities
+
+CMS Core MUST NOT contain:
+
+- Business logic
+- Business entities
+- Product logic
+- Ecommerce logic
+- Landing page structure
+- Client specific UI
+- Project specific repositories
+
+---
+
+## Page Structure
+
+The CMS is NOT a page builder.
+
+Never:
+
+- store page layout in database
+- store component hierarchy in database
+- generate dynamic page structures
+- generate drag & drop builders
+
+Developers always create page structure manually.
+
+Users may only:
+
+- edit existing content
+- create template pages
+- manage collections when explicitly supported
+
+---
+
+## Components
+
+CMS Components must remain generic.
+
+Allowed examples:
+
+- CmsText
+- CmsImage
+- CmsButton
+- CmsCollection
+
+Never generate:
+
+- Hero components
+- Product cards
+- Landing sections
+- Business specific components
+
+Business components belong to the Client Project.
+
+---
+
+## Data Access
+
+Always use Repository Pattern.
+
+Flow:
+
+UI
+
+↓
+
+Composable
+
+↓
+
+Repository
+
+↓
+
+Database Adapter
+
+Never bypass repositories.
+
+Repositories hide implementation details.
+
+---
+
+## Database
+
+Prefer simple database design.
+
+Content only.
+
+No page structure.
+
+No UI structure.
+
+Collections store data only.
+
+Database implementation must remain replaceable.
+
+---
+
+## Migrations
+
+Create migrations only when database schema changes.
+
+Prefer one coherent migration per feature.
+
+Avoid many tiny migrations.
+
+Do not generate unnecessary migrations.
+
+---
+
+## Development Rules
+
+Never:
+
+- create git commits
+- push code
+- create pull requests
+- rename unrelated files
+- refactor unrelated code
+- install dependencies without asking
+- remove existing functionality unless requested
+
+Implement only the requested feature.
+
+Reuse existing architecture whenever possible.
+
+Modify existing code before creating new abstractions.
+
+---
+
+## Code Style
+
+Use:
+
+- Composition API
+- TypeScript
+- readable code
+- explicit naming
+- small focused functions
+
+Avoid:
+
+- any
+- magic values
+- unnecessary abstractions
+- duplicated code
+
+Prefer readability over clever code.
+
+---
+
+## Performance
+
+Public website must not load:
+
+- Edit Mode
+- Editor UI
+- Admin code
+- unnecessary JavaScript
+
+Use lazy loading whenever possible.
+
+Avoid unnecessary watchers.
+
+Optimize for minimal runtime overhead.
+
+---
+
+## UI
+
+Keep UI minimal.
+
+Prefer project components.
+
+Avoid unnecessary dependencies.
+
+Avoid heavy UI frameworks.
+
+Use Tailwind and CSS Variables following project conventions.
+
+---
+
+## AI Behaviour
+
+Before implementing:
+
+- understand existing architecture
+- reuse existing patterns
+- search existing code first
+
+If requirements are unclear:
+
+ASK.
+
+Do not invent missing requirements.
+
+Do not invent database schema.
+
+Do not invent architecture.
+
+Do not silently introduce new patterns.
+
+Explain major architectural decisions before implementation.
+
+Prefer consistency over novelty.
+
+Think as a senior software engineer.
+
+Optimize for maintainability.
+
+---
+
+# Testing Rules
+
+Testing should remain lightweight.
+
+Prefer manual testing during development.
+
+Write automated tests only for critical CMS functionality.
+
+Avoid generating tests for simple UI components.
+
+Avoid snapshot tests.
+
+Do not generate E2E tests unless explicitly requested.
+
+Do not create tests only to increase test coverage.
+
+Focus testing on:
+
+- repositories
+- business logic
+- utility functions
+- critical CMS workflows
+
+Testing should never significantly slow down development.
+
+# Repository & File Naming
+
+Follow consistent naming conventions.
+
+Repositories:
+
+- PagesRepository
+- MediaRepository
+- FormsRepository
+
+Composables:
+
+- useCms()
+- usePage()
+- useMedia()
+- useAuth()
+
+Components:
+
+- PascalCase
+- CmsText
+- CmsImage
+- CmsButton
+
+Plugins:
+
+- cms.client.ts
+- cms.server.ts
+
+Middleware:
+
+- kebab-case
+
+Utilities:
+
+- camelCase
+
+Avoid inconsistent naming.
+
+# Nuxt Conventions
+
+Follow Nuxt 4 conventions whenever possible.
+
+Prefer built-in Nuxt features over custom solutions.
+
+Use:
+
+- auto imports
+- server routes
+- composables
+- runtime config
+- plugins
+- middleware
+
+Avoid reinventing existing Nuxt functionality.
+
+Use project aliases consistently.
+
+Prefer Composition API.
+
+Keep components focused and reusable.
+
+# Supabase Rules
+
+Supabase is the current backend implementation.
+
+The architecture must always allow replacing Supabase in the future.
+
+Never expose service_role keys.
+
+Never access Supabase directly from UI components.
+
+Always use repositories.
+
+Use Row Level Security.
+
+Keep Storage independent from business logic.
+
+Keep migrations clean.
+
+Prefer one migration per feature.
+
+Avoid migration noise.
+
+Avoid unnecessary SQL complexity.
+
+Prefer database simplicity over clever SQL.
+
+Do not duplicate data unless necessary.
+
+Keep database portable for future backend replacement.
+
+# Dependencies
+
+Prefer built-in Nuxt and Vue functionality.
+
+Avoid adding new dependencies without clear benefit.
+
+Before introducing a dependency:
+
+- verify that existing project code cannot solve the problem
+- prefer lightweight solutions
+- discuss large dependencies before installation
+
+Minimize project dependencies.
+
+# Refactoring
+
+Do not refactor code unless requested.
+
+Do not rewrite working code for style only.
+
+Improve existing implementations incrementally.
+
+Avoid large architectural rewrites.
+
+Prefer evolution over replacement.
+
+# Simplicity
+
+Always choose the simplest solution that satisfies current requirements.
+
+Do not implement future features before they are needed.
+
+Avoid speculative abstractions.
+
+Avoid solving problems that do not exist yet.
+
+Optimize for clarity and maintainability.
+
+## Future Compatibility
+
+Always keep the architecture ready for:
+
+- replacing Supabase with another backend
+- reusable npm package distribution
+- future CLI support
+- future project updates
+
+Never introduce decisions that make backend replacement difficult.
+
+---
+
+These rules have higher priority than implementation convenience.
+
+If a request conflicts with these rules, ask for clarification before implementing.
