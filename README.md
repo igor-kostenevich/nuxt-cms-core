@@ -1,75 +1,59 @@
-# Nuxt Minimal Starter
+# nuxt-cms-core
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Reusable CMS Core for Nuxt 4, distributed as a Nuxt Layer that registers an internal Nuxt Module.
 
-## Setup
+At this stage the package contains only the foundation: layer + module wiring, a minimal
+`cms.config.ts` contract and a playground that verifies the package from a consumer point of view.
 
-Make sure to install dependencies:
+## Package structure
 
-```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+```
+nuxt.config.ts            Layer entry point, registers ./src/module
+src/config.ts             cms.config contract (types, defaults, defineCmsConfig)
+src/module.ts             Nuxt Module: loads cms.config.ts and exposes it via #cms/config
+app/composables/useCms.ts Runtime entry point, auto-imported in consumer projects
+playground/               Consumer Nuxt app used for verification
 ```
 
-## Development Server
+## Usage in a client project
 
-Start the development server on `http://localhost:3000`:
+Install the package and extend the layer:
 
-```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+```ts
+// nuxt.config.ts
+export default defineNuxtConfig({
+  extends: ['nuxt-cms-core'],
+})
 ```
 
-## Production
+Optionally add `cms.config.ts` in the project root:
 
-Build the application for production:
+```ts
+// cms.config.ts
+import { defineCmsConfig } from 'nuxt-cms-core/config'
+
+export default defineCmsConfig({
+  debug: true,
+})
+```
+
+The file is optional. Without it CMS Core falls back to defaults.
+
+Read the resolved config anywhere in the app:
+
+```vue
+<script setup lang="ts">
+const { version, config } = useCms()
+</script>
+```
+
+## Development
+
+All commands run the playground app:
 
 ```bash
-# npm
+npm install       # links the layer into playground and prepares types
+npm run dev       # http://localhost:3000
 npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
 npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
 ```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.

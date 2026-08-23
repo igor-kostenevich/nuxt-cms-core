@@ -1,0 +1,8 @@
+{
+  "name": "nuxt-cms-core-playground",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "nuxt-cms-core": "file:.."
+  }
+}

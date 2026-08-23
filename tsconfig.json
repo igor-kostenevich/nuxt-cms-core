@@ -1,18 +1,19 @@
 {
-  // https://nuxt.com/docs/guide/concepts/typescript
+  // The layer itself is not an app: types come from the playground Nuxt project,
+  // which already includes this layer.
   "files": [],
   "references": [
     {
-      "path": "./.nuxt/tsconfig.app.json"
+      "path": "./playground/.nuxt/tsconfig.app.json"
     },
     {
-      "path": "./.nuxt/tsconfig.server.json"
+      "path": "./playground/.nuxt/tsconfig.server.json"
     },
     {
-      "path": "./.nuxt/tsconfig.shared.json"
+      "path": "./playground/.nuxt/tsconfig.shared.json"
     },
     {
-      "path": "./.nuxt/tsconfig.node.json"
+      "path": "./playground/.nuxt/tsconfig.node.json"
     }
   ]
 }

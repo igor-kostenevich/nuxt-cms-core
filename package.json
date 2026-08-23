@@ -1,17 +1,37 @@
 {
   "name": "nuxt-cms-core",
+  "version": "0.0.1",
   "type": "module",
   "private": true,
+  "main": "./nuxt.config.ts",
+  "exports": {
+    ".": "./nuxt.config.ts",
+    "./config": "./src/config.ts"
+  },
+  "files": [
+    "app",
+    "src",
+    "nuxt.config.ts"
+  ],
+  "workspaces": [
+    "playground"
+  ],
   "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "dev": "nuxi dev playground",
+    "build": "nuxi build playground",
+    "preview": "nuxi preview playground",
+    "postinstall": "nuxi prepare playground"
   },
   "dependencies": {
+    "@nuxt/kit": "^4.5.2",
+    "c12": "^3.3.4"
+  },
+  "devDependencies": {
     "nuxt": "^4.5.2",
     "vue": "^3.5.41",
     "vue-router": "^5.2.0"
+  },
+  "peerDependencies": {
+    "nuxt": "^4.0.0"
   }
 }
