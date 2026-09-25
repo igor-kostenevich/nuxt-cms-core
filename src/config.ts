@@ -17,6 +17,16 @@ export const defaultCmsConfig: ResolvedCmsConfig = {
   debug: false,
 }
 
+/**
+ * Infrastructure values that come from the environment, not from `cms.config.ts`.
+ * Exposed through `runtimeConfig.public.cms` so a deployed build can be pointed
+ * at another backend without rebuilding.
+ */
+export interface CmsRuntimeConfig {
+  supabaseUrl: string
+  supabaseKey: string
+}
+
 export function defineCmsConfig(config: CmsConfig): CmsConfig {
   return config
 }

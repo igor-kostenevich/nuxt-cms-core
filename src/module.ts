@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { addTemplate, addTypeTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { loadConfig } from 'c12'
-import { resolveCmsConfig, type CmsConfig } from './config'
+import { resolveCmsConfig, type CmsConfig, type CmsRuntimeConfig } from './config'
 
 export default defineNuxtModule({
   meta: {
@@ -23,6 +23,19 @@ export default defineNuxtModule({
     // Restart the dev server when the project changes its CMS config.
     if (configFile) {
       nuxt.options.watch.push(configFile)
+    }
+
+    // Values from `.env` are only defaults baked in at build time. At runtime Nuxt
+    // overrides them from NUXT_PUBLIC_CMS_SUPABASE_URL / NUXT_PUBLIC_CMS_SUPABASE_KEY,
+    // which is what lets one build target a local or a hosted backend.
+    const publicRuntimeConfig = nuxt.options.runtimeConfig.public as {
+      cms?: Partial<CmsRuntimeConfig>
+    }
+
+    publicRuntimeConfig.cms = {
+      supabaseUrl: process.env.SUPABASE_URL ?? '',
+      supabaseKey: process.env.SUPABASE_KEY ?? '',
+      ...publicRuntimeConfig.cms,
     }
 
     const template = addTemplate({
