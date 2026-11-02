@@ -1,0 +1,26 @@
+{
+  "admin": {
+    "locale": {
+      "label": "Language"
+    },
+    "login": {
+      "title": "CMS login",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Log in",
+      "invalid": "Invalid email or password."
+    },
+    "home": {
+      "title": "CMS",
+      "signedIn": "Signed in as {email} ({role})",
+      "logout": "Log out",
+      "yes": "true",
+      "no": "false"
+    },
+    "errors": {
+      "notFound": "The requested record was not found.",
+      "permissionDenied": "You do not have permission to do that.",
+      "unknown": "Something went wrong. Try again."
+    }
+  }
+}

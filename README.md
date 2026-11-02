@@ -3,8 +3,8 @@
 Reusable CMS Core for Nuxt 4, distributed as a Nuxt Layer that registers an internal Nuxt Module.
 
 At this stage the package contains the foundation (layer + module wiring, the `cms.config.ts`
-contract) and one vertical slice of the Data Layer: reading global site settings from Supabase
-through a repository.
+contract), a read path for site settings, and CMS login: a session, `cms_users`, and a static
+permission map. `/admin`, including `/admin/edit`, requires an active CMS user.
 
 ## Package structure
 
@@ -13,12 +13,18 @@ nuxt.config.ts                       Layer entry point, registers ./src/module
 src/config.ts                        cms.config contract + runtime config contract
 src/module.ts                        Nuxt Module: loads cms.config.ts, exposes #cms/config, reads env
 app/types/settings.ts                SiteSettings domain type
-app/data/supabase.ts                 Backend adapter, the only file that knows about Supabase
+app/data/supabase.ts                 Anonymous backend client for public reads
+app/data/supabase-auth.ts            Session client. These two files are the only Supabase SDK imports
 app/data/errors.ts                   CmsDataError, the only error type the Data Layer exposes
 app/data/repositories/               Core repositories
+app/auth/                            Permission map and post-login redirect check
 app/composables/useCms.ts            Config entry point, auto-imported in consumer projects
 app/composables/useSiteSettings.ts   Reactive site settings
+app/composables/useCmsAuth.ts        CMS session: identity plus active cms_users row
+app/middleware/cms-auth.ts           Named gate for /admin pages
+app/pages/admin/                     Login and a proof page. Not the admin shell
 supabase/migrations/                 Core migrations, shipped with the package
+supabase/seed.sql                    Local fixtures only. Not part of the published package
 playground/                          Consumer Nuxt app used for verification
 ```
 
@@ -113,6 +119,25 @@ const { settings, pending, error, refresh } = useSiteSettings()
 
 Errors surface as `CmsDataError` with a `code` of `not_found`, `permission_denied` or `unknown`.
 Backend-specific errors never reach the UI.
+
+## CMS login
+
+A row in Supabase Auth is not CMS access. `/admin` and any client page that opts in with
+`definePageMeta({ middleware: ['cms-auth'] })` also require an active row in `cms_users`.
+
+There is no public registration page. Local `supabase db reset` seeds four accounts, all with
+the password `local-dev-password`:
+
+| Email | CMS access |
+| --- | --- |
+| `owner@example.com` | owner |
+| `editor@example.com` | editor, cannot publish |
+| `customer@example.com` | auth user only, no CMS access |
+| `disabled@example.com` | membership exists, status disabled |
+
+Sign in at `/admin/login`. The secret/service role key is still unused: login uses the
+publishable key, and the user's own JWT travels in a cookie. Invite and user management come
+later and are the first place that key will be required, only on the server.
 
 ## Development
 

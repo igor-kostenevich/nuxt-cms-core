@@ -1,0 +1,26 @@
+{
+  "admin": {
+    "locale": {
+      "label": "Мова"
+    },
+    "login": {
+      "title": "Вхід у CMS",
+      "email": "Електронна пошта",
+      "password": "Пароль",
+      "submit": "Увійти",
+      "invalid": "Невірна електронна пошта або пароль."
+    },
+    "home": {
+      "title": "CMS",
+      "signedIn": "Ви увійшли як {email} ({role})",
+      "logout": "Вийти",
+      "yes": "true",
+      "no": "false"
+    },
+    "errors": {
+      "notFound": "Запис не знайдено.",
+      "permissionDenied": "У вас немає дозволу на цю дію.",
+      "unknown": "Щось пішло не так. Спробуйте ще раз."
+    }
+  }
+}

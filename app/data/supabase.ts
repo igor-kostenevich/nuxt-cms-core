@@ -3,18 +3,16 @@ import { useRuntimeConfig } from '#imports'
 import { CmsDataError, type CmsDataErrorCode } from './errors'
 
 /**
- * The only module in CMS Core that is allowed to know about Supabase.
- * Everything above it works with repositories, domain types and CmsDataError,
- * which is what keeps the backend replaceable.
+ * Anonymous Supabase client for public reads.
+ *
+ * Session-aware access lives in `supabase-auth.ts`. These two files are the
+ * only modules allowed to import the Supabase SDK. Everything above them works
+ * with repositories, domain types and CmsDataError.
  */
 
 let client: SupabaseClient | undefined
 
-export function getSupabaseClient(): SupabaseClient {
-  if (client) {
-    return client
-  }
-
+export function readSupabasePublicConfig(): { url: string, key: string } {
   const { supabaseUrl, supabaseKey } = useRuntimeConfig().public.cms
 
   if (!supabaseUrl || !supabaseKey) {
@@ -25,12 +23,24 @@ export function getSupabaseClient(): SupabaseClient {
     )
   }
 
-  // Anonymous read-only access for now, so there is no session to persist.
-  // User sessions arrive with the auth block and will need a request-scoped client.
-  client = createClient(supabaseUrl, supabaseKey, {
+  return { url: supabaseUrl, key: supabaseKey }
+}
+
+export function getSupabaseClient(): SupabaseClient {
+  if (client) {
+    return client
+  }
+
+  const { url, key } = readSupabasePublicConfig()
+
+  // Public reads stay anonymous even when a CMS session cookie exists.
+  // Attaching that session here would pull auth into the public bundle and
+  // turn every public request into the `authenticated` role.
+  client = createClient(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
   })
 

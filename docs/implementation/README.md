@@ -84,6 +84,14 @@ RLS тільки на `select`, `CmsDataError`, lazy anon-клієнт.
 Наступні епіки не створюють `BaseRepository` / factory, поки дві реальні
 сутності не почнуть дублювати код.
 
+### 003 — Auth, CMS Users, Permissions
+
+`done` · [запис](./003-auth.md)
+
+`auth.users` — identity, `cms_users` — доступ до CMS. Login, сесія в cookie,
+статична матриця `can()`, middleware на `/admin`, включно з `/admin/edit`. Invite і
+`SUPABASE_SECRET` не входять: вони потрібні Settings → Users.
+
 ---
 
 ## Принцип послідовності
@@ -107,47 +115,6 @@ Auth  →  перший запис (Settings + Admin shell)
 ---
 
 ## Епіки
-
-### 003 — Auth, CMS Users, Permissions
-
-`todo` · джерело: Блок 6, частково 11
-
-**Чому наступний.** Єдине вузьке місце після Data Layer. Без нього заблоковані:
-запис settings (RLS свідомо без write), `/admin`, `/edit/*`, invite, Activity,
-будь-які mutations.
-
-**Що будуємо (тезисно).**
-
-- `auth.users` = хто це. `cms_users` = чи є доступ до CMS і з якою роллю.
-- Існування в `auth.users` саме по собі не дає `/admin`.
-- Ролі V1: Owner / Admin / Editor. Статична permission map у Core.
-  UI перевіряє `can('pages.edit')`, не `user.role === 'admin'`.
-- Немає public `/admin/register`. Перший Owner — bootstrap
-  (SQL/seed у playground; CLI-команда — епік 015).
-- Login `/admin/login`, middleware на `/admin` і (пізніше) `/edit/*`:
-  authenticated **і** active `cms_users`.
-- Session-aware Supabase клієнт. Поточний `persistSession: false` треба змінити —
-  це свідомо відкладене рішення з 002.
-- `SUPABASE_SECRET` / server-only клієнт з’являється лише якщо епік без нього
-  не закривається (invite через Admin Auth API). Інакше — відкласти.
-  У `public` секрет не потрапляє ніколи.
-
-**Anti-scope.**
-
-- Application users / `customer_profiles` / `/register` сайту — Client Project.
-- Database-driven RBAC (`roles`, `role_permissions`, custom roles).
-- 2FA, sessions UI, login history — Блок 19, не V1.
-- Повний Settings → Users (invite/deactivate) можна розбити: спочатку login +
-  seed Owner, invite — у цьому ж епіку або відразу після shell, якщо server-only
-  клієнт уже потрібен.
-- Admin chrome, Edit Mode, запис settings.
-
-**Відкриті рішення перед планом.** Чи робимо invite в 003, чи лише login +
-засіяний Owner. Чи потрібен server-only клієнт уже тут.
-
-**Тести.** Перше місце, де тести виправдані: `can()`, «authenticated ≠ cms user».
-
----
 
 ### 004 — Admin shell + запис Site Settings
 
@@ -262,7 +229,7 @@ Activity write на Publish можна покласти тонкий хук, я�
 
 **Що будуємо в першому зрізі.**
 
-- Маршрут `/edit/...` рендерить **ту саму** сторінку, що й public.
+- Маршрут `/admin/edit/...` рендерить **ту саму** сторінку, що й public.
   Немає `EditableAboutPage.vue`.
 - Editor Runtime — dynamic import тільки після входу в Edit Mode.
 - Editor Engine: current draft, dirty, selected field, save status.

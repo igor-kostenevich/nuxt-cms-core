@@ -1,18 +1,5 @@
 {
-  // https://nuxt.com/docs/guide/concepts/typescript
-  "files": [],
-  "references": [
-    {
-      "path": "./.nuxt/tsconfig.app.json"
-    },
-    {
-      "path": "./.nuxt/tsconfig.server.json"
-    },
-    {
-      "path": "./.nuxt/tsconfig.shared.json"
-    },
-    {
-      "path": "./.nuxt/tsconfig.node.json"
-    }
-  ]
+  // Solution-style references leave these pages in an inferred TS project,
+  // so Nuxt auto-imports such as useCmsAuth are invisible to the editor.
+  "extends": "./.nuxt/tsconfig.app.json"
 }
