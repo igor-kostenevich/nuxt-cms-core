@@ -49,6 +49,10 @@
 - **E2E за замовчуванням немає.** Vitest + Nuxt Test Utils. Playwright у стеку доки
   — застаріле.
 - **Назва пакета — `nuxt-cms-core`.** Ігнорувати `@igor/cms-core`, `igor-cms` у доці.
+- **Tailwind у Core не використовується.** Стилі Core — нативний CSS: CSS-змінні
+  (токени з UI kit) + scoped CSS у компонентах. Без Tailwind і без SCSS, щоб Core
+  не нав'язував Client Project препроцесор чи utility-фреймворк. Tailwind у стеку
+  доки — застаріле для Core; Client Project може використовувати його для свого сайту.
 - **Business Collection ≠ local repeatable.** Product/Doctor/Blog — окремі сутності
   (часто в Client Project). `Hero.benefits[]`, FAQ секції — масив у контенті сторінки
   через `CmsCollection`, не глобальний розділ Content.
@@ -61,6 +65,31 @@
 
 Архітектурний пріоритет при неоднозначності: цей файл → Architecture Summary →
 найновіша версія блоку → найпростіше рішення.
+
+---
+
+## Зафіксовано після 004a
+
+Ці примітки читати перед планом наступного епіка. Вони не відкривають нові епіки.
+
+- **UI-фундамент** — 004a: CSS-змінні під `.cms-admin`, без Tailwind і SCSS у Core.
+  `runtime.css` — з 006 (public primitives), `editor.css` — з 008 (Edit Mode).
+  Ізоляція через компонент-обгортку, не через layout.
+- **Pinia / VueUse** — лише з Editor Engine (008), не раніше.
+- **Bootstrap першого Owner у хмарі** — 016 (CLI); до того задокументований ручний SQL.
+  **Setup Wizard (Блок 11)** — поза V1: підключення Supabase не може бути сторінкою всередині CMS.
+- **`profiles` (ім'я, аватар)** — разом із Settings → Users (015.2). Activity (012) показує email,
+  доки `profiles` немає.
+- **Settings → Users** — окремий пункт 015.2: `SUPABASE_SECRET`, server-only клієнт, Nuxt server
+  routes для invite / role / deactivate, захист останнього Owner (SQL-перевірка + тест).
+- **Soft delete / Trash (Блок 21)** — по сутностях: Pages у 007, Media у 009, Collections у 014.
+  Не окремий епік.
+- **Smoke-тест міграцій і скрипт перевірки public bundle (Блоки 17–18):** bundle-перевірка з 004a
+  ручна, автоматизація — з 006. Smoke-тест міграцій — з 005.
+- **Cache invalidation після Publish** — частина 007.
+- **Generated Supabase types** — у 005, коли з'являється друга сутність із записом.
+- **Maintenance mode і robots/indexing на публічному сайті** — 015. Поле вже є в `site_settings`,
+  поведінка публічного сайту — окремий пункт.
 
 ---
 
@@ -92,6 +121,13 @@ RLS тільки на `select`, `CmsDataError`, lazy anon-клієнт.
 статична матриця `can()`, middleware на `/admin`, включно з `/admin/edit`. Invite і
 `SUPABASE_SECRET` не входять: вони потрібні Settings → Users.
 
+### 004a — Admin UI foundation + Login
+
+`done` · [запис](./004a-admin-ui-foundation.md)
+
+Токени і компоненти адмінки під `.cms-admin`. Логін зібраний з `AdminRoot`, `AdminInput`,
+`AdminButton`, `AdminAlert`. Епік 004 лишається `todo`: layout, сайдбар і запис Settings — це 004b.
+
 ---
 
 ## Принцип послідовності
@@ -118,10 +154,11 @@ Auth  →  перший запис (Settings + Admin shell)
 
 ### 004 — Admin shell + запис Site Settings
 
-`todo` · джерело: дизайн-ТЗ (навігація, Settings → General), Блок 10, 17
+`todo` · 004a зроблено · джерело: дизайн-ТЗ (навігація, Settings → General), Блок 10, 17
 
 **Чому тут.** Найдешевший write-зріз: сутність уже є, Auth уже є.
 Одночасно з’являється Admin Runtime як окрема зона, не завантажена на публічному сайті.
+Візуальний фундамент уже є в 004a. Залишився 004b.
 
 **Що будуємо.**
 
@@ -129,8 +166,8 @@ Auth  →  перший запис (Settings + Admin shell)
 - Settings → General: те, що вже є в `site_settings`
   (`siteName`, `contactEmail`, `contactPhone`, `maintenanceMode`).
 - `SettingsRepository.update()`, RLS write для cms-користувачів із permission.
-- Мінімальні `BaseInput` / `BaseButton` — лише ті, що реально потрібні формі.
-  Не UI-kit «на майбутнє».
+- Форма збирається з `AdminInput` / `AdminButton` / `AdminAlert` з 004a.
+  `BaseInput` і `BaseButton` не створюємо.
 
 **Anti-scope.** Dashboard віджети, Brand/SEO/Social/Languages/Navigation,
 System, Analytics. Навігація сайту — окрема таблиця, не колонка в `site_settings`
@@ -444,7 +481,7 @@ publish, AI-фічі, image optimization pipeline, Backup Manager UI.
 | Architecture Summary, Foundation | 001 (зроблено) |
 | 5 Data Layer, 10 Config (env), 12 Contract | 002 (зроблено), далі росте з кожною сутністю |
 | 6 Auth | 003 |
-| Дизайн-ТЗ Admin, 4 UI primitives за потреби | 004, 015 |
+| Дизайн-ТЗ Admin, 4 UI primitives за потреби | 004a (зроблено), 004b, 015 |
 | 5/12 Pages | 005 |
 | 4 CMS primitives, 17 public runtime | 006 |
 | 8 Draft/Publish/Revisions | 007 |

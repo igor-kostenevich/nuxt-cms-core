@@ -1,0 +1,159 @@
+/*
+ * Admin tokens. Imported only by AdminRoot, and every variable lives under
+ * .cms-admin so a client project never inherits them.
+ * Names follow the UI kit, with a --cms- prefix.
+ */
+
+.cms-admin {
+  --cms-font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --cms-primary: #2271b1;
+  --cms-primary-hover: #135e96;
+  --cms-primary-active: #0a4b78;
+  --cms-primary-subtle: #eff6ff;
+  --cms-primary-disabled: #a0aec0;
+
+  --cms-neutral-0: #ffffff;
+  --cms-neutral-50: #f6f7f7;
+  --cms-neutral-100: #f0f0f1;
+  --cms-neutral-200: #dcdcde;
+  --cms-neutral-300: #c0c5ca;
+  --cms-neutral-400: #a7aaad;
+  --cms-neutral-500: #8c8f94;
+  --cms-neutral-600: #646970;
+  --cms-neutral-700: #50575e;
+  --cms-neutral-800: #2c3338;
+  --cms-neutral-900: #1d2327;
+
+  --cms-background: #f6f7f7;
+  --cms-card: #ffffff;
+  --cms-surface-secondary: #f6f7f7;
+  --cms-surface-hover: #f0f0f1;
+  --cms-surface-selected: #eff6ff;
+  --cms-surface-disabled: #f4f4f5;
+
+  --cms-foreground: #1d2327;
+  --cms-text-secondary: #646970;
+  --cms-text-tertiary: #8c8f94;
+  --cms-text-disabled: #a7aaad;
+  --cms-primary-foreground: #ffffff;
+
+  --cms-border: #dcdcde;
+  --cms-border-subtle: #f0f0f1;
+  --cms-border-strong: #8c8f94;
+  --cms-ring: #2271b1;
+  --cms-border-disabled: #dcdcde;
+
+  --cms-success-subtle: #e6f4ea;
+  --cms-success-border: #bbf7d0;
+  --cms-success-text: #007c12;
+  --cms-success: #00a32a;
+
+  --cms-warning-subtle: #fffbeb;
+  --cms-warning-border: #fde68a;
+  --cms-warning: #b26200;
+  --cms-warning-solid: #dca000;
+
+  --cms-destructive-subtle: #fef2f2;
+  --cms-destructive-border: #fecaca;
+  --cms-destructive-text: #b91c1c;
+  --cms-destructive: #d63638;
+
+  --cms-info-subtle: #eff6ff;
+  --cms-info-border: #bfdbfe;
+  --cms-info-text: #135e96;
+
+  --cms-type-display-size: 24px;
+  --cms-type-display-weight: 600;
+  --cms-type-display-line: 32px;
+  --cms-type-h1-size: 20px;
+  --cms-type-h1-weight: 600;
+  --cms-type-h1-line: 28px;
+  --cms-type-h2-size: 18px;
+  --cms-type-h2-weight: 600;
+  --cms-type-h2-line: 26px;
+  --cms-type-h3-size: 16px;
+  --cms-type-h3-weight: 600;
+  --cms-type-h3-line: 24px;
+  --cms-type-h4-size: 14px;
+  --cms-type-h4-weight: 600;
+  --cms-type-h4-line: 20px;
+  --cms-type-body-large-size: 15px;
+  --cms-type-body-large-weight: 400;
+  --cms-type-body-large-line: 24px;
+  --cms-type-body-size: 14px;
+  --cms-type-body-weight: 400;
+  --cms-type-body-line: 21px;
+  --cms-type-body-small-size: 13px;
+  --cms-type-body-small-weight: 400;
+  --cms-type-body-small-line: 20px;
+  --cms-type-label-large-size: 14px;
+  --cms-type-label-large-weight: 600;
+  --cms-type-label-large-line: 20px;
+  --cms-type-label-size: 13px;
+  --cms-type-label-weight: 500;
+  --cms-type-label-line: 18px;
+  --cms-type-label-small-size: 12px;
+  --cms-type-label-small-weight: 600;
+  --cms-type-label-small-line: 16px;
+  --cms-type-caption-size: 11px;
+  --cms-type-caption-weight: 400;
+  --cms-type-caption-line: 16px;
+  --cms-type-helper-size: 12px;
+  --cms-type-helper-weight: 400;
+  --cms-type-helper-line: 18px;
+  --cms-type-link-size: 13px;
+  --cms-type-link-weight: 500;
+  --cms-type-link-line: 20px;
+  --cms-type-table-size: 13px;
+  --cms-type-table-weight: 400;
+  --cms-type-table-line: 20px;
+
+  --cms-space-1: 4px;
+  --cms-space-2: 8px;
+  --cms-space-3: 12px;
+  --cms-space-4: 16px;
+  --cms-space-5: 20px;
+  --cms-space-6: 24px;
+  --cms-space-8: 32px;
+  --cms-space-10: 40px;
+  --cms-space-12: 48px;
+  --cms-space-16: 64px;
+
+  --cms-radius-sm: 4px;
+  --cms-radius-md: 6px;
+  --cms-radius-lg: 10px;
+  --cms-radius-full: 999px;
+
+  --cms-control-sm: 32px;
+  --cms-control-md: 36px;
+  --cms-control-lg: 40px;
+  --cms-icon-size: 16px;
+  --cms-border-width: 1px;
+
+  --cms-shadow-sm: 0 1px 1px rgb(0 0 0 / 6%);
+  --cms-shadow-md: 0 4px 8px rgb(0 0 0 / 10%);
+  --cms-shadow-overlay: 0 20px 30px rgb(0 0 0 / 20%);
+  --cms-focus-ring: 0 0 0 3px color-mix(in srgb, var(--cms-primary) 30%, transparent);
+  --cms-focus-ring-field: 0 0 0 2px color-mix(in srgb, var(--cms-ring) 20%, transparent);
+
+  box-sizing: border-box;
+  min-height: 100%;
+  background: var(--cms-background);
+  color: var(--cms-foreground);
+  font-family: var(--cms-font);
+  font-size: var(--cms-type-body-size);
+  font-weight: var(--cms-type-body-weight);
+  line-height: var(--cms-type-body-line);
+}
+
+.cms-admin *,
+.cms-admin *::before,
+.cms-admin *::after {
+  box-sizing: border-box;
+}
+
+/* Only while an admin screen is mounted. The rule ships in the admin CSS chunk. */
+body:has(.cms-admin) {
+  margin: 0;
+}

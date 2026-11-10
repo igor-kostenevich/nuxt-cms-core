@@ -3,10 +3,17 @@
     "locale": {
       "label": "Мова"
     },
+    "alert": {
+      "dismiss": "Закрити"
+    },
     "login": {
+      "mark": "CMS",
+      "caption": "Система керування контентом",
       "title": "Вхід у CMS",
       "email": "Електронна пошта",
+      "emailPlaceholder": "name{'@'}company.com",
       "password": "Пароль",
+      "passwordPlaceholder": "Введіть пароль",
       "submit": "Увійти",
       "invalid": "Невірна електронна пошта або пароль."
     },
@@ -16,6 +23,13 @@
       "logout": "Вийти",
       "yes": "true",
       "no": "false"
+    },
+    "validation": {
+      "required": "Заповніть це поле.",
+      "email": "Введіть адресу електронної пошти.",
+      "phone": "Введіть номер телефону.",
+      "password": "Пароль має містити щонайменше {min} символів.",
+      "confirmed": "Паролі не збігаються."
     },
     "errors": {
       "notFound": "Запис не знайдено.",

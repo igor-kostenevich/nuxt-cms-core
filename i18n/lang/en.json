@@ -3,10 +3,17 @@
     "locale": {
       "label": "Language"
     },
+    "alert": {
+      "dismiss": "Dismiss"
+    },
     "login": {
+      "mark": "CMS",
+      "caption": "Content Management System",
       "title": "CMS login",
       "email": "Email",
+      "emailPlaceholder": "name{'@'}company.com",
       "password": "Password",
+      "passwordPlaceholder": "Enter your password",
       "submit": "Log in",
       "invalid": "Invalid email or password."
     },
@@ -16,6 +23,13 @@
       "logout": "Log out",
       "yes": "true",
       "no": "false"
+    },
+    "validation": {
+      "required": "Fill in this field.",
+      "email": "Enter an email address.",
+      "phone": "Enter a phone number.",
+      "password": "Password must be at least {min} characters.",
+      "confirmed": "Passwords do not match."
     },
     "errors": {
       "notFound": "The requested record was not found.",
