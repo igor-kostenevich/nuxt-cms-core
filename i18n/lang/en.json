@@ -24,6 +24,37 @@
       "yes": "true",
       "no": "false"
     },
+    "shell": {
+      "navLabel": "Admin",
+      "viewSite": "View site",
+      "groups": {
+        "content": "Content",
+        "website": "Website",
+        "system": "System"
+      },
+      "nav": {
+        "dashboard": "Dashboard",
+        "pages": "Pages",
+        "media": "Media",
+        "forms": "Forms",
+        "analytics": "Analytics",
+        "activity": "Activity",
+        "integrations": "Integrations",
+        "users": "Users",
+        "secrets": "Secrets",
+        "settings": "Settings"
+      }
+    },
+    "settings": {
+      "general": "General",
+      "siteName": "Site name",
+      "contactEmail": "Contact email",
+      "contactPhone": "Contact phone",
+      "maintenance": "Maintenance mode",
+      "maintenanceHint": "The public site does not use this flag yet. Saving only stores the value.",
+      "save": "Save",
+      "readOnly": "You can view these settings, but you cannot change them."
+    },
     "validation": {
       "required": "Fill in this field.",
       "email": "Enter an email address.",

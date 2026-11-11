@@ -126,7 +126,15 @@ RLS тільки на `select`, `CmsDataError`, lazy anon-клієнт.
 `done` · [запис](./004a-admin-ui-foundation.md)
 
 Токени і компоненти адмінки під `.cms-admin`. Логін зібраний з `AdminRoot`, `AdminInput`,
-`AdminButton`, `AdminAlert`. Епік 004 лишається `todo`: layout, сайдбар і запис Settings — це 004b.
+`AdminButton`, `AdminAlert`. Layout, сайдбар і запис Settings — у 004b.
+
+### 004b — Admin shell + запис Site Settings
+
+`done` · [запис](./004b-admin-shell-settings.md)
+
+Оболонка `/admin` з сайдбаром. Settings → General пише `siteName`, `contactEmail`,
+`contactPhone`, `maintenanceMode`. Запис іде через `SettingsRepository.update()` і RLS
+`cms_can('settings.update')`.
 
 ---
 
@@ -154,11 +162,11 @@ Auth  →  перший запис (Settings + Admin shell)
 
 ### 004 — Admin shell + запис Site Settings
 
-`todo` · 004a зроблено · джерело: дизайн-ТЗ (навігація, Settings → General), Блок 10, 17
+`done` · 004a + [004b](./004b-admin-shell-settings.md) · джерело: дизайн-ТЗ (навігація, Settings → General), Блок 10, 17
 
 **Чому тут.** Найдешевший write-зріз: сутність уже є, Auth уже є.
 Одночасно з’являється Admin Runtime як окрема зона, не завантажена на публічному сайті.
-Візуальний фундамент уже є в 004a. Залишився 004b.
+Візуальний фундамент — 004a. Оболонку і запис закрито в 004b.
 
 **Що будуємо.**
 
@@ -481,7 +489,7 @@ publish, AI-фічі, image optimization pipeline, Backup Manager UI.
 | Architecture Summary, Foundation | 001 (зроблено) |
 | 5 Data Layer, 10 Config (env), 12 Contract | 002 (зроблено), далі росте з кожною сутністю |
 | 6 Auth | 003 |
-| Дизайн-ТЗ Admin, 4 UI primitives за потреби | 004a (зроблено), 004b, 015 |
+| Дизайн-ТЗ Admin, 4 UI primitives за потреби | 004a, 004b (зроблено), 015 |
 | 5/12 Pages | 005 |
 | 4 CMS primitives, 17 public runtime | 006 |
 | 8 Draft/Publish/Revisions | 007 |

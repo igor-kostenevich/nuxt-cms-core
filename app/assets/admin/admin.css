@@ -130,6 +130,9 @@
   --cms-control-lg: 40px;
   --cms-icon-size: 16px;
   --cms-border-width: 1px;
+  --cms-sidebar-width: 17rem;
+  --cms-sidebar-active: #23282d;
+  --cms-shell-bar: var(--cms-space-16);
 
   --cms-shadow-sm: 0 1px 1px rgb(0 0 0 / 6%);
   --cms-shadow-md: 0 4px 8px rgb(0 0 0 / 10%);

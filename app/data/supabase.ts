@@ -41,6 +41,9 @@ export function getSupabaseClient(): SupabaseClient {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
+      // The session client uses the default key. A shared key makes GoTrue
+      // treat these as two managers of one session.
+      storageKey: 'cms-public',
     },
   })
 

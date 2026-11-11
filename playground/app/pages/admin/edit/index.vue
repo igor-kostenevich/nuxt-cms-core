@@ -9,10 +9,18 @@ await ensure()
 </script>
 
 <template>
-  <main>
-    <h1>Edit</h1>
-    <p v-if="user">
+  <AdminShell title="Edit">
+    <p
+      v-if="user"
+      class="edit__identity"
+    >
       Signed in as {{ user.email }} ({{ user.role }})
     </p>
-  </main>
+  </AdminShell>
 </template>
+
+<style scoped>
+.edit__identity {
+  margin: 0;
+}
+</style>

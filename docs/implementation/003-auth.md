@@ -70,7 +70,7 @@ CLI. Пароль `local-dev-password` — фікстура локального
 
 ## Перевірено
 
-- `supabase db reset` створює чотирьох користувачів. Owner і editor логіняться. Customer і
+- `supabase db reset` створює п’ятьох користувачів. Owner, admin і editor логіняться. Customer і
   disabled отримують одне `no_cms_access` і не лишають cookie.
 - Хибний пароль дає `invalid_credentials`, без підказки, чи існує email.
 - Без сесії `/admin` і `/admin/edit` йдуть на `/admin/login?redirect=...`.

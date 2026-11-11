@@ -32,6 +32,7 @@
     "@nuxtjs/i18n": "^10.6.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "@vueuse/core": "^15.0.0",
     "c12": "^3.3.4",
     "vee-validate": "^4.15.1"
   },

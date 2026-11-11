@@ -62,6 +62,24 @@ function onSubmit(event: Event) {
   message.value = ''
   return submit(event)
 }
+
+const devLogins = import.meta.dev
+  ? [
+      { label: 'Owner', email: 'owner@example.com' },
+      { label: 'Admin', email: 'admin@example.com' },
+      { label: 'Editor', email: 'editor@example.com' },
+    ]
+  : []
+
+async function onDevLogin(accountEmail: string) {
+  if (!import.meta.dev) {
+    return
+  }
+
+  email.value = accountEmail
+  password.value = 'local-dev-password'
+  await submit()
+}
 </script>
 
 <template>
@@ -150,6 +168,28 @@ function onSubmit(event: Event) {
           >
             {{ t('admin.login.submit') }}
           </AdminButton>
+
+          <div
+            v-if="devLogins.length"
+            class="login__dev"
+          >
+            <p class="login__dev-label">
+              Dev
+            </p>
+            <div class="login__dev-actions">
+              <AdminButton
+                v-for="account in devLogins"
+                :key="account.email"
+                type="button"
+                variant="secondary"
+                size="sm"
+                :disabled="submitting"
+                @click="onDevLogin(account.email)"
+              >
+                {{ account.label }}
+              </AdminButton>
+            </div>
+          </div>
         </form>
       </section>
     </div>
@@ -259,5 +299,30 @@ function onSubmit(event: Event) {
 .login__form :deep(.login__submit) {
   width: 100%;
   margin-top: var(--cms-space-1);
+}
+
+.login__dev {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cms-space-2);
+  padding-top: var(--cms-space-4);
+  border-top: var(--cms-border-width) solid var(--cms-border);
+}
+
+.login__dev-label {
+  margin: 0;
+  color: var(--cms-text-tertiary);
+  font-size: var(--cms-type-helper-size);
+  font-weight: var(--cms-type-helper-weight);
+  line-height: var(--cms-type-helper-line);
+}
+
+.login__dev-actions {
+  display: flex;
+  gap: var(--cms-space-2);
+}
+
+.login__dev-actions :deep(.admin-button) {
+  flex: 1;
 }
 </style>
