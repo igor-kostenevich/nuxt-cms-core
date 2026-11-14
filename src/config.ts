@@ -4,6 +4,11 @@
  */
 export interface CmsConfig {
   debug?: boolean
+  /**
+   * Locale the public site reads content in, e.g. `uk` or `en-GB`.
+   * Until localization (010) there is one locale per site.
+   */
+  defaultLocale?: string
 }
 
 /**
@@ -11,10 +16,27 @@ export interface CmsConfig {
  */
 export interface ResolvedCmsConfig {
   debug: boolean
+  defaultLocale: string
+}
+
+/**
+ * Canonical BCP 47 subset: language, optional script, optional region
+ * (`uk`, `en-GB`, `zh-Hant`, `es-419`). One spelling per language, so `en-gb`
+ * is rejected. Keep identical to `cms_page_published_locale_format` in SQL.
+ */
+export const CMS_LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|\d{3}))?$/
+
+/**
+ * Value checks beyond the type. A rejected value falls back to its default
+ * with a build-time warning instead of silently matching no content.
+ */
+const formatChecks: Partial<Record<keyof ResolvedCmsConfig, (value: unknown) => boolean>> = {
+  defaultLocale: value => CMS_LOCALE_PATTERN.test(value as string),
 }
 
 export const defaultCmsConfig: ResolvedCmsConfig = {
   debug: false,
+  defaultLocale: 'en',
 }
 
 /**
@@ -34,7 +56,7 @@ export function defineCmsConfig(config: CmsConfig): CmsConfig {
 export interface CmsConfigResolution {
   config: ResolvedCmsConfig
   /** Keys left out of the result, with the reason, for a build-time warning. */
-  ignored: { key: string, reason: 'unknown' | 'type' }[]
+  ignored: { key: string, reason: 'unknown' | 'type' | 'format' }[]
 }
 
 /**
@@ -44,7 +66,8 @@ export interface CmsConfigResolution {
  * c12 loads the file without typechecking it. So only keys Core knows are
  * kept, and only when the value has the default's type: a stray private value
  * stays out of the bundle, and a function does not silently vanish in
- * JSON.stringify. Every current field is a primitive, so `typeof` is enough.
+ * JSON.stringify. Every current field is a primitive, so `typeof` is enough
+ * for the type; `formatChecks` covers values whose shape matters.
  */
 export function resolveCmsConfig(config?: CmsConfig): CmsConfigResolution {
   const resolved: ResolvedCmsConfig = { ...defaultCmsConfig }
@@ -63,6 +86,11 @@ export function resolveCmsConfig(config?: CmsConfig): CmsConfigResolution {
 
     if (typeof value !== typeof target[key]) {
       ignored.push({ key, reason: 'type' })
+      continue
+    }
+
+    if (formatChecks[key as keyof ResolvedCmsConfig]?.(value) === false) {
+      ignored.push({ key, reason: 'format' })
       continue
     }
 

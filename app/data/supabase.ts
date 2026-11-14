@@ -1,5 +1,6 @@
 import { createClient, type PostgrestError, type SupabaseClient } from '@supabase/supabase-js'
 import { useRuntimeConfig } from '#imports'
+import type { Database } from './database.types'
 import { CmsDataError, type CmsDataErrorCode } from './errors'
 
 /**
@@ -10,7 +11,7 @@ import { CmsDataError, type CmsDataErrorCode } from './errors'
  * with repositories, domain types and CmsDataError.
  */
 
-let client: SupabaseClient | undefined
+let client: SupabaseClient<Database> | undefined
 
 export function readSupabasePublicConfig(): { url: string, key: string } {
   const { supabaseUrl, supabaseKey } = useRuntimeConfig().public.cms
@@ -26,7 +27,7 @@ export function readSupabasePublicConfig(): { url: string, key: string } {
   return { url: supabaseUrl, key: supabaseKey }
 }
 
-export function getSupabaseClient(): SupabaseClient {
+export function getSupabaseClient(): SupabaseClient<Database> {
   if (client) {
     return client
   }
@@ -36,7 +37,7 @@ export function getSupabaseClient(): SupabaseClient {
   // Public reads stay anonymous even when a CMS session cookie exists.
   // Attaching that session here would pull auth into the public bundle and
   // turn every public request into the `authenticated` role.
-  client = createClient(url, key, {
+  client = createClient<Database>(url, key, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

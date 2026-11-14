@@ -33,7 +33,7 @@
 | 004a | Admin UI foundation + Login | 0 | `done` | [004a](./004a-admin-ui-foundation.md) |
 | 004b | Admin shell + запис Site Settings | 0 | `done` | [004b](./004b-admin-shell-settings.md) |
 | 004c | Alignment (вирівнювання перед 005) | 0 | `done` | [004c](./004c-alignment.md) |
-| 005 | Pages як content entity (published read) | 1 | `todo` | — |
+| 005 | Pages як content entity (published read) | 1 | `done` | [005](./005-pages.md) |
 | 006 | CMS Primitives, тільки Public Runtime | 1 | `todo` | — |
 | 007 | Draft / Publish / Revisions (дані) | 1 | `todo` | — |
 | 008 | Edit Mode (мінімальний вертикальний зріз) | 1 | `todo` | — |
@@ -84,3 +84,11 @@ RLS тільки на `select`, `CmsDataError`, lazy anon-клієнт.
 Public `/` не вантажить vue-i18n, vee-validate і admin CSS. Є скрипти `typecheck` / `lint` і
 `@nuxt/test-utils`. Тест звіряє `permissions.ts` з `cms_can()`. `package.json` готовий до
 публічного npm: без `private`, із заготовкою `bin`, `prepare` замість `postinstall`.
+
+### 005 — Pages як content entity (published read)
+
+`cms_pages` (identity за `key`) + `cms_page_published` (JSONB-документ на page × locale), RLS лише
+на `select`. `PagesRepository.getByKey()` читає одним запитом, `useCmsPage(key)` повертає `null`
+для сторінки без контенту, і шаблон рендерить дефолти. Locale береться з `defaultLocale` у
+`cms.config.ts`. Є generated Supabase types (`npm run gen:types`) і pgTAP smoke-тест міграцій
+(`npm run test:db`).

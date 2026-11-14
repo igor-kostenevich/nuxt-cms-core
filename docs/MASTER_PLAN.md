@@ -194,7 +194,36 @@ Architecture Summary, `Б N` — блок доки.
   їх явно. У layer композабл Client Project з тим самим ім'ям мовчки перекриває композабл Core, тож
   кожне глобальне admin-ім'я — шанс зламати адмінку. Крім того, після першого publish прибрати
   auto-import означало б major-версію (C-31). Глобальними лишається публічне API: `useCms`,
-  `useCmsAuth`, `usePermissions`, `useSiteSettings`.
+  `useCmsAuth`, `usePermissions`, `useSiteSettings`, `useCmsPage` (005).
+
+### Закрито перед 005
+
+- **C-41. Сторінка — identity + документ на (page, locale) (було D-02).** `cms_pages` — лише
+  identity (`id`, `key`), `cms_page_published` — один JSONB-документ на `(page_id, locale)`. Draft
+  у 007 — окрема таблиця такої самої форми (C-06). Locale входить у ключ із самого початку, тож 010
+  додає таблицю мов без переписування рядків. Форма документа всередині (dotted path чи nested) —
+  D-08 (006).
+- **C-42. Рядок сторінки створюється lazy (було D-03).** Немає рядка або published-документа →
+  публічне читання повертає `null`, шаблон рендерить дефолти з коду. Рядок створює RPC під сесією
+  редактора на першому вході в Edit Mode (008). Core-міграції сторінок не вставляють. У playground
+  вони беруться з `supabase/seed.sql`.
+- **C-43. `cms_pages` — лише статичні code-defined сторінки, за `key` без slug (було D-04, D-05).**
+  Route живе в коді Client Project, `key` — ідентифікатор у коді (`home`, kebab-case), не URL. Template
+  pages (Products, Blog) — записи колекцій (014), slug у їхніх перекладах (C-15). «Create page» у
+  дизайн-ТЗ означає створення запису template-типу колекції, а не рядка `cms_pages`.
+- **C-44. До 010 locale контенту — `defaultLocale` у `cms.config.ts`** (дефолт `'en'`). У 010 джерелом
+  стане таблиця мов; коди в уже записаних рядках лишаються валідними. Формат — канонічний BCP 47
+  (`uk`, `en-GB`, `zh-Hant`, `es-419`), однаковий у SQL-constraint і `CMS_LOCALE_PATTERN`; невалідний
+  `defaultLocale` відкидається на build з попередженням. Мовонезалежні поля і fallback на default
+  locale — D-60 (010).
+- **C-46. Publish — на entity × locale (було D-26).** Кожна мова публікується окремо: нову мову
+  додають і наповнюють поступово по всьому Client Project, не чіпаючи опубліковані мови. Модель
+  C-41 це вже підтримує (`published_at` на `(page_id, locale)`). Draft і ревізії в 007 будуються
+  так само per-locale.
+- **C-45. Generated types і smoke-тест міграцій.** Типи — `npm run gen:types` (локальна схема →
+  `app/data/database.types.ts`, комітиться), обидва Supabase-клієнти типізовані `Database`.
+  Smoke-тест — pgTAP у `supabase/tests/database/`, `npm run test:db` (`supabase test db`, потрібен
+  Docker). У `npm test` не входить. Тест перевіряє, що кожна таблиця `cms_*` має RLS.
 
 ---
 
@@ -210,6 +239,7 @@ Architecture Summary, `Б N` — блок доки.
 | 004a | Токени й `Admin*` компоненти під `.cms-admin`, login | [004a](./implementation/004a-admin-ui-foundation.md) |
 | 004b | Admin shell із сайдбаром, Settings → General пише через `SettingsRepository.update()` + RLS `cms_can('settings.update')` | [004b](./implementation/004b-admin-shell-settings.md) |
 | 004c | Admin i18n без `@nuxtjs/i18n` (C-36), public bundle без vue-i18n / vee-validate / admin CSS, `typecheck` / `lint` / `@nuxt/test-utils`, тест синхронності прав TS ↔ SQL, `package.json` під публічний npm | [004c](./implementation/004c-alignment.md) |
+| 005 | `cms_pages` + `cms_page_published` (документ на page × locale, select-only RLS), `PagesRepository.getByKey()`, `useCmsPage()`, `defaultLocale` у config, generated types, pgTAP smoke-тест | [005](./implementation/005-pages.md) |
 
 ### Drift код ↔ план
 
@@ -261,16 +291,16 @@ read → draft → edit → publish до локалізації; Collections п�
 
 ### 005 — Pages як content entity (published read)
 
-`todo` · Фаза 1
+`done` · Фаза 1 · [запис](./implementation/005-pages.md)
 
 - **Ціль.** Перша контентна сутність із публічним читанням, як 002 для settings.
-- **Будуємо.** Таблиця `pages` + `PagesRepository` лише з read-методами (`getBySlug`,
-  можливо `getAll`); playground-сторінка рендерить published контент **одним** запитом;
+- **Будуємо.** Таблиці `cms_pages` + `cms_page_published` (C-41) і `PagesRepository` лише з read-методами (`getByKey` за C-43;
+  `getAll` — лише зі споживачем); playground-сторінка рендерить published контент **одним** запитом;
   generated Supabase types; smoke-тест міграцій.
 - **Anti-scope.** Draft, Revisions, Edit Mode, локалізація UI, колекції, SEO-сутності «на
   майбутнє», generic CRUD.
 - **Залежності.** 002, 003.
-- **Блокуючі рішення.** D-02, D-03, D-04, D-05. Storage model вибирається **з урахуванням**
+- **Блокуючі рішення.** D-02 → C-41, D-03 → C-42, D-04 / D-05 → C-43 (закрито). Storage model вибирається **з урахуванням**
   007 (де живе Draft, C-06) і 010 (locale-ключ), щоб не робити міграцію даних пізніше.
 - **Джерела.** §6–7, §12, §15; Б5, Б12; DB v1 → Pages.
 
@@ -286,6 +316,8 @@ read → draft → edit → publish до локалізації; Collections п�
 - **Anti-scope.** Tiptap, toolbar, hover/selection, Media Picker, `v-model`-контракт, generic `CmsField`.
 - **Залежності.** 005.
 - **Блокуючі рішення.** D-06, D-07 (формат rich text — якщо `CmsRichText` входить), D-08.
+  D-08 вибирати так, щоб не закрити D-60: адреса поля не має залежати від того, чи поле
+  перекладається.
 - **Джерела.** §8–9; Б3 §3, §5, §31; Б4; Б17.
 
 ### 007 — Draft / Publish / Revisions (дані)
@@ -353,13 +385,14 @@ read → draft → edit → publish до локалізації; Collections п�
 
 - **Ціль.** Мультимовність бізнес-даних після того, як один locale пройшов повний цикл.
 - **Будуємо.** `languages` (source of truth, рівно одна active default, add / disable /
-  reactivate / set default); патерн `*_translations` для Pages; repository віддає плаский
+  reactivate / set default); для Pages документ на locale вже є (C-41), тож `*_translations`
+  потрібен лише сутностям зі структурованими колонками; repository віддає плаский
   `page.title`; Settings → Languages; Edit Mode редагує поточну мову + language switcher;
   fallback-політика в Project Config; дані для hreflang/canonical.
 - **Anti-scope.** AI translation, per-locale page trees, Translator role, ручні translation
   statuses / `outdated`, фізичне видалення мови, per-locale lock.
 - **Залежності.** 007, 008 (і 009 — для alt по мовах).
-- **Блокуючі рішення.** D-26, D-27, D-28, D-29, D-30.
+- **Блокуючі рішення.** D-26 → C-46 (закрито), D-27, D-28, D-29, D-30, D-60.
 - **Ризик.** `@nuxtjs/i18n` вимагає список locales на build-time для prefix-маршрутів, а мови з
   БД — без deploy. Routing локалізованого сайту — відповідальність Client (`[[locale]]` +
   middleware); Core лише дає дані.
@@ -486,10 +519,6 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
-| D-02 | 005 | Storage model значень полів сторінки | JSONB-документ на сторінку; колонки на поле; таблиця `page_fields` | Узгодити з D-09 і локалізацією: документ на (page, locale, state) найпростіший для code-defined сторінок |
-| D-03 | 005 | Як code-defined сторінка отримує рядок у `pages` | Реєстрація в коді + upsert; seed-міграція Client; auto-create при першому edit | Реєстрація в Client + idempotent upsert |
-| D-04 | 005 | Хто володіє slug/route статичної сторінки | Route у коді, slug у БД лише для template-сутностей; slug у БД для всіх | Статичні — route у коді; slug у БД — для template pages (Products тощо) |
-| D-05 | 005 | Що означає «Create page» у дизайн-ТЗ | Лише запис template-типу; прибрати для статичних | Лише template-тип (C-01) |
 | D-06 | 006 | Контракт значення primitive | `v-model`; `value` prop + `fieldKey`, зміна лише через Editor Engine; primitive читає з контексту за `fieldKey` | `value` + `fieldKey`, без `v-model` |
 | D-07 | 006/008 | Формат rich text | Tiptap JSON + власний легкий renderer; sanitized HTML | Вирішувати, коли з'явиться реальне rich-поле |
 | D-08 | 006 | Формат field address | `hero.title`, `services.items.<id>.title`; хто генерує id елементів | Dotted path + uuid елементів, генерує клієнт |
@@ -515,10 +544,10 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
-| D-26 | 010 | Publish на entity чи entity × locale | Вся entity (Summary §18); по locale | Вирішити разом з D-12; per-locale практичніше для перекладачів |
 | D-27 | 010 | Local repeatable і переклади | Спільна структура масиву, перекладаються тексти; масив повністю per locale | Спільна структура («перекладаються дані, не структура») |
 | D-28 | 010 | Рівні alt | Media default; + usage override; + per locale | Default мовою за замовчуванням + per-usage override у локалізованому контенті |
 | D-29 | 010 | Вмикання мультимовності | `features.multilingual` у config + runtime toggle; «мов > 1» = multilingual | «Мов > 1» (toggle з ТЗ зайвий) |
+| D-60 | 010 (+006) | Мовонезалежні поля сторінки (mediaId, посилання, перемикачі) при документі на locale (C-41); що бачить мова без документа | Дублювати поле в кожному locale; спільний документ на сторінку (`cms_page_shared`, окремий від locale); fallback на документ default locale при читанні | Обидва — адитивно: спільний документ для мовонезалежних полів + fallback на default locale в репозиторії. Знайдено в ревʼю 005 |
 | D-30 | 010 | Localized settings у V1 | `cms_site_settings_translations` одразу; лише з другою мовою | Лише коли з'явиться друга мова |
 | D-31 | 011 | Public submit | Anon insert policy; server route із `SUPABASE_SECRET` (раніше за 015.2) | Server route; server-only клієнт з'являється тут, а не в 015.2 |
 | D-32 | 011 | Rate limiting у serverless | Таблиця в Postgres; KV хостингу; механізм хостингу | Таблиця в Postgres |
@@ -610,7 +639,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | Edit Mode: логотип як обов'язкове поле | Логотип — Settings → Brand | D-19 |
 | Edit Mode: перемикач мов EN/UA/DE | Лише після 010 | 010 |
 | Pages: статус Hidden, дія Publish/Hide | Немає в моделі Draft/Publish | D-12 |
-| Dashboard: «Create page» | Статичні сторінки задає розробник | D-05 |
+| Dashboard: «Create page» | Статичні сторінки задає розробник | C-43: запис template-типу колекції |
 | Collections: Active/Hidden; Delete | Draft/Publish; soft delete | D-44, C-34 |
 | Activity: Restore з diff | Restore лише для подій з ревізією | D-37 |
 | Media: Replace «з медіатеки» | Змішує Replace Media і Change Image | 009 |

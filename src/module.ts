@@ -27,7 +27,9 @@ export default defineNuxtModule({
       for (const { key, reason } of ignored) {
         logger.warn(reason === 'unknown'
           ? `cms.config: unknown key "${key}" is ignored and not shipped to the client.`
-          : `cms.config: "${key}" has the wrong type and falls back to its default.`)
+          : reason === 'type'
+            ? `cms.config: "${key}" has the wrong type and falls back to its default.`
+            : `cms.config: "${key}" has an invalid format and falls back to its default.`)
       }
     }
 

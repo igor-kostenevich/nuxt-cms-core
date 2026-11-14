@@ -34,13 +34,14 @@ src/                  Nuxt Module і контракт cms.config (defineCmsConfi
 bin/                  Заготовка CLI nuxt-cms (сам CLI — 016)
 app/data/             Supabase-клієнти (єдині імпорти SDK), CmsDataError, repositories
 app/auth/             Матриця прав can() — має збігатися з SQL cms_can()
-app/composables/      Публічне API: useCms, useCmsAuth, useSiteSettings, usePermissions (усі exports —
+app/composables/      Публічне API: useCms, useCmsAuth, useSiteSettings, useCmsPage, usePermissions (усі exports —
                       глобальні auto-imports у Client)
 app/components/admin/ Admin* UI під .cms-admin
 app/pages/admin/      Admin-сторінки (login, shell, settings)
 app/admin/            Композабли й хелпери адмінки поза auto-imports (useAdminI18n, useAdminSettings,
                       useAdminValidation — імпортувати явно, C-40); locales/ — словники, ключі cms.*
 supabase/migrations/  Core migrations (публікуються з пакетом)
+supabase/tests/       pgTAP smoke-тести міграцій (не публікуються)
 playground/           Тестовий Client Project
 tests/                Vitest
 docs/                 MASTER_PLAN, source/architecture.md, implementation/
@@ -54,6 +55,8 @@ npm run build     # build playground
 npm test          # vitest run (node; Nuxt-середовище — файли `*.nuxt.test.ts` / `tests/nuxt/**`)
 npm run typecheck # nuxi typecheck playground + tsc -p src
 npm run lint      # eslint (@nuxt/eslint-config, без stylistic)
+npm run test:db   # pgTAP smoke-тест міграцій (supabase test db, потрібен локальний Supabase)
+npm run gen:types # app/data/database.types.ts з локальної схеми — після кожної міграції
 supabase start    # локальний Supabase (Docker); ключі — supabase status → .env
 ```
 

@@ -125,6 +125,26 @@ const { settings, pending, error, refresh } = useSiteSettings()
 </script>
 ```
 
+Pages are code-defined: the route and the structure live in the Client Project, and the CMS
+stores only the published content values, addressed by a page `key`. `page` is empty (`undefined`
+while loading, `null` when the page has no published content yet), so the template renders its own
+defaults:
+
+```vue
+<script setup lang="ts">
+const { page } = useCmsPage('home')
+const hero = computed(() => (page.value?.content.hero ?? {}) as { title?: string })
+</script>
+
+<template>
+  <h1>{{ hero.title ?? 'Default title' }}</h1>
+</template>
+```
+
+The content locale is `defaultLocale` in `cms.config.ts` (`'en'` by default) until localization
+arrives. It must be a canonical BCP 47 tag (`uk`, `en-GB`); an invalid value falls back to the
+default with a build warning.
+
 Errors are `CmsDataError` with a `code` of `not_found`, `permission_denied` or `unknown`.
 Backend-specific errors never reach the UI. An error that passed through `useAsyncData` (SSR, or
 revived from the payload) is a `NuxtError` instead; its code is kept in `error.data.cmsCode`.
@@ -158,6 +178,8 @@ npm run dev         # http://localhost:3000
 npm run build
 npm run preview
 npm test            # Vitest
+npm run test:db     # pgTAP smoke test of the migrations (local Supabase, Docker)
+npm run gen:types   # regenerate app/data/database.types.ts from the local schema
 npm run typecheck   # vue-tsc over the playground (includes the layer) and tsc over src/
 npm run lint        # ESLint
 ```

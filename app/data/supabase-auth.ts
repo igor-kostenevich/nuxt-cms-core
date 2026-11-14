@@ -12,6 +12,7 @@ import {
   type SupabaseClient,
 } from '@supabase/supabase-js'
 import type { CmsAuthIdentity } from '../types/auth'
+import type { Database } from './database.types'
 import { CmsDataError } from './errors'
 import { readSupabasePublicConfig } from './supabase'
 
@@ -25,19 +26,19 @@ import { readSupabasePublicConfig } from './supabase'
 
 const AUTH_CLIENT_KEY = 'cmsSupabaseAuthClient'
 
-let browserClient: SupabaseClient | undefined
+let browserClient: SupabaseClient<Database> | undefined
 
 type AuthEventContext = {
-  [AUTH_CLIENT_KEY]?: SupabaseClient
+  [AUTH_CLIENT_KEY]?: SupabaseClient<Database>
 }
 
-export function getSupabaseAuthClient(request?: H3Event): SupabaseClient {
+export function getSupabaseAuthClient(request?: H3Event): SupabaseClient<Database> {
   // The browser client is created once, while a component or middleware still
   // has the Nuxt instance. Later calls reuse it and do not touch composables.
   if (import.meta.client) {
     if (!browserClient) {
       const { url, key } = readSupabasePublicConfig()
-      browserClient = createBrowserClient(url, key, {
+      browserClient = createBrowserClient<Database>(url, key, {
         // @supabase/ssr does not set Secure by default. Following the protocol
         // keeps http://localhost working and HTTPS sites protected.
         cookieOptions: { secure: window.location.protocol === 'https:' },
@@ -65,7 +66,7 @@ export function getSupabaseAuthClient(request?: H3Event): SupabaseClient {
   // After an await the Nuxt instance is gone, so later calls only read the
   // client cached on the event above.
   const { url, key } = readSupabasePublicConfig()
-  const client = createServerClient(url, key, {
+  const client = createServerClient<Database>(url, key, {
     // Honours X-Forwarded-Proto, so a TLS-terminating proxy still yields Secure.
     cookieOptions: { secure: getRequestProtocol(request) === 'https' },
     cookies: {

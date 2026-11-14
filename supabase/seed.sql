@@ -78,3 +78,14 @@ values
   ('55555555-5555-4555-8555-555555555555', 'admin', 'active'),
   ('22222222-2222-4222-8222-222222222222', 'editor', 'active'),
   ('44444444-4444-4444-8444-444444444444', 'editor', 'disabled');
+
+-- Playground pages. Core migrations insert no pages: they belong to the Client Project.
+-- `about` is left out on purpose, to show a page without a row rendering its code defaults.
+with home as (
+  insert into public.cms_pages (key)
+  values ('home')
+  returning id
+)
+insert into public.cms_page_published (page_id, locale, content)
+select id, 'uk', '{"hero": {"title": "Вітаємо на сайті", "lead": "Цей текст прийшов з cms_page_published."}}'::jsonb
+from home;
