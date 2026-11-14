@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { PASSWORD_MIN_LENGTH, useAdminValidation } from '../app/composables/useAdminValidation'
+import { PASSWORD_MIN_LENGTH } from '../app/admin/validation'
+import { useAdminValidation } from '../app/admin/useAdminValidation'
 
-vi.mock('../app/composables/useAdminI18n', () => ({
+vi.mock('../app/admin/useAdminI18n', () => ({
   useAdminI18n: () => ({
     t: () => 'invalid',
   }),

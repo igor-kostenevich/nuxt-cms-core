@@ -125,8 +125,9 @@ const { settings, pending, error, refresh } = useSiteSettings()
 </script>
 ```
 
-Errors surface as `CmsDataError` with a `code` of `not_found`, `permission_denied` or `unknown`.
-Backend-specific errors never reach the UI.
+Errors are `CmsDataError` with a `code` of `not_found`, `permission_denied` or `unknown`.
+Backend-specific errors never reach the UI. An error that passed through `useAsyncData` (SSR, or
+revived from the payload) is a `NuxtError` instead; its code is kept in `error.data.cmsCode`.
 
 ## CMS login
 

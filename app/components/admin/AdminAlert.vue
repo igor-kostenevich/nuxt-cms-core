@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAdminI18n } from '../../admin/useAdminI18n'
 const props = defineProps<{
   tone: 'info' | 'success' | 'warning' | 'danger'
   title: string

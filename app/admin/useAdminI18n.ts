@@ -1,3 +1,4 @@
+import { useCookie, useRequestHeaders, useState } from '#imports'
 import {
   ADMIN_DICTIONARIES,
   ADMIN_LOCALE_COOKIE,
@@ -7,7 +8,7 @@ import {
   translate,
   type AdminLocale,
   type TranslateParams,
-} from '../admin/i18n'
+} from './i18n'
 
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
@@ -16,8 +17,10 @@ const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
  * global plugin in the app entry, which would ship to the public site and merge
  * Core locales into the Client Project's own i18n setup (MASTER_PLAN C-25, C-36).
  *
- * Only admin components call this composable, so the dictionaries end up in
- * admin chunks only. Helpers live in app/admin/i18n.ts so they are not auto-imported.
+ * Lives in app/admin, not app/composables, so it is not a global auto-import in
+ * the Client Project: a public page cannot pull the dictionaries in by accident,
+ * and a Client composable with the same name cannot override it (layer
+ * auto-imports lose to the project's own). Admin components import it explicitly.
  */
 export function useAdminI18n() {
   const cookie = useCookie<string | null>(ADMIN_LOCALE_COOKIE, {

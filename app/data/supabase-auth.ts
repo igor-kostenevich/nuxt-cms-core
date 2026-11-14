@@ -1,6 +1,16 @@
-import { appendResponseHeader, parseCookies, setCookie, type H3Event } from 'h3'
+import {
+  appendResponseHeader,
+  getRequestProtocol,
+  parseCookies,
+  setCookie,
+  type H3Event,
+} from 'h3'
 import { createBrowserClient, createServerClient, type CookieOptions } from '@supabase/ssr'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  isAuthApiError,
+  isAuthSessionMissingError,
+  type SupabaseClient,
+} from '@supabase/supabase-js'
 import type { CmsAuthIdentity } from '../types/auth'
 import { CmsDataError } from './errors'
 import { readSupabasePublicConfig } from './supabase'
@@ -27,7 +37,11 @@ export function getSupabaseAuthClient(request?: H3Event): SupabaseClient {
   if (import.meta.client) {
     if (!browserClient) {
       const { url, key } = readSupabasePublicConfig()
-      browserClient = createBrowserClient(url, key)
+      browserClient = createBrowserClient(url, key, {
+        // @supabase/ssr does not set Secure by default. Following the protocol
+        // keeps http://localhost working and HTTPS sites protected.
+        cookieOptions: { secure: window.location.protocol === 'https:' },
+      })
     }
 
     return browserClient
@@ -52,6 +66,8 @@ export function getSupabaseAuthClient(request?: H3Event): SupabaseClient {
   // client cached on the event above.
   const { url, key } = readSupabasePublicConfig()
   const client = createServerClient(url, key, {
+    // Honours X-Forwarded-Proto, so a TLS-terminating proxy still yields Secure.
+    cookieOptions: { secure: getRequestProtocol(request) === 'https' },
     cookies: {
       getAll() {
         return Object.entries(parseCookies(request)).map(([name, value]) => ({ name, value }))
@@ -81,10 +97,21 @@ function writeAuthCookies(
 }
 
 export async function getAuthUser(request?: H3Event): Promise<CmsAuthIdentity | null> {
-  const { data, error } = await getSupabaseAuthClient(request).auth.getUser()
+  const client = getSupabaseAuthClient(request)
+  const { data, error } = await client.auth.getUser()
 
   if (error) {
-    if (isMissingSession(error)) {
+    const kind = classifySessionError(error)
+
+    if (kind === 'missing') {
+      return null
+    }
+
+    if (kind === 'stale') {
+      // The cookie holds a session the auth server rejects. Drop it locally,
+      // otherwise every request would fail on the same cookie. Best effort:
+      // the visitor is anonymous either way.
+      await client.auth.signOut({ scope: 'local' }).catch(() => undefined)
       return null
     }
 
@@ -137,9 +164,9 @@ export async function signInWithPassword(
 }
 
 export async function signOut(request?: H3Event): Promise<void> {
-  const { error } = await getSupabaseAuthClient(request).auth.signOut()
+  const { error } = await getSupabaseAuthClient(request).auth.signOut({ scope: 'local' })
 
-  if (error && !isMissingSession(error)) {
+  if (error && classifySessionError(error) === 'failure') {
     throw new CmsDataError('unknown', `Failed to sign out: ${error.message}`, {
       cause: error,
     })
@@ -150,7 +177,23 @@ function isInvalidCredentials(error: { code?: string, name?: string }): boolean 
   return error.code === 'invalid_credentials' || error.name === 'AuthInvalidCredentialsError'
 }
 
-function isMissingSession(error: { name?: string, message?: string }): boolean {
-  return error.name === 'AuthSessionMissingError'
-    || error.message === 'Auth session missing!'
+export type SessionErrorKind = 'missing' | 'stale' | 'failure'
+
+/**
+ * How a session read failed:
+ * - `missing`: there is no session.
+ * - `stale`: the cookie holds a session the auth server rejects (expired or
+ *   reused refresh token, deleted user, bad JWT). Treated as signed out.
+ * - `failure`: network or server trouble. The session state is unknown.
+ */
+export function classifySessionError(error: unknown): SessionErrorKind {
+  if (isAuthSessionMissingError(error)) {
+    return 'missing'
+  }
+
+  if (isAuthApiError(error) && error.status >= 400 && error.status < 500 && error.status !== 429) {
+    return 'stale'
+  }
+
+  return 'failure'
 }

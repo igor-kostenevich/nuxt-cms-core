@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { useForm } from 'vee-validate'
 import { adminErrorKey } from '../../../admin/error-key'
+import { useAdminI18n } from '../../../admin/useAdminI18n'
+import { useAdminValidation } from '../../../admin/useAdminValidation'
+import { useAdminSettings } from '../../../admin/useAdminSettings'
 
 definePageMeta({
   middleware: ['cms-auth'],
@@ -18,7 +21,9 @@ const saving = ref(false)
 const failure = ref('')
 const current = settings.value
 
-const { handleSubmit, defineField, errors, submitCount } = useForm({
+const saved = ref(false)
+
+const { handleSubmit, defineField, errors, submitCount, resetForm } = useForm({
   initialValues: {
     siteName: current?.siteName ?? '',
     contactEmail: current?.contactEmail ?? '',
@@ -51,14 +56,26 @@ const onSubmit = handleSubmit(async (values) => {
 
   saving.value = true
   failure.value = ''
+  saved.value = false
 
   try {
-    await save({
+    const next = await save({
       siteName: values.siteName,
       contactEmail: values.contactEmail,
       contactPhone: values.contactPhone,
       maintenanceMode: values.maintenanceMode,
     })
+
+    // Show what was stored: trimmed text, blank contacts cleared.
+    resetForm({
+      values: {
+        siteName: next.siteName,
+        contactEmail: next.contactEmail ?? '',
+        contactPhone: next.contactPhone ?? '',
+        maintenanceMode: next.maintenanceMode,
+      },
+    })
+    saved.value = true
   } catch (cause) {
     failure.value = t(adminErrorKey(cause))
   } finally {
@@ -87,8 +104,15 @@ const onSubmit = handleSubmit(async (values) => {
 
       <AdminAlert
         v-if="!canUpdate"
-        tone="warning"
+        tone="info"
         :title="t('cms.settings.readOnly')"
+      />
+      <AdminAlert
+        v-if="saved"
+        tone="success"
+        :title="t('cms.settings.saved')"
+        dismissible
+        @dismiss="saved = false"
       />
       <AdminAlert
         v-if="failure"
@@ -111,7 +135,7 @@ const onSubmit = handleSubmit(async (values) => {
         v-model="contactEmail"
         v-bind="contactEmailProps"
         :label="t('cms.settings.contactEmail')"
-        :placeholder="t('cms.login.emailPlaceholder')"
+        :placeholder="t('cms.common.emailPlaceholder')"
         :error="errors.contactEmail"
         :disabled="!canUpdate || saving"
         name="contactEmail"

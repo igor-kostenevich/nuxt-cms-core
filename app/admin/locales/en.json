@@ -6,23 +6,27 @@
     "alert": {
       "dismiss": "Dismiss"
     },
-    "login": {
+    "common": {
       "mark": "CMS",
       "caption": "Content Management System",
+      "emailPlaceholder": "name@company.com",
+      "logout": "Log out"
+    },
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "editor": "Editor"
+    },
+    "login": {
       "title": "CMS login",
       "email": "Email",
-      "emailPlaceholder": "name@company.com",
       "password": "Password",
       "passwordPlaceholder": "Enter your password",
       "submit": "Log in",
       "invalid": "Invalid email or password."
     },
     "home": {
-      "title": "CMS",
-      "signedIn": "Signed in as {email} ({role})",
-      "logout": "Log out",
-      "yes": "true",
-      "no": "false"
+      "signedIn": "Signed in as {email} ({role})"
     },
     "shell": {
       "navLabel": "Admin",
@@ -43,7 +47,9 @@
         "users": "Users",
         "secrets": "Secrets",
         "settings": "Settings"
-      }
+      },
+      "soon": "Coming soon",
+      "logoutFailed": "Could not log out. Try again."
     },
     "settings": {
       "general": "General",
@@ -53,7 +59,8 @@
       "maintenance": "Maintenance mode",
       "maintenanceHint": "The public site does not use this flag yet. Saving only stores the value.",
       "save": "Save",
-      "readOnly": "You can view these settings, but you cannot change them."
+      "readOnly": "You can view these settings, but you cannot change them.",
+      "saved": "Settings saved."
     },
     "validation": {
       "required": "Fill in this field.",

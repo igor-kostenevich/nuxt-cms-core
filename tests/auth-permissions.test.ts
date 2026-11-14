@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { CMS_PERMISSIONS, roleCan } from '../app/auth/permissions'
-import type { CmsPermission, CmsRole } from '../app/types/auth'
+import { CMS_ROLES, type CmsPermission, type CmsRole } from '../app/types/auth'
 
-const roles = ['owner', 'admin', 'editor'] as const satisfies readonly CmsRole[]
+const roles = CMS_ROLES
 
 const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
   owner: {

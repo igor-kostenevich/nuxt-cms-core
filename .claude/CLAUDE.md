@@ -34,12 +34,12 @@ src/                  Nuxt Module і контракт cms.config (defineCmsConfi
 bin/                  Заготовка CLI nuxt-cms (сам CLI — 016)
 app/data/             Supabase-клієнти (єдині імпорти SDK), CmsDataError, repositories
 app/auth/             Матриця прав can() — має збігатися з SQL cms_can()
-app/composables/      useCms, useCmsAuth, useSiteSettings, usePermissions, ... (усі exports — глобальні
-                      auto-imports у Client; хелпери адмінки — в app/admin/, його не сканують)
+app/composables/      Публічне API: useCms, useCmsAuth, useSiteSettings, usePermissions (усі exports —
+                      глобальні auto-imports у Client)
 app/components/admin/ Admin* UI під .cms-admin
 app/pages/admin/      Admin-сторінки (login, shell, settings)
-app/admin/            Хелпери адмінки поза auto-imports; locales/ — словники (en, uk) для
-                      useAdminI18n(), ключі cms.*
+app/admin/            Композабли й хелпери адмінки поза auto-imports (useAdminI18n, useAdminSettings,
+                      useAdminValidation — імпортувати явно, C-40); locales/ — словники, ключі cms.*
 supabase/migrations/  Core migrations (публікуються з пакетом)
 playground/           Тестовий Client Project
 tests/                Vitest

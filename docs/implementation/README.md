@@ -58,7 +58,7 @@
 ### 002 — Data Layer + Site Settings (read-only)
 
 Зафіксована межа `Repository → Backend Adapter` на одній сутності.
-Є `SettingsRepository.get()`, `useSiteSettings()`, міграція `site_settings`,
+Є `SettingsRepository.get()`, `useSiteSettings()`, міграція `cms_site_settings`,
 RLS тільки на `select`, `CmsDataError`, lazy anon-клієнт.
 
 ### 003 — Auth, CMS Users, Permissions

@@ -1,20 +1,26 @@
 import type { H3Event } from 'h3'
-import type { CmsMembership, CmsRole, CmsUserStatus } from '../../types/auth'
+import {
+  CMS_ROLES,
+  CMS_USER_STATUSES,
+  type CmsMembership,
+  type CmsRole,
+  type CmsUserStatus,
+} from '../../types/auth'
 import { CmsDataError } from '../errors'
 import { getSupabaseAuthClient } from '../supabase-auth'
 import { toCmsDataError } from '../supabase'
 
 const TABLE = 'cms_users'
 
-/** Database row shape, kept private so snake_case never leaks out of this file. */
+/** Database row shape. snake_case stays inside the data layer. */
 interface CmsUserRow {
   user_id: string
   role: string
   status: string
 }
 
-const ROLES = new Set<CmsRole>(['owner', 'admin', 'editor'])
-const STATUSES = new Set<CmsUserStatus>(['active', 'disabled'])
+const ROLES = new Set<string>(CMS_ROLES)
+const STATUSES = new Set<string>(CMS_USER_STATUSES)
 
 function toMembership(row: CmsUserRow): CmsMembership {
   if (!isRole(row.role) || !isStatus(row.status)) {
@@ -29,11 +35,11 @@ function toMembership(row: CmsUserRow): CmsMembership {
 }
 
 function isRole(value: string): value is CmsRole {
-  return ROLES.has(value as CmsRole)
+  return ROLES.has(value)
 }
 
 function isStatus(value: string): value is CmsUserStatus {
-  return STATUSES.has(value as CmsUserStatus)
+  return STATUSES.has(value)
 }
 
 export function createCmsUsersRepository(request?: H3Event) {

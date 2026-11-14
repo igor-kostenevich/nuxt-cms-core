@@ -6,23 +6,27 @@
     "alert": {
       "dismiss": "Закрити"
     },
-    "login": {
+    "common": {
       "mark": "CMS",
       "caption": "Система керування контентом",
+      "emailPlaceholder": "name@company.com",
+      "logout": "Вийти"
+    },
+    "roles": {
+      "owner": "Власник",
+      "admin": "Адміністратор",
+      "editor": "Редактор"
+    },
+    "login": {
       "title": "Вхід у CMS",
       "email": "Електронна пошта",
-      "emailPlaceholder": "name@company.com",
       "password": "Пароль",
       "passwordPlaceholder": "Введіть пароль",
       "submit": "Увійти",
       "invalid": "Невірна електронна пошта або пароль."
     },
     "home": {
-      "title": "CMS",
-      "signedIn": "Ви увійшли як {email} ({role})",
-      "logout": "Вийти",
-      "yes": "true",
-      "no": "false"
+      "signedIn": "Ви увійшли як {email} ({role})"
     },
     "shell": {
       "navLabel": "Адмінка",
@@ -43,7 +47,9 @@
         "users": "Користувачі",
         "secrets": "Секрети",
         "settings": "Налаштування"
-      }
+      },
+      "soon": "Незабаром",
+      "logoutFailed": "Не вдалося вийти. Спробуйте ще раз."
     },
     "settings": {
       "general": "Загальні",
@@ -53,7 +59,8 @@
       "maintenance": "Режим обслуговування",
       "maintenanceHint": "Публічний сайт поки не використовує цей прапорець. Зберігається лише значення.",
       "save": "Зберегти",
-      "readOnly": "Ви можете переглянути ці налаштування, але не можете їх змінити."
+      "readOnly": "Ви можете переглянути ці налаштування, але не можете їх змінити.",
+      "saved": "Налаштування збережено."
     },
     "validation": {
       "required": "Заповніть це поле.",

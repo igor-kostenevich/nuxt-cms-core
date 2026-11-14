@@ -1,12 +1,5 @@
+import { PASSWORD_MIN_LENGTH, type FieldRule } from './validation'
 import { useAdminI18n } from './useAdminI18n'
-
-export type FieldRule = (value: unknown) => true | string
-
-/**
- * Matches `minimum_password_length` in supabase/config.toml.
- * Auth rejects anything shorter, so the form should too.
- */
-export const PASSWORD_MIN_LENGTH = 6
 
 const PHONE_MIN_DIGITS = 7
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

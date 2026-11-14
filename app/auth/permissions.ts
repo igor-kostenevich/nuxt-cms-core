@@ -1,5 +1,7 @@
 import type { CmsPermission, CmsRole } from '../types/auth'
 
+export { CMS_PERMISSIONS } from '../types/auth'
+
 /**
  * Static role → permission map for V1.
  *
@@ -12,13 +14,6 @@ const GRANTED: Record<CmsRole, readonly CmsPermission[]> = {
   admin: ['settings.update', 'pages.edit', 'pages.publish'],
   editor: ['pages.edit'],
 }
-
-export const CMS_PERMISSIONS = [
-  'settings.update',
-  'users.manage',
-  'pages.edit',
-  'pages.publish',
-] as const satisfies readonly CmsPermission[]
 
 export function roleCan(role: CmsRole, permission: CmsPermission): boolean {
   const granted = GRANTED[role]

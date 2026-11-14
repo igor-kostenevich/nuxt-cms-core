@@ -18,7 +18,12 @@
 
 - Layer + internal Module, а не окремий публічний module entry. Layer дає auto-import composables, Module — build-time логіку.
 - Конфіг експортується через `#cms/config` (`addTemplate` + alias), а не через `runtimeConfig`. Це build-time значення, не env override.
-- Нових dependencies не додавали: `@nuxt/kit` і `c12` уже були в дереві.
+- `@nuxt/kit` і `c12` уже були в дереві транзитивно. Модуль імпортує їх напряму, тому вони оголошені
+  в `dependencies` явно.
+- Після ревʼю: `resolveCmsConfig` пропускає лише ключі з `defaultCmsConfig` і лише значення з типом
+  дефолту. Решту модуль відкидає з warning. c12 не тайпчекає `cms.config.ts`, а результат іде в
+  client bundle, тож стороннє поле не потрапить у `#cms/config`, а функція не зникне мовчки.
+  Тест — `cms-config`.
 
 ## Перевірено
 

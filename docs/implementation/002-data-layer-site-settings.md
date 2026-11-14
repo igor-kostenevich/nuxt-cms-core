@@ -6,6 +6,8 @@
 Site Settings обрані як перша сутність не через їхню цінність, а тому що це найдешевший реальний
 споживач Data Layer: немає draft/publish, revisions, локалізації та permissions.
 
+Джерела (звірено під час ревʼю 001–004c): architecture.md Summary §15–17, §27–28, §31; DB v1 → Settings.
+
 ## Що зроблено
 
 - Backend adapter: `app/data/supabase.ts` — єдиний файл у пакеті, який знає про Supabase SDK.
@@ -13,14 +15,14 @@ Site Settings обрані як перша сутність не через їх
 - Domain type: `app/types/settings.ts` (`SiteSettings`).
 - Repository: `app/data/repositories/settings.repository.ts` з єдиним методом `get()`.
 - Composable: `app/composables/useSiteSettings.ts` на `useAsyncData`.
-- Перша Core-міграція: `supabase/migrations/20260920121920_site_settings.sql`.
+- Перша Core-міграція: `supabase/migrations/20260920121920_cms_site_settings.sql`.
 - `src/module.ts` прокидає `SUPABASE_URL` / `SUPABASE_KEY` у `runtimeConfig.public.cms`.
 - Додано залежність `@supabase/supabase-js`.
 
 Потік даних:
 
 ```
-playground app.vue → useSiteSettings() → SettingsRepository → Supabase adapter → Postgres
+playground/app/pages/index.vue → useSiteSettings() → SettingsRepository → Supabase adapter → Postgres
 ```
 
 ## Ключові рішення
@@ -50,7 +52,7 @@ Supabase і немає перемикача `local / cloud`. Різниця мі
 `NUXT_PUBLIC_CMS_SUPABASE_URL` / `NUXT_PUBLIC_CMS_SUPABASE_KEY`. Власного механізму override не
 писали.
 
-**`site_settings` — single-row таблиця з явними колонками.** Не один великий JSON з усіма
+**`cms_site_settings` — single-row таблиця з явними колонками.** Не один великий JSON з усіма
 налаштуваннями: явні колонки залишають схему бізнес-зрозумілою і портабельною. Один логічний рядок
 гарантується на рівні схеми через `check (id = 1)`. Сутності, які самі є списками (мови, навігація,
 інтеграції), сюди не належать і отримають власні таблиці.
@@ -92,6 +94,22 @@ Draft/Publish і Permissions.
 - `CmsDataError`, кинутий під час SSR, доходить до клієнта як `NuxtError`, тому на клієнті
   перевірка `instanceof CmsDataError` не працює — доступні лише `message` і статус. Якщо колись
   знадобиться розгалуження за кодом на клієнті, код треба буде передавати через `data` помилки.
+
+## Змінено пізніше
+
+- Після ревʼю міграції 002, 003 і 004b переписано на місці, бо пакет ще не опублікований і
+  хмарної бази немає. Поправки ревʼю не стали окремими міграціями: правило — одна міграція
+  на фічу. Міграція 002 тепер:
+  - створює `cms_site_settings` одразу з префіксом `cms_` (MASTER_PLAN C-38);
+  - сама видає `select` для `anon` і `authenticated` (раніше grant лежав у міграції 003);
+  - створює тригер `cms_touch_updated_at()`, щоб `updated_at` ставила БД, а не годинник браузера.
+- 004b: зʼявились `SettingsRepository.update()`, update-політика і request-scoped клієнт
+  (`app/data/supabase-auth.ts`), тож «тільки читання» і «один файл з SDK» вже не так.
+- Після ревʼю: обмеження про `NuxtError` закрито. `CmsDataError` дублює код у `data.cmsCode`.
+  `createError()` у `useAsyncData` і SSR payload зберігають `data`, а `adminErrorKey()` читає
+  код звідти (тест `admin-error-key`).
+- Після ревʼю: тест `settings-repository` покриває `update()` (payload, `id = 1`, 0 рядків →
+  `permission_denied`) і мапінг `toCmsDataError`.
 
 ## Що свідомо не робили
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAdminI18n } from '../../admin/useAdminI18n'
 definePageMeta({
   middleware: ['cms-auth'],
 })
@@ -15,7 +16,7 @@ await ensure()
       v-if="user"
       class="home__identity"
     >
-      {{ t('cms.home.signedIn', { email: user.email, role: user.role }) }}
+      {{ t('cms.home.signedIn', { email: user.email, role: t(`cms.roles.${user.role}`) }) }}
     </p>
   </AdminShell>
 </template>

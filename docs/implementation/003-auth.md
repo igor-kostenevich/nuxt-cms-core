@@ -4,23 +4,27 @@
 на питання «хто це». `cms_users` — «чи є доступ до CMS і з якою роллю». Запис у `auth.users`
 сам по собі не відкриває `/admin`.
 
+Джерела: architecture.md Б6 (§5, §11–16, §21–24, §28, §33), Б11.
+
 ## Що зроблено
 
 - Сесійний адаптер: `app/data/supabase-auth.ts`. Єдине місце, яке імпортує `@supabase/ssr`.
 - Anon-клієнт у `app/data/supabase.ts` лишився з `persistSession: false`.
 - Таблиця `cms_users`, RLS на читання лише свого рядка, функції `is_active_cms_user()` і `cms_can()`.
+  Після ревʼю `is_active_cms_user()` видалено: її не викликали ні policies, ні код.
 - Статична матриця прав у `app/auth/permissions.ts` і та сама матриця в SQL.
 - `useCmsAuth()`, `usePermissions()`, named middleware `cms-auth`.
 - Сторінки `/admin/login` і `/admin`. Редагування сайту теж під адмінкою: playground
   доводить гейт сторінкою `/admin/edit`.
 - Локальний `supabase/seed.sql`: owner, editor, customer без рядка, disabled.
-- Тести `roleCan()` і `safeRedirect()`.
+- Тести `roleCan()`, `safeRedirect()` і `auth-access` (gate, `loginAccess`, `sessionFromAccess`).
+  Після ревʼю додано `permissions-sync` (004c) і `classifySessionError`.
 
 Потік:
 
 ```
 /admin → cms-auth → useCmsAuth() → auth adapter + CmsUsersRepository → Supabase Auth + cms_users
-/             → useSiteSettings() → anon client → site_settings
+/             → useSiteSettings() → anon client → cms_site_settings
 ```
 
 ## Ключові рішення
@@ -58,6 +62,9 @@ customer, і для disabled. Якщо людина вже була залогі
 `/admin`, middleware відправляє на головну і не розлогінює: це одна Auth-система, і вихід із CMS був би
 виходом із сайту. Окремого екрана про відсутність доступу немає.
 
+**Вихід — лише поточна сесія.** `signOut({ scope: 'local' })`, а не дефолтний `global`: з тієї ж
+причини вихід із CMS не повинен закривати сесії на інших пристроях (MASTER_PLAN C-39, після ревʼю).
+
 **Немає `SUPABASE_SECRET` і invite.** Login працює publishable-ключем, ідентичність запиту — user
 JWT у cookie. Invite через Admin Auth API потребує секрету і з'явиться разом із Settings → Users.
 
@@ -79,24 +86,48 @@ CLI. Пароль `local-dev-password` — фікстура локального
   лишає сесію.
 - Editor бачить `pages.publish = false`, `users.manage = false`, і відкриває `/admin/edit`.
 - Якщо active-користувача вимкнути в базі, не чіпаючи cookie, `/admin` відправляє на головну і не
-  розлогінює сам.
-- Публічний `/` читає site settings. Запит `site_settings` не несе user JWT.
-- У production HTML `/` немає `@supabase/ssr`. `build:manifest` прибирає `dynamicImports`,
+  розлогінює сам. Це спрацьовує на SSR і після перезавантаження. Під час клієнтської навігації
+  middleware бере закешований `cms:auth-session`, тож вимкнення або зміна ролі доходять до UI
+  лише після reload. Безпеку це не ламає: RLS і `cms_can()` читають `cms_users` на кожен запит.
+- Після ревʼю: cookie з невалідним JWT або з мертвим refresh token. `/admin` → 302 на
+  `/admin/login?redirect=/admin`, `/admin/login` → 200 з формою, і обидва чистять cookie
+  (`Max-Age=0`). Раніше обидва давали помилку.
+- Публічний `/` читає site settings. Запит `cms_site_settings` не несе user JWT.
+- У production HTML `/` немає `@supabase/ssr`. `build:manifest` прибирає `dynamicImports`
+  (після ревʼю хук у `src/module.ts` лишає prefetch для власних модулів Client поза `pages/admin`, див. 004c),
   інакше Vite ставить prefetch на кожну async-сторінку і публічна сторінка стягує auth-чанк.
   Посилання playground на `/admin` має `prefetch: false`. Чанк `@supabase/supabase-js` на `/` є,
   бо публічне читання settings уже залежить від нього з блоку 002; рядок `signInWithPassword`
   усередині цього SDK, а не наш login.
 - `npm test` (матриця і redirect), `npm run build`.
 
+**Зламана сесія — це вихід, а не помилка (після ревʼю).** `classifySessionError` ділить помилки
+читання сесії на `missing`, `stale` і `failure` через type guards SDK, а не за текстом повідомлення.
+`stale` — це 4xx від auth-сервера, крім 429: протухлий або повторно використаний refresh token,
+видалений користувач, невалідний JWT. Вона означає «не залогінений», і адаптер робить
+`signOut({ scope: 'local' })`, щоб cookie не валила кожен наступний запит. Помилкою лишається лише
+`failure` (мережа, 5xx, 429). Сторінка логіну не падає навіть на `failure`: показує помилку в алерті
+над формою, бо форма і є виходом зі зламаної сесії.
+
 ## Обмеження
 
 - Немає invite, deactivate, change role і захисту останнього Owner.
 - Немає `SUPABASE_SECRET` і server-only клієнта.
 - Хмарний проєкт не отримує seed. Першого Owner там ще нічим створити, крім ручного SQL.
-- Запису `site_settings` досі немає. Функція `cms_can` уже є, write-політика прийде з `update()`.
-- Нові таблиці Supabase більше не отримують Data API grant автоматично. У цій міграції
-  `site_settings` явно отримала `select` для `anon` і `authenticated`, інакше публічне читання
-  після `db reset` падає з `permission denied`, попри наявну RLS-політику.
+- ~~Запису settings досі немає.~~ Закрито в 004b.
+- Нові таблиці Supabase більше не отримують Data API grant автоматично, а старіший проєкт може
+  видавати все за замовчуванням. Тому міграції не покладаються на дефолтні гранти: кожна спершу
+  робить `revoke all` для `anon` і `authenticated`, а потім видає лише потрібне. Без явного
+  `select` публічне читання settings після `db reset` падало з `permission denied`, попри наявну
+  RLS-політику.
+- Після ревʼю міграцію переписано на місці (див. 002, «Змінено пізніше»):
+  - `cms_users` має лише `select` для `authenticated`, тож спроба editor'а змінити собі роль
+    дає `42501` ще до RLS;
+  - `anon` не має `execute` на `cms_can()`;
+  - `cms_can()` отримала `search_path = ''`;
+  - `updated_at` ставить тригер;
+  - у коментарі таблиці виправлено `/edit` → `/admin/edit`.
+- Заборона self-escalation з `with check` і тестом — вимога до 015.2.
 
 ## Що свідомо не робили
 

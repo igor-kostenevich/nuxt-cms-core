@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { CMS_PERMISSIONS, roleCan } from '../app/auth/permissions'
-import type { CmsRole } from '../app/types/auth'
+import { CMS_ROLES } from '../app/types/auth'
 
 /**
  * The permission matrix lives twice: `roleCan()` for the UI and `cms_can()` for
@@ -11,7 +11,7 @@ import type { CmsRole } from '../app/types/auth'
  */
 
 const MIGRATIONS_DIR = join(import.meta.dirname, '../supabase/migrations')
-const ROLES = ['owner', 'admin', 'editor'] as const satisfies readonly CmsRole[]
+const ROLES = CMS_ROLES
 
 // Matches both hand-written SQL and pg_dump style (`CREATE OR REPLACE FUNCTION "public"."cms_can"`),
 // but not `grant` / `revoke ... on function public.cms_can(text)`.

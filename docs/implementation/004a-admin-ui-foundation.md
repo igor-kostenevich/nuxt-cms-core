@@ -13,7 +13,7 @@
   розміри sm / md / lg; hover, pressed, focus, disabled, loading).
 - `AdminAlert` (info, success, warning, danger, dismiss, action).
 - `AdminInput` — лише варіант логіна: label, `v-model`, leading icon, focus, disabled,
-  нативні атрибути поля.
+  нативні атрибути поля. З 004b він використовується і на Settings.
 - `/admin/login` зібраний з цих компонентів. Перемикач мови на логіні прибраний; на `/admin`
   він лишається. Логіка `ensure` / `login` / `safeRedirect` / `adminErrorKey` не змінювалась.
 - Playground-сторінка `/admin/ui-kit` під `cms-auth`. У пакет вона не входить: `files` не містить
@@ -46,6 +46,7 @@ Focus кнопки — кільце 3px / 30% primary. Focus поля — бор
 **`@` у перекладі екранується.** Vue I18n читає `@` як посилання на інший ключ.
 Плейсхолдер `name@company.com` у production падав з `SyntaxError` «10»
 (`INVALID_LINKED_FORMAT`). У словниках це `name{'@'}company.com`.
+Замінено в 004c: vue-i18n прибрано, `useAdminI18n()` не має linked messages, тож `@` пишеться як є.
 
 **Підпис під знаком перекладений.** Український екран каже «Система керування контентом».
 У макеті на українській сторінці лишився англійський рядок; для i18n це переклад, не копія макета.

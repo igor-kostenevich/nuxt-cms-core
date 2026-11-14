@@ -99,6 +99,7 @@
   --cms-type-caption-size: 11px;
   --cms-type-caption-weight: 400;
   --cms-type-caption-line: 16px;
+  --cms-type-micro-size: 10px;
   --cms-type-helper-size: 12px;
   --cms-type-helper-weight: 400;
   --cms-type-helper-line: 18px;
@@ -129,6 +130,10 @@
   --cms-control-md: 36px;
   --cms-control-lg: 40px;
   --cms-icon-size: 16px;
+  --cms-switch-width: 32px;
+  --cms-switch-height: 18px;
+  --cms-switch-thumb: 14px;
+  --cms-switch-inset: 2px;
   --cms-border-width: 1px;
   --cms-sidebar-width: 17rem;
   --cms-sidebar-active: #23282d;

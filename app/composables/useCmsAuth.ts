@@ -9,8 +9,6 @@ import {
 import { createCmsUsersRepository } from '../data/repositories/cms-users.repository'
 import type { CmsLoginResult } from '../types/auth'
 
-export type { CmsAuthSnapshot }
-
 /**
  * CMS session: an auth identity plus an active cms_users row.
  * Disabled memberships and auth users without a row are authenticated, but

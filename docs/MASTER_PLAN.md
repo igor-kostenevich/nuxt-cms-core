@@ -71,7 +71,7 @@ Architecture Summary, `Б N` — блок доки.
   запит сервер + клієнт).
 - **C-06. RLS — рядкова, не колонкова.** Усе, що anon-ключ може прочитати в рядку, він
   прочитає. Тому Draft не може лежати в одному рядку з Published під anon `select`, а
-  непублічні налаштування не живуть у `site_settings`.
+  непублічні налаштування не живуть у `cms_site_settings`.
 - **C-07. Атомарні операції — Postgres-функції (RPC).** Publish, Restore, acquire/heartbeat/
   release lock виконуються однією функцією в транзакції. Side effects (cache revalidation,
   нотифікації) — після commit, best-effort.
@@ -80,7 +80,7 @@ Architecture Summary, `Б N` — блок доки.
   це на `permission_denied` / `not_found`.
 - **C-09. Схема бізнес-зрозуміла.** Окремі таблиці на сутність, без EAV/`entities`.
   JSON — лише для immutable snapshot або справді неструктурованих даних (§12). Навігація,
-  мови, інтеграції — окремі таблиці, не колонки `site_settings` (002).
+  мови, інтеграції — окремі таблиці, не колонки `cms_site_settings` (002).
 - **C-10. Generated Supabase types** — з 005. Smoke-тест міграцій — з 005.
 
 ### Контент
@@ -133,7 +133,11 @@ Architecture Summary, `Б N` — блок доки.
 - **C-25. Переклади адмінки ≠ переклади сайту.** Admin i18n — частина Core в усіх проектах,
   з префіксом ключів `cms.*`, вантажиться лише в Admin/Editor Runtime, не зливається з locales
   Client Project і не потрапляє в public bundle. Механізм — C-36.
-- **C-26. Залежності.** VueUse — дозволена залежність Core (tree-shaken імпорти). Pinia —
+- **C-26. Залежності.** VueUse — дозволена залежність Core (tree-shaken імпорти). Утиліти, які
+  VueUse вже має (debounce, clipboard, event listeners, storage, media queries тощо), беремо з
+  нього, а не пишемо вручну. Зараз його в `dependencies` немає: доданий у 004b `@vueuse/core` ніде
+  не імпортувався і після ревʼю 001–004c його прибрали. Перший епік, якому знадобиться утиліта,
+  встановлює `@vueuse/core` і використовує його. Pinia —
   лише разом з Editor Engine (008). `vee-validate` — тільки для адмінки, не потрапляє в public
   bundle і не нав'язується Client Project.
 - **C-27. `cms.config.ts` — лише серіалізовані значення** (modules, feature flags, ліміти).
@@ -159,7 +163,7 @@ Architecture Summary, `Б N` — блок доки.
 ### Розкладка по епіках (із «Зафіксовано після 004a»)
 
 - **C-34.** Soft delete / Trash — по сутностях: Pages у 007, Media у 009, Collections у 014.
-- **C-35.** Maintenance mode і robots/indexing на публічному сайті — 015 (поле вже в `site_settings`).
+- **C-35.** Maintenance mode і robots/indexing на публічному сайті — 015 (поле вже в `cms_site_settings`).
 
 ### Закрито в 004c
 
@@ -176,6 +180,22 @@ Architecture Summary, `Б N` — блок доки.
   Без Docker — окремий хмарний dev-проєкт через `supabase link`. Деплой Client Project Docker не
   потребує. Обидва шляхи — у README.
 
+### Зафіксовано після ревʼю 001–004c
+
+- **C-38. Префікс `cms_` для всіх Core-таблиць.** Core-таблиці лежать у `public` поруч із
+  таблицями Client Project, тому мають префікс `cms_` (`cms_users`, `cms_site_settings`). Те саме для
+  назв policies і constraints. До першого publish міграції 002–004b переписано на місці з
+  префіксом, тож перейменування в історії міграцій немає. Модель міграцій (D-50) лишається
+  відкритою.
+- **C-39. Вихід з адмінки — лише поточна сесія.** `signOut({ scope: 'local' })`: одна Auth-система
+  з майбутнім `/account`, тому вихід із CMS не закриває сесії на інших пристроях.
+- **C-40. Композабли адмінки — не глобальні auto-imports.** `useAdminI18n`, `useAdminSettings`,
+  `useAdminValidation` і майбутні `useAdmin*` лежать в `app/admin/`, а admin-компоненти імпортують
+  їх явно. У layer композабл Client Project з тим самим ім'ям мовчки перекриває композабл Core, тож
+  кожне глобальне admin-ім'я — шанс зламати адмінку. Крім того, після першого publish прибрати
+  auto-import означало б major-версію (C-31). Глобальними лишається публічне API: `useCms`,
+  `useCmsAuth`, `usePermissions`, `useSiteSettings`.
+
 ---
 
 ## 3. Стан проекту
@@ -185,7 +205,7 @@ Architecture Summary, `Б N` — блок доки.
 | Епік | Що є | Запис |
 | --- | --- | --- |
 | 001 | Nuxt Layer + внутрішній Module, `cms.config.ts`, `#cms/config`, `useCms()`, playground | [001](./implementation/001-foundation.md) |
-| 002 | `SettingsRepository.get()`, `useSiteSettings()`, `site_settings`, RLS select, `CmsDataError`, lazy anon-клієнт | [002](./implementation/002-data-layer-site-settings.md) |
+| 002 | `SettingsRepository.get()`, `useSiteSettings()`, `cms_site_settings`, RLS select, `CmsDataError`, lazy anon-клієнт | [002](./implementation/002-data-layer-site-settings.md) |
 | 003 | `auth.users` → `cms_users`, login, сесія в cookie, статична `can()` + `cms_can()`, middleware на `/admin` і `/admin/edit` | [003](./implementation/003-auth.md) |
 | 004a | Токени й `Admin*` компоненти під `.cms-admin`, login | [004a](./implementation/004a-admin-ui-foundation.md) |
 | 004b | Admin shell із сайдбаром, Settings → General пише через `SettingsRepository.update()` + RLS `cms_can('settings.update')` | [004b](./implementation/004b-admin-shell-settings.md) |
@@ -214,6 +234,8 @@ read → draft → edit → publish до локалізації; Collections п�
 відпрацьований на Pages; CLI автоматизує процес, який уже стабільний.
 
 Формат епіку: **ціль · будуємо · anti-scope · залежності · блокуючі рішення · джерела**.
+Епіки 001–004b закрито до появи цього формату. Їх тут немає: що зроблено і з яких блоків
+архітектурної доки, записано в `docs/implementation/00N-*.md` (рядок «Джерела»).
 «Блокуючі рішення» — ID з реєстру §6, їх закривають **до** плану епіку.
 
 ---
@@ -497,7 +519,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | D-27 | 010 | Local repeatable і переклади | Спільна структура масиву, перекладаються тексти; масив повністю per locale | Спільна структура («перекладаються дані, не структура») |
 | D-28 | 010 | Рівні alt | Media default; + usage override; + per locale | Default мовою за замовчуванням + per-usage override у локалізованому контенті |
 | D-29 | 010 | Вмикання мультимовності | `features.multilingual` у config + runtime toggle; «мов > 1» = multilingual | «Мов > 1» (toggle з ТЗ зайвий) |
-| D-30 | 010 | Localized settings у V1 | `site_settings_translations` одразу; лише з другою мовою | Лише коли з'явиться друга мова |
+| D-30 | 010 | Localized settings у V1 | `cms_site_settings_translations` одразу; лише з другою мовою | Лише коли з'явиться друга мова |
 | D-31 | 011 | Public submit | Anon insert policy; server route із `SUPABASE_SECRET` (раніше за 015.2) | Server route; server-only клієнт з'являється тут, а не в 015.2 |
 | D-32 | 011 | Rate limiting у serverless | Таблиця в Postgres; KV хостингу; механізм хостингу | Таблиця в Postgres |
 | D-33 | 011 | Синхронізація `registerForm` із рядком `forms` | Seed; міграція; lazy на першому submit; upsert на старті | Lazy upsert |
@@ -667,6 +689,9 @@ Google Doc такими правками. Цей список — і чеклі�
 25. Б10 §3 — `historyLimit` = Undo stack; маркер D-29.
 26. Б11 §3 — ролі V1; §7 — integration secrets не в «Environment»; §11 і Б15 §43 — Setup Wizard поза V1.
 27. Б16 §4–5 — Admin із layer, структура Nuxt 4.
+28. Summary §27 «Project Config» — серед прикладів `cms.config.ts` лишились `registrations`.
+    Реєстрації з функціями — runtime-код Client Project, а не конфіг (C-27). Модуль відкидає
+    невідомі ключі `cms.config.ts` (після ревʼю 001–004c). При синхронізації Google Doc прибрати.
 
 ### Відкриті рішення в тексті
 

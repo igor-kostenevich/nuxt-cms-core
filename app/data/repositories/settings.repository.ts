@@ -4,9 +4,12 @@ import { CmsDataError } from '../errors'
 import { toSettingsWrite } from '../settings-write'
 import { getSupabaseClient, toCmsDataError } from '../supabase'
 
-const TABLE = 'site_settings'
+const TABLE = 'cms_site_settings'
+const COLUMNS = 'site_name, contact_email, contact_phone, maintenance_mode'
+/** The only row: `cms_site_settings_single_row` enforces `id = 1`. */
+const ROW_ID = 1
 
-/** Database row shape, kept private so snake_case never leaks out of this file. */
+/** Database row shape. snake_case stays inside the data layer. */
 interface SiteSettingsRow {
   site_name: string
   contact_email: string | null
@@ -28,7 +31,7 @@ export function createSettingsRepository(request?: H3Event) {
   async function get(): Promise<SiteSettings> {
     const { data, error } = await getSupabaseClient()
       .from(TABLE)
-      .select('site_name, contact_email, contact_phone, maintenance_mode')
+      .select(COLUMNS)
       .single<SiteSettingsRow>()
 
     if (error) {
@@ -47,12 +50,10 @@ export function createSettingsRepository(request?: H3Event) {
     const { getSupabaseAuthClient } = await import('../supabase-auth')
     const { data, error } = await getSupabaseAuthClient(request)
       .from(TABLE)
-      .update({
-        ...toSettingsWrite(next),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', 1)
-      .select('site_name, contact_email, contact_phone, maintenance_mode')
+      // updated_at is set by a database trigger, not by the client clock.
+      .update(toSettingsWrite(next))
+      .eq('id', ROW_ID)
+      .select(COLUMNS)
       .single<SiteSettingsRow>()
 
     if (error) {

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAdminI18n } from '../../admin/useAdminI18n'
+
 defineProps<{
   title: string
 }>()
@@ -7,8 +9,9 @@ const { t } = useAdminI18n()
 const route = useRoute()
 const { logout } = useCmsAuth()
 const { settings } = useSiteSettings()
+const logoutError = ref('')
 
-const siteName = computed(() => settings.value?.siteName || t('cms.login.caption'))
+const siteName = computed(() => settings.value?.siteName || t('cms.common.caption'))
 
 const groups = [
   {
@@ -45,12 +48,17 @@ function isCurrent(path: string) {
 }
 
 async function onLogout() {
-  await logout()
-  await navigateTo('/admin/login')
-}
+  logoutError.value = ''
 
-async function onViewSite() {
-  await navigateTo('/')
+  try {
+    await logout()
+  } catch {
+    // The session is still there, so /admin/login would send the user back.
+    logoutError.value = t('cms.shell.logoutFailed')
+    return
+  }
+
+  await navigateTo('/admin/login')
 }
 </script>
 
@@ -62,7 +70,7 @@ async function onViewSite() {
           class="shell__mark"
           aria-hidden="true"
         >
-          {{ t('cms.login.mark') }}
+          {{ t('cms.common.mark') }}
         </span>
         <span class="shell__site">{{ siteName }}</span>
       </div>
@@ -96,13 +104,13 @@ async function onViewSite() {
             v-for="item in group.items"
             :key="item.label"
             class="shell__item shell__item--stub"
-            aria-disabled="true"
           >
             <Icon
               :name="item.icon"
               aria-hidden="true"
             />
             <span>{{ t(item.label) }}</span>
+            <span class="shell__visually-hidden">({{ t('cms.shell.soon') }})</span>
           </span>
         </div>
       </nav>
@@ -130,10 +138,9 @@ async function onViewSite() {
         </h1>
         <div class="shell__tools">
           <AdminButton
-            type="button"
+            to="/"
             variant="ghost"
             size="sm"
-            @click="onViewSite"
           >
             {{ t('cms.shell.viewSite') }}
           </AdminButton>
@@ -146,11 +153,19 @@ async function onViewSite() {
             size="sm"
             @click="onLogout"
           >
-            {{ t('cms.home.logout') }}
+            {{ t('cms.common.logout') }}
           </AdminButton>
         </div>
       </header>
       <div class="shell__content">
+        <AdminAlert
+          v-if="logoutError"
+          class="shell__alert"
+          tone="danger"
+          :title="logoutError"
+          dismissible
+          @dismiss="logoutError = ''"
+        />
         <slot />
       </div>
     </div>
@@ -193,7 +208,7 @@ async function onViewSite() {
   border-radius: var(--cms-radius-sm);
   background: var(--cms-primary);
   color: var(--cms-primary-foreground);
-  font-size: 10px;
+  font-size: var(--cms-type-micro-size);
   font-weight: 700;
   line-height: 1;
 }
@@ -221,7 +236,8 @@ async function onViewSite() {
 .shell__group-label {
   margin: 0;
   padding: var(--cms-space-2) var(--cms-space-4) var(--cms-space-1);
-  color: rgb(255 255 255 / 30%);
+  /* neutral-500 on neutral-900 is 4.9:1, enough for small text (WCAG AA). */
+  color: var(--cms-neutral-500);
   font-size: var(--cms-type-caption-size);
   font-weight: var(--cms-type-label-small-weight);
   line-height: var(--cms-type-caption-line);
@@ -277,13 +293,28 @@ async function onViewSite() {
   background: var(--cms-primary);
 }
 
+/* Sections without a screen yet: plain text, not links, and visibly dimmer. */
 .shell__item--stub {
+  color: var(--cms-neutral-500);
   cursor: default;
 }
 
 .shell__item--stub:hover {
   background: transparent;
-  color: rgb(255 255 255 / 72%);
+  color: var(--cms-neutral-500);
+}
+
+.shell__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.shell__alert {
+  margin-bottom: var(--cms-space-4);
 }
 
 .shell__foot {

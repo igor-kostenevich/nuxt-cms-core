@@ -106,9 +106,17 @@ Client Project нічого не успадковує.
   - правкою існуючої міграції (файл відновлено з git);
   - новою міграцією в pg_dump-стилі з `$function$` і `grant` перед дефініцією.
 - Після ревʼю: `translate`, `resolveAdminLocale` і константи більше не в `.nuxt/imports.d.ts`.
+  `PASSWORD_MIN_LENGTH` і `FieldRule` там лишались, бо жили в `useAdminValidation.ts`. Після
+  повторного ревʼю вони в `app/admin/validation.ts`. Реекспорт `CmsAuthSnapshot` з `useCmsAuth`
+  теж прибрано.
   `lookup` і інтерполяція не ходять по прототипу (`Object.hasOwn`).
 - `npm run typecheck`, `npm run lint` — exit 0.
-- `npm run build` + ручна bundle-перевірка скриптом поза репо (автоматизація — 006):
+- `npm run build` + ручна bundle-перевірка скриптом поза репо (автоматизація — 006). Кроки, щоб її
+  повторити: запустити `node playground/.output/server/index.mjs`, взяти з HTML `/` усі
+  `<script src>` і `<link rel="modulepreload|stylesheet|prefetch">`, рекурсивно пройти статичні
+  `import … from "./X.js"` у кожному JS (без `import()`), у кожному файлі шукати маркери
+  `cms-admin`, `--cms-`, `cms_locale`, тексти словників (`Content Management System`,
+  `Система керування`) і `validateOnBlur` (vee-validate):
   - production-сервер, HTML `/`, рекурсивний обхід статичних імпортів (15 assets);
   - у графі `/` немає vue-i18n, vee-validate, `--cms-` / `.cms-admin` і текстів словників;
   - маркери спрацьовують на admin-чанках, тобто перевірка не порожня;
@@ -126,6 +134,39 @@ Client Project нічого не успадковує.
 
 Не перевірено в браузері: перемикач мови в шапці `/admin` після reload і відсутність hydration
 warning у консолі. SSR-частину цих сценаріїв перевірено запитами вище.
+
+Після ревʼю знайшовся конкретний шлях до розбіжності: помилка з `useAsyncData` втрачала код
+`CmsDataError`. Тому сервер і клієнт могли показати різний текст, а `not_found` і
+`permission_denied` завжди ставали `unknown`. Виправлено: код тепер у `data.cmsCode`, див. 002,
+«Змінено пізніше». Без рядка settings `/admin/settings` рендерить «not found», а в payload є
+`cmsCode`. У браузері це досі не перевірено.
+
+## Після ревʼю 001–004c
+
+- `useAdminI18n`, `useAdminSettings`, `useAdminValidation` перенесено в `app/admin/` і імпортуються
+  явно (MASTER_PLAN C-40). У `.nuxt/imports.d.ts` їх більше немає.
+- Хук `build:manifest` переїхав з `nuxt.config.ts` у `src/module.ts`. Раніше він очищав
+  `dynamicImports` усюди, і Client втрачав prefetch власних lazy-компонентів. Тепер лишаються
+  тільки модулі з `srcDir` Client поза `pages/admin` і поза `node_modules`. Shared-чанки не мають
+  шляху до джерела, тому їх і далі прибрано. Сторінки Nuxt 4.5 сам вилучає з `dynamicImports`
+  entry. Перевірено тимчасовим `<LazyProbeLazy>` на `/`: його чанк отримав prefetch, а
+  bundle-перевірка вище не знайшла маркерів адмінки (17 assets).
+- Словники:
+  - `cms.home.title|yes|no` видалено;
+  - спільні ключі (`mark`, `caption`, `emailPlaceholder`, `logout`) переїхали в `cms.common`;
+  - додано `cms.roles.*`: роль на дашборді й dev-кнопки логіну тепер перекладені.
+- `AdminButton` отримав `to`, тому «Переглянути сайт» тепер посилання, а не `navigateTo`.
+- Шапка адмінки:
+  - пункти без екрана більше не мають `aria-disabled` на `<span>`, вони тьмяніші й мають
+    прихований «(незабаром)»;
+  - підписи груп переведено на `--cms-neutral-500` (4.9:1);
+  - помилка `logout()` показується алертом.
+- `AdminRoot` ставить `<html lang>` за мовою адмінки.
+- Settings:
+  - «лише перегляд» показується з tone `info` (`role="status"`);
+  - після збереження з'являється success-алерт, а форма перезаповнюється збереженими
+    значеннями.
+- Розміри перемикача і 10px у знаку винесено в токени (`--cms-switch-*`, `--cms-type-micro-size`).
 
 ## Що свідомо не робили
 

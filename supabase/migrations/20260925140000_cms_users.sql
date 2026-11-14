@@ -1,6 +1,6 @@
 -- CMS membership. auth.users answers "who is this"; this table answers
 -- "does this person have access to the CMS, and with which role".
--- A row in auth.users alone does not grant /admin or /edit.
+-- A row in auth.users alone does not grant /admin or /admin/edit.
 
 create table public.cms_users (
   user_id uuid primary key references auth.users (id) on delete cascade,
@@ -13,7 +13,12 @@ create table public.cms_users (
 );
 
 comment on table public.cms_users is
-  'CMS access for an auth user. No row means no access to /admin or /edit.';
+  'CMS access for an auth user. No row means no access to /admin or /admin/edit.';
+
+create trigger cms_users_touch_updated_at
+  before update on public.cms_users
+  for each row
+  execute function public.cms_touch_updated_at();
 
 alter table public.cms_users enable row level security;
 
@@ -25,33 +30,25 @@ create policy "cms_users_select_own"
   to authenticated
   using (user_id = auth.uid());
 
--- No insert/update/delete policy: inviting and changing roles is a later block.
+-- No insert/update/delete policy: inviting and changing roles is a later block
+-- (015.2), which adds its own grants, policies and the self-escalation guard.
+-- Until then the privileges below make writes impossible even without RLS,
+-- so the table is never one missing policy away from a user raising their role.
+revoke all on table public.cms_users from anon, authenticated;
+grant select on table public.cms_users to authenticated;
 
--- security definer so the functions can read cms_users without recursing
--- through the policy above. search_path is pinned so the definer cannot be
--- pointed at another schema. Keep the matrix identical to app/auth/permissions.ts.
-
-create function public.is_active_cms_user()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.cms_users
-    where user_id = auth.uid()
-      and status = 'active'
-  );
-$$;
+-- security definer so the function can read cms_users without recursing
+-- through the policy above. An empty search_path means it cannot resolve an
+-- unqualified name through a schema someone else can create objects in; every
+-- name in the body is schema-qualified. Keep the matrix identical to
+-- app/auth/permissions.ts (tests/permissions-sync.test.ts checks it).
 
 create function public.cms_can(requested text)
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select coalesce(
     (
@@ -70,13 +67,6 @@ as $$
   );
 $$;
 
-revoke all on function public.is_active_cms_user() from public;
-revoke all on function public.cms_can(text) from public;
-grant execute on function public.is_active_cms_user() to authenticated;
+-- Only meaningful for a signed-in user: anon has no cms_users row.
+revoke all on function public.cms_can(text) from public, anon, authenticated;
 grant execute on function public.cms_can(text) to authenticated;
-
-grant select on table public.cms_users to authenticated;
-
--- Newer Supabase projects do not grant Data API access to new tables.
--- site_settings is public content; its select policy is not enough without this.
-grant select on table public.site_settings to anon, authenticated;

@@ -8,24 +8,34 @@ const ERROR_KEYS = {
 
 export type AdminErrorKey = (typeof ERROR_KEYS)[CmsDataErrorCode]
 
-/** Maps a data-layer failure to an admin UI translation key. */
+/**
+ * Maps a data-layer failure to an admin UI translation key.
+ *
+ * Accepts a CmsDataError caught directly, or the NuxtError that useAsyncData
+ * made of it (on the server, or revived from the SSR payload). In the second
+ * case only `data.cmsCode` is left of the original error.
+ */
 export function adminErrorKey(error: unknown): AdminErrorKey {
-  const cmsError = findCmsDataError(error)
-  return ERROR_KEYS[cmsError?.code ?? 'unknown']
+  return ERROR_KEYS[errorCode(error)]
 }
 
-function findCmsDataError(error: unknown, depth = 0): CmsDataError | null {
-  if (depth > 5 || error == null || typeof error !== 'object') {
-    return null
-  }
-
+function errorCode(error: unknown): CmsDataErrorCode {
   if (error instanceof CmsDataError) {
-    return error
+    return error.code
   }
 
-  if (!('cause' in error)) {
-    return null
+  if (error == null || typeof error !== 'object' || !('data' in error)) {
+    return 'unknown'
   }
 
-  return findCmsDataError(error.cause, depth + 1)
+  const data = error.data
+  const code = data != null && typeof data === 'object' && 'cmsCode' in data
+    ? data.cmsCode
+    : undefined
+
+  return isErrorCode(code) ? code : 'unknown'
+}
+
+function isErrorCode(value: unknown): value is CmsDataErrorCode {
+  return typeof value === 'string' && Object.hasOwn(ERROR_KEYS, value)
 }

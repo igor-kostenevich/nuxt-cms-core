@@ -54,8 +54,8 @@ const hintId = `${id}-hint`
 .admin-switch__control {
   position: relative;
   flex: none;
-  width: 32px;
-  height: 18px;
+  width: var(--cms-switch-width);
+  height: var(--cms-switch-height);
   margin: 1px 0 0;
   padding: 0;
   border: 0;
@@ -75,17 +75,17 @@ const hintId = `${id}-hint`
 
 .admin-switch__thumb {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
+  top: var(--cms-switch-inset);
+  left: var(--cms-switch-inset);
+  width: var(--cms-switch-thumb);
+  height: var(--cms-switch-thumb);
   border-radius: var(--cms-radius-full);
   background: var(--cms-neutral-0);
   transition: transform 120ms ease;
 }
 
 .admin-switch__control--on .admin-switch__thumb {
-  transform: translateX(14px);
+  transform: translateX(calc(var(--cms-switch-width) - var(--cms-switch-thumb) - var(--cms-switch-inset) * 2));
 }
 
 .admin-switch__control:disabled {

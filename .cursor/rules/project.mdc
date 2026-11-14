@@ -152,6 +152,12 @@ Avoid many tiny migrations.
 
 Do not generate unnecessary migrations.
 
+Prefix every Core table, policy and constraint with `cms_` (MASTER_PLAN C-38): Core shares the `public` schema with Client Project tables.
+
+Until the first npm publish, fix a feature's existing migration in place instead of adding a follow-up migration, then run `supabase db reset`. After publish, applied migrations are never edited: changes go into a new migration (C-31).
+
+Never rely on default Data API grants: revoke from `anon` and `authenticated`, then grant only what the feature needs.
+
 ---
 
 ## Development Rules

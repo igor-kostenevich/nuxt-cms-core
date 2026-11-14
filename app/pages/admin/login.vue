@@ -2,6 +2,8 @@
 import { useForm } from 'vee-validate'
 import { adminErrorKey } from '../../admin/error-key'
 import { safeRedirect } from '../../auth/redirect'
+import { useAdminI18n } from '../../admin/useAdminI18n'
+import { useAdminValidation } from '../../admin/useAdminValidation'
 
 const { t } = useAdminI18n()
 const route = useRoute()
@@ -11,7 +13,9 @@ const message = ref('')
 
 const { user, ensure, login, error } = useCmsAuth()
 
-await ensure()
+// The login form is the way out of a broken session, so a session read error
+// must not fail the page. It is shown in the alert above the form instead.
+await ensure().catch(() => undefined)
 
 if (user.value) {
   await navigateTo(safeRedirect(route.query.redirect))
@@ -65,9 +69,9 @@ function onSubmit(event: Event) {
 
 const devLogins = import.meta.dev
   ? [
-      { label: 'Owner', email: 'owner@example.com' },
-      { label: 'Admin', email: 'admin@example.com' },
-      { label: 'Editor', email: 'editor@example.com' },
+      { role: 'owner', email: 'owner@example.com' },
+      { role: 'admin', email: 'admin@example.com' },
+      { role: 'editor', email: 'editor@example.com' },
     ]
   : []
 
@@ -90,10 +94,10 @@ async function onDevLogin(accountEmail: string) {
           class="login__mark"
           aria-hidden="true"
         >
-          {{ t('cms.login.mark') }}
+          {{ t('cms.common.mark') }}
         </div>
         <p class="login__caption">
-          {{ t('cms.login.caption') }}
+          {{ t('cms.common.caption') }}
         </p>
       </div>
 
@@ -123,7 +127,7 @@ async function onDevLogin(accountEmail: string) {
             v-model="email"
             v-bind="emailProps"
             :label="t('cms.login.email')"
-            :placeholder="t('cms.login.emailPlaceholder')"
+            :placeholder="t('cms.common.emailPlaceholder')"
             :error="errors.email"
             :disabled="submitting"
             name="email"
@@ -186,7 +190,7 @@ async function onDevLogin(accountEmail: string) {
                 :disabled="submitting"
                 @click="onDevLogin(account.email)"
               >
-                {{ account.label }}
+                {{ t(`cms.roles.${account.role}`) }}
               </AdminButton>
             </div>
           </div>
@@ -206,6 +210,7 @@ async function onDevLogin(accountEmail: string) {
   overflow: hidden;
 }
 
+/* Decorative background shapes. Their geometry belongs to this screen only, so it is not tokenised. */
 .login::before,
 .login::after {
   content: "";

@@ -25,13 +25,4 @@ export default defineNuxtConfig({
     '/admin': { headers: { 'cache-control': 'no-store' } },
     '/admin/**': { headers: { 'cache-control': 'no-store' } },
   },
-  hooks: {
-    // Vite otherwise emits <link rel="prefetch"> for every async page from the
-    // app entry, so a public page would download the auth chunk.
-    'build:manifest': (manifest) => {
-      for (const entry of Object.values(manifest)) {
-        entry.dynamicImports = []
-      }
-    },
-  },
 })

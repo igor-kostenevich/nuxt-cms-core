@@ -6,6 +6,8 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   disabled?: boolean
   type?: 'button' | 'submit' | 'reset'
+  /** Renders a link styled as a button. Navigation must stay a link, not a click handler. */
+  to?: string
 }>(), {
   variant: 'primary',
   size: 'md',
@@ -13,7 +15,10 @@ const props = withDefaults(defineProps<{
   loading: false,
   disabled: false,
   type: 'button',
+  to: undefined,
 })
+
+const NuxtLink = resolveComponent('NuxtLink')
 
 const slots = useSlots()
 const isDisabled = computed(() => props.disabled || props.loading)
@@ -22,15 +27,17 @@ const showTrailing = computed(() => !props.iconOnly && Boolean(slots.trailing))
 </script>
 
 <template>
-  <button
-    :type="type"
+  <component
+    :is="to ? NuxtLink : 'button'"
+    :to="to"
+    :type="to ? undefined : type"
     class="admin-button"
     :class="[
       `admin-button--${variant}`,
       `admin-button--${size}`,
       { 'admin-button--icon': iconOnly },
     ]"
-    :disabled="isDisabled"
+    :disabled="to ? undefined : isDisabled"
     :aria-busy="loading || undefined"
   >
     <span
@@ -66,7 +73,7 @@ const showTrailing = computed(() => !props.iconOnly && Boolean(slots.trailing))
     >
       <slot name="trailing" />
     </span>
-  </button>
+  </component>
 </template>
 
 <style scoped>

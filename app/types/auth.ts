@@ -1,12 +1,20 @@
-export type CmsRole = 'owner' | 'admin' | 'editor'
+/**
+ * Single source for roles, permissions and statuses: the types derive from
+ * these lists, so a value added to a type is also in the list that the
+ * repository and tests/permissions-sync.test.ts check against.
+ */
+export const CMS_ROLES = ['owner', 'admin', 'editor'] as const
+export const CMS_PERMISSIONS = [
+  'settings.update',
+  'users.manage',
+  'pages.edit',
+  'pages.publish',
+] as const
+export const CMS_USER_STATUSES = ['active', 'disabled'] as const
 
-export type CmsPermission =
-  | 'settings.update'
-  | 'users.manage'
-  | 'pages.edit'
-  | 'pages.publish'
-
-export type CmsUserStatus = 'active' | 'disabled'
+export type CmsRole = (typeof CMS_ROLES)[number]
+export type CmsPermission = (typeof CMS_PERMISSIONS)[number]
+export type CmsUserStatus = (typeof CMS_USER_STATUSES)[number]
 
 /** Identity from the auth provider. Not CMS access. */
 export interface CmsAuthIdentity {
