@@ -87,5 +87,23 @@ with home as (
   returning id
 )
 insert into public.cms_page_published (page_id, locale, content)
-select id, 'uk', '{"hero": {"title": "Вітаємо на сайті", "lead": "Цей текст прийшов з cms_page_published."}}'::jsonb
+select id, 'uk', $json$
+{
+  "hero": {
+    "title": "Вітаємо на сайті",
+    "lead": {
+      "type": "doc",
+      "content": [{
+        "type": "paragraph",
+        "content": [
+          { "type": "text", "text": "Цей текст прийшов з " },
+          { "type": "text", "text": "cms_page_published", "marks": [{ "type": "bold" }] },
+          { "type": "text", "text": "." }
+        ]
+      }]
+    },
+    "cta": { "label": "Про нас", "href": "/about" }
+  }
+}
+$json$::jsonb
 from home;

@@ -5,7 +5,8 @@
   "main": "./nuxt.config.ts",
   "exports": {
     ".": "./nuxt.config.ts",
-    "./config": "./src/config.ts"
+    "./config": "./src/config.ts",
+    "./types": "./app/types/index.ts"
   },
   "bin": {
     "nuxt-cms": "./bin/nuxt-cms.mjs"
@@ -23,6 +24,7 @@
   "scripts": {
     "dev": "nuxi dev playground",
     "build": "nuxi build playground",
+    "check:bundle": "node scripts/check-public-bundle.mjs",
     "preview": "nuxi preview playground",
     "test": "vitest run",
     "test:db": "supabase test db",

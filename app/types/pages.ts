@@ -1,9 +1,9 @@
 /**
  * Content values of one page in one locale.
  *
- * The page structure lives in the Client Project's Vue code, so Core treats
- * the document as opaque. How fields are addressed inside it is decided
- * together with the CMS primitives (006).
+ * The page structure lives in the Client Project's Vue code, so Core does not
+ * parse the document. It is nested, and a field is addressed by its dotted
+ * path, e.g. `hero.title` (MASTER_PLAN C-48).
  */
 export type CmsPageContent = Record<string, unknown>
 

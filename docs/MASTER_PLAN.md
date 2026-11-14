@@ -121,12 +121,12 @@ Architecture Summary, `Б N` — блок доки.
 ### Runtime і UI
 
 - **C-21. Три runtime-зони.** Public не завантажує Editor/Admin/Tiptap/admin CSS. Перевірка
-  бандла — частина Definition of Done; ручна з 004a, автоматизація з 006 (§9, §33).
+  бандла — частина Definition of Done; ручна з 004a, з 006 — `npm run check:bundle` (§9, §33).
 - **C-22. Edit Mode — `/admin/edit/...`**, рендерить **ту саму** клієнтську сторінку.
   Немає `EditableAboutPage.vue`. Editor Runtime — dynamic import після входу в Edit Mode (§10).
 - **C-23. Стилі Core — нативний CSS.** CSS-змінні (токени UI kit) + scoped CSS. Без Tailwind
   і SCSS у Core; Client може використовувати Tailwind для свого сайту. Токени адмінки — під
-  `.cms-admin`; `runtime.css` — з 006, `editor.css` — з 008. Ізоляція — через компонент-обгортку,
+  `.cms-admin`; `runtime.css` — з першим технічним стилем public primitives (у 006 не знадобився), `editor.css` — з 008. Ізоляція — через компонент-обгортку,
   не через layout.
 - **C-24. UI primitives адмінки — `Admin*`** (`AdminButton`, `AdminInput`, `AdminAlert`…),
   не `Base*`. Public `Cms*` primitives не будуються на admin-компонентах.
@@ -201,8 +201,7 @@ Architecture Summary, `Б N` — блок доки.
 - **C-41. Сторінка — identity + документ на (page, locale) (було D-02).** `cms_pages` — лише
   identity (`id`, `key`), `cms_page_published` — один JSONB-документ на `(page_id, locale)`. Draft
   у 007 — окрема таблиця такої самої форми (C-06). Locale входить у ключ із самого початку, тож 010
-  додає таблицю мов без переписування рядків. Форма документа всередині (dotted path чи nested) —
-  D-08 (006).
+  додає таблицю мов без переписування рядків. Форма документа всередині — вкладена (C-48).
 - **C-42. Рядок сторінки створюється lazy (було D-03).** Немає рядка або published-документа →
   публічне читання повертає `null`, шаблон рендерить дефолти з коду. Рядок створює RPC під сесією
   редактора на першому вході в Edit Mode (008). Core-міграції сторінок не вставляють. У playground
@@ -225,6 +224,39 @@ Architecture Summary, `Б N` — блок доки.
   Smoke-тест — pgTAP у `supabase/tests/database/`, `npm run test:db` (`supabase test db`, потрібен
   Docker). У `npm test` не входить. Тест перевіряє, що кожна таблиця `cms_*` має RLS.
 
+### Закрито перед 006
+
+- **C-47. Primitive отримує значення через prop `value` + `fieldKey`, без `v-model` (було D-06).**
+  Дані йдуть в один бік: сторінка передає `:value="hero.title"` і `field-key="hero.title"`, primitive
+  нічого не емітить. Змінює значення лише Editor Engine (008): primitive викликає
+  `editor.updateField(fieldKey, value)`, а `useCmsPage` в Edit Mode віддає Draft з Engine, тож новий
+  `value` приходить сам. Так значення живе в одному місці, і Undo / Reset / Publish працюють з одним
+  документом. `v-model` писав би в стан сторінки (`useAsyncData`), форми якого Engine не знає.
+  Варіант «primitive читає з контексту за `fieldKey`» втрачає типізацію полів сторінки. Ціна — адреса
+  пишеться двічі; у 008 Edit Mode у dev попереджає, якщо `value` не збігається зі значенням за
+  `fieldKey` в Engine. Дефолт із коду (C-42) — вміст slot, а не `value ?? '…'`: Engine має відрізняти
+  значення з БД від дефолту (Reset, placeholder). `v-model` / `modelValue` у прикладах доки читати
+  так само (§10).
+- **C-48. Документ контенту — вкладений, адреса поля — dotted path (було D-08).** `{ hero: { title } }`,
+  адреса `hero.title`. Сегменти — `[a-zA-Z0-9_-]`, без крапок, тож розбір однозначний. Локальні
+  колекції (C-03) — масиви елементів з полем `id`; сегмент після масиву — `id` елемента, не індекс
+  (`services.items.<id>.title`), порядок задає масив. `id` генерує клієнт (`crypto.randomUUID()`,
+  Engine на «Add item»): без запиту на сервер і з локальним Undo. Адреса відносна до сутності: для
+  сторінки — шлях у документі, для запису колекції (014) — поле, яке мапить її repository. Адреса не
+  містить locale і значення не розгалужується за мовою, тож D-60 лишається відкритим: спільний
+  документ і документ мови зливаються в одне дерево з тими самими адресами. Умова на 010 — `id`
+  елементів однакові в усіх мовах (нова мова копіює документ разом з `id`).
+- **C-49. Rich text — ProseMirror/Tiptap JSON + власний renderer (було D-07).** Схема — дефолтні назви
+  Tiptap StarterKit, обмежений набір (Б3 §14): `doc`, `paragraph`, `text`, `hardBreak`; marks `bold`,
+  `italic`, `link`. Тому Tiptap у 008 пише той самий JSON без конвертації. Renderer рендерить лише
+  відомі вузли й marks через `h()`, без `v-html`; невідомі ігнорує; `href` — лише `http(s)`, `mailto`,
+  `tel`, `//host`, шляхи сайту `/…` і якорі `#…` (`toSafeHref()`, той самий allow-list у `CmsLink` /
+  `CmsButton`). Запис іде з браузера через RLS, тож безпеку дає renderer, а не довіра до вмісту.
+  Sanitized HTML відкинуто: санітизація на кожному рендері (DOMPurify + DOM-шім на SSR) у public
+  bundle або неможлива санітизація в Postgres. `CmsRichText`-renderer входить у 006: формат значень —
+  стабільний контракт (Б3 §31), і він має бути зафіксований до Draft (007). Нові вузли/marks — лише
+  адитивно.
+
 ---
 
 ## 3. Стан проекту
@@ -240,6 +272,7 @@ Architecture Summary, `Б N` — блок доки.
 | 004b | Admin shell із сайдбаром, Settings → General пише через `SettingsRepository.update()` + RLS `cms_can('settings.update')` | [004b](./implementation/004b-admin-shell-settings.md) |
 | 004c | Admin i18n без `@nuxtjs/i18n` (C-36), public bundle без vue-i18n / vee-validate / admin CSS, `typecheck` / `lint` / `@nuxt/test-utils`, тест синхронності прав TS ↔ SQL, `package.json` під публічний npm | [004c](./implementation/004c-alignment.md) |
 | 005 | `cms_pages` + `cms_page_published` (документ на page × locale, select-only RLS), `PagesRepository.getByKey()`, `useCmsPage()`, `defaultLocale` у config, generated types, pgTAP smoke-тест | [005](./implementation/005-pages.md) |
+| 006 | `CmsText`, `CmsRichText` (renderer без Tiptap / `v-html`), `CmsLink`, `CmsButton`, `CmsImage` (src до 009); allow-list `href`; типи `nuxt-cms-core/types`; `npm run check:bundle` | [006](./implementation/006-primitives.md) |
 
 ### Drift код ↔ план
 
@@ -306,17 +339,17 @@ read → draft → edit → publish до локалізації; Collections п�
 
 ### 006 — CMS Primitives, тільки Public Runtime
 
-`todo` · Фаза 1
+`done` · Фаза 1 · [запис](./implementation/006-primitives.md)
 
 - **Ціль.** Playground виглядає як справжній сайт з editable-контрактом ще до редактора.
 - **Будуємо.** `CmsText`, `CmsImage` (URL/placeholder до 009), `CmsButton`, `CmsLink`,
   `CmsRichText` як renderer без Tiptap. Легкі render-компоненти, жодного editor/admin import.
-  `runtime.css`. Автоматична перевірка public bundle (скрипт).
+  `runtime.css` (не знадобився — C-23). Автоматична перевірка public bundle (скрипт).
   `CmsOptional` / `CmsCollection` — лише якщо є конкретний споживач на playground.
 - **Anti-scope.** Tiptap, toolbar, hover/selection, Media Picker, `v-model`-контракт, generic `CmsField`.
 - **Залежності.** 005.
-- **Блокуючі рішення.** D-06, D-07 (формат rich text — якщо `CmsRichText` входить), D-08.
-  D-08 вибирати так, щоб не закрити D-60: адреса поля не має залежати від того, чи поле
+- **Блокуючі рішення.** D-06 → C-47, D-07 → C-49, D-08 → C-48 (закрито).
+  C-48 не закриває D-60: адреса поля не залежить від того, чи поле
   перекладається.
 - **Джерела.** §8–9; Б3 §3, §5, §31; Б4; Б17.
 
@@ -359,7 +392,9 @@ read → draft → edit → publish до локалізації; Collections п�
   collaborative editing, History UI як Undo, language switcher (після 010).
 - **Залежності.** 006, 007.
 - **Блокуючі рішення.** D-15, D-16, D-17, D-18, D-19, D-20, D-57.
-- **DoD.** Public не імпортує Editor — перевірка бандла входить у Definition of Done.
+- **DoD.** Public не імпортує Editor — `npm run check:bundle` входить у Definition of Done. Скрипт не
+  бачить lazy-імпортів, які public-сторінка виконує безумовно, а editable-гілка підключається саме
+  так. Тому DoD також включає перевірку в браузері (Network): `/` не запитує editor-чанки.
 - **Джерела.** §10–11, §20; Б3; Б8 → Content Lock; дизайн-ТЗ §10.
 
 ### 009 — Media + Storage Adapter
@@ -519,9 +554,6 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
-| D-06 | 006 | Контракт значення primitive | `v-model`; `value` prop + `fieldKey`, зміна лише через Editor Engine; primitive читає з контексту за `fieldKey` | `value` + `fieldKey`, без `v-model` |
-| D-07 | 006/008 | Формат rich text | Tiptap JSON + власний легкий renderer; sanitized HTML | Вирішувати, коли з'явиться реальне rich-поле |
-| D-08 | 006 | Формат field address | `hero.title`, `services.items.<id>.title`; хто генерує id елементів | Dotted path + uuid елементів, генерує клієнт |
 | D-09 | 007 | Де живе Draft | Окрема таблиця draft / published; колонки + view; окрема схема | Окреме сховище (C-06) |
 | D-10 | 007 | Що знімає revision при Publish | Нову published-версію; попередню | Нову (перша публікація теж має ревізію) |
 | D-11 | 007 | Серверна validation при Publish | Правила реєструють компоненти (сервер не бачить); декларативна схема полів у Client; лише required/limits на сервері | Мінімальна декларативна схема полів, спільна для клієнта й сервера |
@@ -537,7 +569,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | D-21 | 009 | Upload | Прямо в Storage з policies; через server endpoint (перевірка magic bytes) | Server endpoint для валідації; або direct + post-check |
 | D-22 | 009 | Media usage tracking | Registry `media_usage`; запити по контенту; резолвери для клієнтських таблиць | Registry, якщо дешево; інакше наступним кроком |
 | D-23 | 009 | Оптимізація зображень | Оригінали; `@nuxt/image` + IPX / провайдер хостингу; Supabase transformations (платно) | `@nuxt/image` з провайдером хостингу, без власного pipeline |
-| D-24 | 009 | Формат `CmsImageValue` | `{ mediaId, altOverride?, decorative, focal?, caption? }` | Цей набір, без caption, поки немає споживача |
+| D-24 | 009 | Формат `CmsImageValue` | `{ mediaId, altOverride?, decorative, focal?, caption? }` | Цей набір, без caption, поки немає споживача. Вирішити й пріоритет alt: prop `alt` `CmsImage` (дефолт коду, з 006) ↔ alt медіа ↔ `altOverride` (ревʼю 006) |
 | D-25 | 009 | Upload limits і типи | Як у ТЗ (JPG/PNG/WebP, 5MB) + SVG / документи / відео з фільтрів | Почати з ТЗ + SVG; документи/відео — за потребою |
 
 ### Фаза 2–3
@@ -547,7 +579,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | D-27 | 010 | Local repeatable і переклади | Спільна структура масиву, перекладаються тексти; масив повністю per locale | Спільна структура («перекладаються дані, не структура») |
 | D-28 | 010 | Рівні alt | Media default; + usage override; + per locale | Default мовою за замовчуванням + per-usage override у локалізованому контенті |
 | D-29 | 010 | Вмикання мультимовності | `features.multilingual` у config + runtime toggle; «мов > 1» = multilingual | «Мов > 1» (toggle з ТЗ зайвий) |
-| D-60 | 010 (+006) | Мовонезалежні поля сторінки (mediaId, посилання, перемикачі) при документі на locale (C-41); що бачить мова без документа | Дублювати поле в кожному locale; спільний документ на сторінку (`cms_page_shared`, окремий від locale); fallback на документ default locale при читанні | Обидва — адитивно: спільний документ для мовонезалежних полів + fallback на default locale в репозиторії. Знайдено в ревʼю 005 |
+| D-60 | 010 (+006) | Мовонезалежні поля сторінки (mediaId, посилання, перемикачі) при документі на locale (C-41); що бачить мова без документа | Дублювати поле в кожному locale; спільний документ на сторінку (`cms_page_shared`, окремий від locale); fallback на документ default locale при читанні | Обидва — адитивно: спільний документ для мовонезалежних полів + fallback на default locale в репозиторії. Знайдено в ревʼю 005. Також: хто локалізує внутрішній `href` у `CmsLinkValue` при locale-префіксах маршрутів Client (зберігати `/en/about` у кожному locale чи Core префіксує при рендері) — друге змінює поведінку збережених значень (ревʼю 006) |
 | D-30 | 010 | Localized settings у V1 | `cms_site_settings_translations` одразу; лише з другою мовою | Лише коли з'явиться друга мова |
 | D-31 | 011 | Public submit | Anon insert policy; server route із `SUPABASE_SECRET` (раніше за 015.2) | Server route; server-only клієнт з'являється тут, а не в 015.2 |
 | D-32 | 011 | Rate limiting у serverless | Таблиця в Postgres; KV хостингу; механізм хостингу | Таблиця в Postgres |
@@ -721,6 +753,9 @@ Google Doc такими правками. Цей список — і чеклі�
 28. Summary §27 «Project Config» — серед прикладів `cms.config.ts` лишились `registrations`.
     Реєстрації з функціями — runtime-код Client Project, а не конфіг (C-27). Модуль відкидає
     невідомі ключі `cms.config.ts` (після ревʼю 001–004c). При синхронізації Google Doc прибрати.
+29. Б3 §18 та інші приклади `import type { … } from 'nuxt-cms-core'` — читати як
+    `from 'nuxt-cms-core/types'`. Корінь пакета — `nuxt.config.ts` (Layer entry), тож типи мають
+    окремий entry (006). При синхронізації Google Doc виправити.
 
 ### Відкриті рішення в тексті
 
@@ -734,7 +769,7 @@ Google Doc такими правками. Цей список — і чеклі�
 
 | Формулювання в доці | Рішення |
 | --- | --- |
-| `v-model` у прикладах primitives (Б3, Б4, Б12) | D-06 |
+| `v-model` / `modelValue` у прикладах і API primitives (Б3 §5, §9, §31, Б4, Б12) | C-47: читати як `:value` + `field-key`, дефолт — slot |
 | Два механізми реєстрації колекцій — config і `registerCollection` (Б13 §5 vs §39) | D-41, C-27 |
 | Docker «не вимагається» (Б20 §45) | C-37 |
 | Різний набір CI-перевірок (Б18 §29, Б20 §15) | D-55 |

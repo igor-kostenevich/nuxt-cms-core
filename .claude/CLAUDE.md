@@ -37,12 +37,16 @@ app/auth/             Матриця прав can() — має збігатис�
 app/composables/      Публічне API: useCms, useCmsAuth, useSiteSettings, useCmsPage, usePermissions (усі exports —
                       глобальні auto-imports у Client)
 app/components/admin/ Admin* UI під .cms-admin
+app/components/cms/   Cms* primitives (Public Runtime): :value + field-key, дефолт — slot, без v-model (C-47)
+app/primitives/       Хелпери primitives поза auto-imports: field-key, безпечний href, rich-text renderer
+app/types/            Domain types; index.ts — публічний entry `nuxt-cms-core/types` для Client
 app/pages/admin/      Admin-сторінки (login, shell, settings)
 app/admin/            Композабли й хелпери адмінки поза auto-imports (useAdminI18n, useAdminSettings,
                       useAdminValidation — імпортувати явно, C-40); locales/ — словники, ключі cms.*
 supabase/migrations/  Core migrations (публікуються з пакетом)
 supabase/tests/       pgTAP smoke-тести міграцій (не публікуються)
 playground/           Тестовий Client Project
+scripts/              Dev-скрипти (не публікуються): check-public-bundle.mjs
 tests/                Vitest
 docs/                 MASTER_PLAN, source/architecture.md, implementation/
 ```
@@ -52,6 +56,7 @@ docs/                 MASTER_PLAN, source/architecture.md, implementation/
 ```
 npm run dev       # playground (nuxi dev playground)
 npm run build     # build playground
+npm run check:bundle # після build: public-сторінки не тягнуть Admin / Editor / Tiptap (DoD, C-21)
 npm test          # vitest run (node; Nuxt-середовище — файли `*.nuxt.test.ts` / `tests/nuxt/**`)
 npm run typecheck # nuxi typecheck playground + tsc -p src
 npm run lint      # eslint (@nuxt/eslint-config, без stylistic)
@@ -68,7 +73,9 @@ supabase start    # локальний Supabase (Docker); ключі — supabas
 - Repository має лише методи своєї сутності; без BaseRepository «про запас».
 - RLS на кожну mutation; `can()` в UI — не захист; secret key лише server-side.
 - Anon-клієнт — singleton; клієнт із сесією — лише на request event; SSR-дані через `useAsyncData`.
-- Public Runtime не тягне Admin / Editor / Tiptap / admin CSS — перевірка бандла в DoD.
+- Public Runtime не тягне Admin / Editor / Tiptap / admin CSS — `npm run check:bundle` в DoD.
+- Значення з БД — недовірений вхід: rich text рендериться без `v-html`, `href` — через allow-list
+  (`app/primitives/link.ts`). Формати значень primitives — стабільний контракт, змінювати адитивно.
 - Edit Mode — `/admin/edit/...`, та сама клієнтська сторінка, Draft замість Published.
 - `cms.config.ts` — лише серіалізовані значення (потрапляє в client bundle).
 - Переклади адмінки — `useAdminI18n()`, не vue-i18n / `@nuxtjs/i18n`; ізольовані від i18n Client Project.

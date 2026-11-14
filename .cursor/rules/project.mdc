@@ -98,6 +98,14 @@ Never generate:
 
 Business components belong to the Client Project.
 
+CMS primitives (`app/components/cms/`, MASTER_PLAN C-47…C-49):
+
+- take `:value` + `field-key`, never `v-model`; the code default is the slot content;
+- field keys are dotted paths (`hero.title`, `services.items.<id>.title`), no locale in the key;
+- never render stored content with `v-html`; rich text goes through `app/primitives/rich-text.ts`,
+  hrefs through `toSafeHref()` in `app/primitives/link.ts`;
+- never import Admin / Editor code: run `npm run check:bundle` after `npm run build`.
+
 ---
 
 ## Data Access

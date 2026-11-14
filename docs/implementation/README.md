@@ -34,7 +34,7 @@
 | 004b | Admin shell + запис Site Settings | 0 | `done` | [004b](./004b-admin-shell-settings.md) |
 | 004c | Alignment (вирівнювання перед 005) | 0 | `done` | [004c](./004c-alignment.md) |
 | 005 | Pages як content entity (published read) | 1 | `done` | [005](./005-pages.md) |
-| 006 | CMS Primitives, тільки Public Runtime | 1 | `todo` | — |
+| 006 | CMS Primitives, тільки Public Runtime | 1 | `done` | [006](./006-primitives.md) |
 | 007 | Draft / Publish / Revisions (дані) | 1 | `todo` | — |
 | 008 | Edit Mode (мінімальний вертикальний зріз) | 1 | `todo` | — |
 | 009 | Media + Storage Adapter | 1 | `todo` | — |
@@ -92,3 +92,10 @@ Public `/` не вантажить vue-i18n, vee-validate і admin CSS. Є ск�
 для сторінки без контенту, і шаблон рендерить дефолти. Locale береться з `defaultLocale` у
 `cms.config.ts`. Є generated Supabase types (`npm run gen:types`) і pgTAP smoke-тест міграцій
 (`npm run test:db`).
+
+### 006 — CMS Primitives, тільки Public Runtime
+
+`CmsText`, `CmsRichText`, `CmsLink`, `CmsButton`, `CmsImage`: `:value` + `field-key`, дефолт — slot,
+без `v-model` (C-47). Rich text — Tiptap JSON і власний renderer без `v-html` (C-49), `href` — через
+allow-list. Адреса поля — dotted path у вкладеному документі (C-48). Типи для Client —
+`nuxt-cms-core/types`. Public bundle перевіряє `npm run check:bundle`. `runtime.css` не знадобився.
