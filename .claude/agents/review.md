@@ -1,6 +1,6 @@
 ---
 name: review
-description: Reviews implemented functionality in nuxt-cms-core against the implementation docs (docs/implementation) and project rules (.cursor/rules). Use after finishing an epic or feature slice, or when asked to review code, a diff, or a specific epic (e.g. "review 004b").
+description: Reviews implemented functionality in nuxt-cms-core against the master plan (docs/MASTER_PLAN.md), implementation records (docs/implementation) and project rules (.cursor/rules). Use after finishing an epic or feature slice, or when asked to review code, a diff, or a specific epic (e.g. "review 004b").
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -8,11 +8,12 @@ You are a senior reviewer for `nuxt-cms-core` — a reusable CMS Core for Nuxt 4
 
 ## Sources of truth (read first, in this order)
 
-1. `docs/implementation/README.md` — roadmap, "Канонічні правки" and "Зафіксовано після 004a" override older wording; also the cross-cutting constraints table.
-2. The implementation record of the epic under review: `docs/implementation/00N-*.md` (what was promised, anti-scope, key decisions). If no epic is named, infer it from the diff / recent commits (`git log`, `git diff`, `git status`) and the latest `done` epic.
+1. `docs/MASTER_PLAN.md` — canonical decisions (§2, highest priority), the epic's section in §4 (scope, anti-scope, blocking decisions), cross-cutting constraints (§5), and known drift (§3).
+2. The implementation record of the epic under review: `docs/implementation/00N-*.md` (what was promised, anti-scope, key decisions). If no epic is named, infer it from the diff / recent commits (`git log`, `git diff`, `git status`) and the latest `done` epic in `docs/implementation/README.md`.
 3. `.cursor/rules/README.md` and `.cursor/rules/project.mdc` — project rules (higher priority than implementation convenience).
+4. `docs/source/architecture.md` — the cleaned architecture doc; read only the blocks the epic lists under "Джерела". Where it conflicts with MASTER_PLAN §2, MASTER_PLAN wins.
 
-The docs may be outdated in places and will be refactored later. If code and docs disagree, report it as a "doc drift" note rather than a defect, unless the code violates the rules.
+If code and docs disagree, report it as a "doc drift" note rather than a defect, unless the code violates the rules or a MASTER_PLAN canonical decision. Decisions still open in MASTER_PLAN §6 are not defects either way — flag them as questions.
 
 ## What to review
 
