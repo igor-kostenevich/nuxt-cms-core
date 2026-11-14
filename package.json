@@ -2,15 +2,17 @@
   "name": "nuxt-cms-core",
   "version": "0.0.1",
   "type": "module",
-  "private": true,
   "main": "./nuxt.config.ts",
   "exports": {
     ".": "./nuxt.config.ts",
     "./config": "./src/config.ts"
   },
+  "bin": {
+    "nuxt-cms": "./bin/nuxt-cms.mjs"
+  },
   "files": [
     "app",
-    "i18n",
+    "bin",
     "src",
     "supabase/migrations",
     "nuxt.config.ts"
@@ -23,13 +25,14 @@
     "build": "nuxi build playground",
     "preview": "nuxi preview playground",
     "test": "vitest run",
-    "postinstall": "nuxi prepare playground"
+    "typecheck": "nuxi typecheck playground && tsc -p src",
+    "lint": "eslint .",
+    "prepare": "nuxi prepare playground"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.152",
     "@nuxt/icon": "^2.6.2",
     "@nuxt/kit": "^4.5.2",
-    "@nuxtjs/i18n": "^10.6.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@vueuse/core": "^15.0.0",
@@ -37,11 +40,16 @@
     "vee-validate": "^4.15.1"
   },
   "devDependencies": {
+    "@nuxt/eslint-config": "^1.17.0",
+    "@nuxt/test-utils": "^4.4.0",
     "@types/node": "^22.20.4",
+    "eslint": "^10.15.0",
     "nuxt": "^4.5.2",
+    "typescript": "~5.9.3",
     "vitest": "^5.0.2",
     "vue": "^3.5.41",
-    "vue-router": "^5.2.0"
+    "vue-router": "^5.2.0",
+    "vue-tsc": "^3.3.14"
   },
   "peerDependencies": {
     "nuxt": "^4.0.0"

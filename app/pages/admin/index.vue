@@ -3,19 +3,19 @@ definePageMeta({
   middleware: ['cms-auth'],
 })
 
-const { t } = useI18n()
+const { t } = useAdminI18n()
 const { user, ensure } = useCmsAuth()
 
 await ensure()
 </script>
 
 <template>
-  <AdminShell :title="t('admin.shell.nav.dashboard')">
+  <AdminShell :title="t('cms.shell.nav.dashboard')">
     <p
       v-if="user"
       class="home__identity"
     >
-      {{ t('admin.home.signedIn', { email: user.email, role: user.role }) }}
+      {{ t('cms.home.signedIn', { email: user.email, role: user.role }) }}
     </p>
   </AdminShell>
 </template>

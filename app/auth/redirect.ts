@@ -20,7 +20,7 @@ export function safeRedirect(value: unknown): string {
   const withoutHash = value.split('#')[0] ?? ''
   const path = withoutHash.split('?')[0] ?? ''
 
-  let decoded = path
+  let decoded: string
 
   try {
     decoded = decodeURIComponent(path)

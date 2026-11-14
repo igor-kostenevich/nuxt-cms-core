@@ -4,6 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "composite": true,
+    // `src` is published, so the build info file must not land next to the sources.
+    "tsBuildInfoFile": "../node_modules/.cache/nuxt-cms-core/src.tsbuildinfo",
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,

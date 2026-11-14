@@ -1,5 +1,5 @@
 {
-  "admin": {
+  "cms": {
     "locale": {
       "label": "Мова"
     },
@@ -11,7 +11,7 @@
       "caption": "Система керування контентом",
       "title": "Вхід у CMS",
       "email": "Електронна пошта",
-      "emailPlaceholder": "name{'@'}company.com",
+      "emailPlaceholder": "name@company.com",
       "password": "Пароль",
       "passwordPlaceholder": "Введіть пароль",
       "submit": "Увійти",

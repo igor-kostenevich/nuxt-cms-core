@@ -3,35 +3,35 @@ defineProps<{
   title: string
 }>()
 
-const { t } = useI18n()
+const { t } = useAdminI18n()
 const route = useRoute()
 const { logout } = useCmsAuth()
 const { settings } = useSiteSettings()
 
-const siteName = computed(() => settings.value?.siteName || t('admin.login.caption'))
+const siteName = computed(() => settings.value?.siteName || t('cms.login.caption'))
 
 const groups = [
   {
-    label: 'admin.shell.groups.content',
+    label: 'cms.shell.groups.content',
     items: [
-      { label: 'admin.shell.nav.pages', icon: 'lucide:file' },
-      { label: 'admin.shell.nav.media', icon: 'lucide:image' },
-      { label: 'admin.shell.nav.forms', icon: 'lucide:clipboard-list' },
+      { label: 'cms.shell.nav.pages', icon: 'lucide:file' },
+      { label: 'cms.shell.nav.media', icon: 'lucide:image' },
+      { label: 'cms.shell.nav.forms', icon: 'lucide:clipboard-list' },
     ],
   },
   {
-    label: 'admin.shell.groups.website',
+    label: 'cms.shell.groups.website',
     items: [
-      { label: 'admin.shell.nav.analytics', icon: 'lucide:chart-column' },
-      { label: 'admin.shell.nav.activity', icon: 'lucide:activity' },
-      { label: 'admin.shell.nav.integrations', icon: 'lucide:plug' },
+      { label: 'cms.shell.nav.analytics', icon: 'lucide:chart-column' },
+      { label: 'cms.shell.nav.activity', icon: 'lucide:activity' },
+      { label: 'cms.shell.nav.integrations', icon: 'lucide:plug' },
     ],
   },
   {
-    label: 'admin.shell.groups.system',
+    label: 'cms.shell.groups.system',
     items: [
-      { label: 'admin.shell.nav.users', icon: 'lucide:users' },
-      { label: 'admin.shell.nav.secrets', icon: 'lucide:key-round' },
+      { label: 'cms.shell.nav.users', icon: 'lucide:users' },
+      { label: 'cms.shell.nav.secrets', icon: 'lucide:key-round' },
     ],
   },
 ] as const
@@ -62,14 +62,14 @@ async function onViewSite() {
           class="shell__mark"
           aria-hidden="true"
         >
-          {{ t('admin.login.mark') }}
+          {{ t('cms.login.mark') }}
         </span>
         <span class="shell__site">{{ siteName }}</span>
       </div>
 
       <nav
         class="shell__nav"
-        :aria-label="t('admin.shell.navLabel')"
+        :aria-label="t('cms.shell.navLabel')"
       >
         <NuxtLink
           to="/admin"
@@ -81,7 +81,7 @@ async function onViewSite() {
             name="lucide:layout-dashboard"
             aria-hidden="true"
           />
-          <span>{{ t('admin.shell.nav.dashboard') }}</span>
+          <span>{{ t('cms.shell.nav.dashboard') }}</span>
         </NuxtLink>
 
         <div
@@ -118,7 +118,7 @@ async function onViewSite() {
             name="lucide:settings"
             aria-hidden="true"
           />
-          <span>{{ t('admin.shell.nav.settings') }}</span>
+          <span>{{ t('cms.shell.nav.settings') }}</span>
         </NuxtLink>
       </div>
     </aside>
@@ -135,7 +135,7 @@ async function onViewSite() {
             size="sm"
             @click="onViewSite"
           >
-            {{ t('admin.shell.viewSite') }}
+            {{ t('cms.shell.viewSite') }}
           </AdminButton>
           <div class="shell__locale">
             <AdminLocaleSwitch />
@@ -146,7 +146,7 @@ async function onViewSite() {
             size="sm"
             @click="onLogout"
           >
-            {{ t('admin.home.logout') }}
+            {{ t('cms.home.logout') }}
           </AdminButton>
         </div>
       </header>

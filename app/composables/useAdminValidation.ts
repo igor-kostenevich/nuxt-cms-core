@@ -1,4 +1,4 @@
-import { useI18n } from 'vue-i18n'
+import { useAdminI18n } from './useAdminI18n'
 
 export type FieldRule = (value: unknown) => true | string
 
@@ -11,12 +11,12 @@ export const PASSWORD_MIN_LENGTH = 6
 const PHONE_MIN_DIGITS = 7
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-/** Admin field rules. Messages come from `admin.validation`. */
+/** Admin field rules. Messages come from `cms.validation`. */
 export function useAdminValidation() {
-  const { t } = useI18n()
+  const { t } = useAdminI18n()
 
   function required(): FieldRule {
-    return (value) => text(value).trim() !== '' || t('admin.validation.required')
+    return (value) => text(value).trim() !== '' || t('cms.validation.required')
   }
 
   /** Empty is valid: pair with `required` when the field cannot be blank. */
@@ -28,7 +28,7 @@ export function useAdminValidation() {
         return true
       }
 
-      return EMAIL_PATTERN.test(raw) || t('admin.validation.email')
+      return EMAIL_PATTERN.test(raw) || t('cms.validation.email')
     }
   }
 
@@ -47,7 +47,7 @@ export function useAdminValidation() {
       const unexpectedCharacter = /[^\d\s()+-]/.test(raw)
 
       if (unexpectedCharacter || extraPlus || digits < PHONE_MIN_DIGITS) {
-        return t('admin.validation.phone')
+        return t('cms.validation.phone')
       }
 
       return true
@@ -63,13 +63,13 @@ export function useAdminValidation() {
         return true
       }
 
-      return raw.length >= PASSWORD_MIN_LENGTH || t('admin.validation.password', { min: PASSWORD_MIN_LENGTH })
+      return raw.length >= PASSWORD_MIN_LENGTH || t('cms.validation.password', { min: PASSWORD_MIN_LENGTH })
     }
   }
 
   /** Compares the raw value with another field. The getter is read at check time. */
   function confirmed(expected: () => string): FieldRule {
-    return (value) => text(value) === expected() || t('admin.validation.confirmed')
+    return (value) => text(value) === expected() || t('cms.validation.confirmed')
   }
 
   function all(...rules: FieldRule[]): FieldRule {

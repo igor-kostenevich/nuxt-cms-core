@@ -131,8 +131,8 @@ Architecture Summary, `Б N` — блок доки.
 - **C-24. UI primitives адмінки — `Admin*`** (`AdminButton`, `AdminInput`, `AdminAlert`…),
   не `Base*`. Public `Cms*` primitives не будуються на admin-компонентах.
 - **C-25. Переклади адмінки ≠ переклади сайту.** Admin i18n — частина Core в усіх проектах,
-  з власним префіксом ключів (напр. `cms.*`), вантажиться лише в Admin/Editor Runtime, не
-  зливається з locales Client Project і не потрапляє в public bundle.
+  з префіксом ключів `cms.*`, вантажиться лише в Admin/Editor Runtime, не зливається з locales
+  Client Project і не потрапляє в public bundle. Механізм — C-36.
 - **C-26. Залежності.** VueUse — дозволена залежність Core (tree-shaken імпорти). Pinia —
   лише разом з Editor Engine (008). `vee-validate` — тільки для адмінки, не потрапляє в public
   bundle і не нав'язується Client Project.
@@ -161,6 +161,21 @@ Architecture Summary, `Б N` — блок доки.
 - **C-34.** Soft delete / Trash — по сутностях: Pages у 007, Media у 009, Collections у 014.
 - **C-35.** Maintenance mode і robots/indexing на публічному сайті — 015 (поле вже в `site_settings`).
 
+### Закрито в 004c
+
+- **C-36. Admin i18n — власний `useAdminI18n()`, не `@nuxtjs/i18n` (було D-01).** Модуль у layer
+  реєструє глобальний плагін в app entry. Через це vue-i18n потрапляв на публічний сайт, а locales
+  і strategy Core зливалися з i18n Client Project. Тепер: словники `app/admin/locales/*.json` (не в кореневій
+  `i18n/` — це дефолтна папка `@nuxtjs/i18n`), ключі `cms.*`.
+  Composable дає dotted lookup, `{param}`-інтерполяцію і fallback на `en`. Locale береться з cookie
+  `cms_locale`, потім з `Accept-Language`, і передається в SSR payload через `useState`.
+  Composable викликають лише admin-компоненти, тож словники лежать в admin-чанках. Linked messages,
+  pluralization і lazy per-locale — лише коли знадобляться.
+- **C-37. Docker — для локального Supabase, не для деплою (було D-54).** Локальний стек
+  (`supabase start`) — дефолт для розробки Core і обов'язковий для integration-тестів (з 007).
+  Без Docker — окремий хмарний dev-проєкт через `supabase link`. Деплой Client Project Docker не
+  потребує. Обидва шляхи — у README.
+
 ---
 
 ## 3. Стан проекту
@@ -174,18 +189,11 @@ Architecture Summary, `Б N` — блок доки.
 | 003 | `auth.users` → `cms_users`, login, сесія в cookie, статична `can()` + `cms_can()`, middleware на `/admin` і `/admin/edit` | [003](./implementation/003-auth.md) |
 | 004a | Токени й `Admin*` компоненти під `.cms-admin`, login | [004a](./implementation/004a-admin-ui-foundation.md) |
 | 004b | Admin shell із сайдбаром, Settings → General пише через `SettingsRepository.update()` + RLS `cms_can('settings.update')` | [004b](./implementation/004b-admin-shell-settings.md) |
+| 004c | Admin i18n без `@nuxtjs/i18n` (C-36), public bundle без vue-i18n / vee-validate / admin CSS, `typecheck` / `lint` / `@nuxt/test-utils`, тест синхронності прав TS ↔ SQL, `package.json` під публічний npm | [004c](./implementation/004c-alignment.md) |
 
-### Drift код ↔ план (закривається в 004c)
+### Drift код ↔ план
 
-| Що | Де | Має бути |
-| --- | --- | --- |
-| «Use Tailwind and CSS Variables» | `.cursor/rules/project.mdc` → UI | C-23 |
-| `@nuxtjs/i18n` реєструється в Core layer для адмінки (en/uk, `no_prefix`, cookie `cms_locale`) | `nuxt.config.ts`, `i18n/` | C-25: не зливатися з i18n Client, не тягнути vue-i18n у public |
-| `vee-validate` у dependencies Core | `package.json`, login/settings | C-26: перевірити, що лише admin chunk |
-| Немає `typecheck` / `lint` скриптів, немає `@nuxt/test-utils` | `package.json` | §5 Testing, Блок 18 |
-| `"private": true`, немає `bin` | `package.json` | C-30 (без самого publish) |
-| Матриця прав дубльована TS ↔ SQL без тесту синхронності | `app/auth/permissions.ts`, `cms_users.sql` | C-16 |
-| README: «Pinia / VueUse лише з 008» | `docs/implementation/README.md` | C-26 (оновлено) |
+Відкритого drift немає: усе, що було тут, закрито в 004c.
 
 ---
 
@@ -212,7 +220,7 @@ read → draft → edit → publish до локалізації; Collections п�
 
 ### 004c — Alignment (вирівнювання перед 005)
 
-`todo` · Фаза 0
+`done` · Фаза 0 · [запис](./implementation/004c-alignment.md)
 
 - **Ціль.** Привести код і правила до канонічних рішень, щоб 005 стартував з чистої бази.
 - **Будуємо.**
@@ -226,7 +234,7 @@ read → draft → edit → publish до локалізації; Collections п�
     (без самого publish).
 - **Anti-scope.** Нові фічі, рефакторинг робочого коду «для стилю», CI-пайплайн (016),
   повна автоматизація bundle-перевірки (006).
-- **Блокуючі рішення.** D-01, D-54.
+- **Блокуючі рішення.** D-01 → C-36, D-54 → C-37 (закрито).
 - **Джерела.** §3, §9, §33; Б4, Б17, Б18, Б20 §45.
 
 ### 005 — Pages як content entity (published read)
@@ -456,7 +464,6 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
-| D-01 | 004c | Як ізолювати admin i18n від i18n Client Project, якщо обидва на `@nuxtjs/i18n` | (a) Core лишає `@nuxtjs/i18n` з префіксом ключів і окремим lazy-завантаженням; (b) Core переходить на легкий власний `t()` над JSON без глобального плагіна | Спершу перевірити (a) на playground із site-i18n; якщо злиття не уникнути — (b) |
 | D-02 | 005 | Storage model значень полів сторінки | JSONB-документ на сторінку; колонки на поле; таблиця `page_fields` | Узгодити з D-09 і локалізацією: документ на (page, locale, state) найпростіший для code-defined сторінок |
 | D-03 | 005 | Як code-defined сторінка отримує рядок у `pages` | Реєстрація в коді + upsert; seed-міграція Client; auto-create при першому edit | Реєстрація в Client + idempotent upsert |
 | D-04 | 005 | Хто володіє slug/route статичної сторінки | Route у коді, slug у БД лише для template-сутностей; slug у БД для всіх | Статичні — route у коді; slug у БД — для template pages (Products тощо) |
@@ -524,7 +531,6 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
-| D-54 | 004c | Docker: Б20 §45 «не вимагається для розробки», але локальний Supabase CLI (dev і integration-тести, Б18 §20) працює лише на Docker | Docker обов'язковий для локальної розробки з Supabase; розробка проти хмарного dev-проєкту без Docker; обидва варіанти задокументовані | Docker потрібен для локального Supabase (dev + тести), не для деплою; хмарний dev-проєкт — допустима альтернатива |
 | D-55 | 016 | Набір CI-перевірок: Б18 §29 — typecheck, lint, test, build; Б20 §15 — без lint; release Core — + migration check | Мінімальний (typecheck, test, build); повний (+ lint); release Core + migration check | typecheck + lint + test + build для Core; + migration smoke перед release; Client Project — typecheck + critical tests + build |
 | D-56 | 007 | Restore, коли вже є незбережений спільний Draft (Б8 §14 «створити / оновити Draft» перезапише чужу роботу) | Restore мовчки перезаписує Draft; вимагає lock + підтвердження; перед перезаписом знімає snapshot поточного Draft | Restore вимагає lock і явне підтвердження «поточний Draft буде замінено» |
 | D-57 | 008 | Хто може робити Force Unlock (у доці «користувач із відповідними permissions», право не назване) | Лише Owner; Owner + Admin; окреме право за матрицею | Окреме право (`pages.unlock`, далі `<entity>.unlock`), за матрицею — owner і admin |
@@ -552,7 +558,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | R-11 | Custom JWT claims застарівають до refresh (~1 год) | Деактивація / пониження ролі не миттєві | C-16 |
 | R-12 | `inviteUserByEmail` падає для існуючого email; немає події `invited → active` | Invite існуючого користувача ламається | 015.2 |
 | R-13 | Replace у той самий storage path | Застарілий CDN/браузерний кеш | 009 (новий path) |
-| R-14 | `@nuxtjs/i18n` в Core layer | Злиття locales із Client, vue-i18n у public | C-25, D-01 |
+| R-14 | `@nuxtjs/i18n` в Core layer | Злиття locales із Client, vue-i18n у public | Вирішено в 004c (C-36) |
 | R-15 | `cms.config.ts` серіалізується в client bundle | Функції губляться, «приватні» значення стають публічними | C-27 |
 | R-16 | Custom scripts в Admin | Навмисний stored-XSS канал | D-47 |
 | R-17 | GA4 Data API для Analytics/Dashboard потребує OAuth / service account | Сторінка Analytics із ТЗ — окремий проєкт | 015, D-49 |
@@ -676,7 +682,7 @@ Google Doc такими правками. Цей список — і чеклі�
 | --- | --- |
 | `v-model` у прикладах primitives (Б3, Б4, Б12) | D-06 |
 | Два механізми реєстрації колекцій — config і `registerCollection` (Б13 §5 vs §39) | D-41, C-27 |
-| Docker «не вимагається» (Б20 §45) | D-54 |
+| Docker «не вимагається» (Б20 §45) | C-37 |
 | Різний набір CI-перевірок (Б18 §29, Б20 §15) | D-55 |
 | Restore «створити / оновити Draft» (Б8 §14) | D-56 |
 | Force unlock «з відповідними permissions» (Б8 Content Lock) | D-57 |

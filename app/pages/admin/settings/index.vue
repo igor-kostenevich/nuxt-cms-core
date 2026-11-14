@@ -6,7 +6,7 @@ definePageMeta({
   middleware: ['cms-auth'],
 })
 
-const { t } = useI18n()
+const { t } = useAdminI18n()
 const { can } = usePermissions()
 const { required, email: emailRule, phone: phoneRule } = useAdminValidation()
 const { settings, error: loadError, save, ready } = useAdminSettings()
@@ -42,7 +42,7 @@ const fieldOptions = () => ({
 const [siteName, siteNameProps] = defineField('siteName', fieldOptions)
 const [contactEmail, contactEmailProps] = defineField('contactEmail', fieldOptions)
 const [contactPhone, contactPhoneProps] = defineField('contactPhone', fieldOptions)
-const [maintenanceMode] = defineField<boolean>('maintenanceMode')
+const [maintenanceMode] = defineField('maintenanceMode')
 
 const onSubmit = handleSubmit(async (values) => {
   if (!canUpdate.value) {
@@ -68,7 +68,7 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <AdminShell :title="t('admin.shell.nav.settings')">
+  <AdminShell :title="t('cms.shell.nav.settings')">
     <AdminAlert
       v-if="loadError"
       tone="danger"
@@ -82,13 +82,13 @@ const onSubmit = handleSubmit(async (values) => {
       @submit="onSubmit"
     >
       <h2 class="settings__title">
-        {{ t('admin.settings.general') }}
+        {{ t('cms.settings.general') }}
       </h2>
 
       <AdminAlert
         v-if="!canUpdate"
         tone="warning"
-        :title="t('admin.settings.readOnly')"
+        :title="t('cms.settings.readOnly')"
       />
       <AdminAlert
         v-if="failure"
@@ -99,7 +99,7 @@ const onSubmit = handleSubmit(async (values) => {
       <AdminInput
         v-model="siteName"
         v-bind="siteNameProps"
-        :label="t('admin.settings.siteName')"
+        :label="t('cms.settings.siteName')"
         :error="errors.siteName"
         :disabled="!canUpdate || saving"
         name="siteName"
@@ -110,8 +110,8 @@ const onSubmit = handleSubmit(async (values) => {
       <AdminInput
         v-model="contactEmail"
         v-bind="contactEmailProps"
-        :label="t('admin.settings.contactEmail')"
-        :placeholder="t('admin.login.emailPlaceholder')"
+        :label="t('cms.settings.contactEmail')"
+        :placeholder="t('cms.login.emailPlaceholder')"
         :error="errors.contactEmail"
         :disabled="!canUpdate || saving"
         name="contactEmail"
@@ -121,7 +121,7 @@ const onSubmit = handleSubmit(async (values) => {
       <AdminInput
         v-model="contactPhone"
         v-bind="contactPhoneProps"
-        :label="t('admin.settings.contactPhone')"
+        :label="t('cms.settings.contactPhone')"
         :error="errors.contactPhone"
         :disabled="!canUpdate || saving"
         name="contactPhone"
@@ -130,8 +130,8 @@ const onSubmit = handleSubmit(async (values) => {
       />
       <AdminSwitch
         v-model="maintenanceMode"
-        :label="t('admin.settings.maintenance')"
-        :hint="t('admin.settings.maintenanceHint')"
+        :label="t('cms.settings.maintenance')"
+        :hint="t('cms.settings.maintenanceHint')"
         :disabled="!canUpdate || saving"
       />
 
@@ -143,7 +143,7 @@ const onSubmit = handleSubmit(async (values) => {
         size="md"
         :loading="saving"
       >
-        {{ t('admin.settings.save') }}
+        {{ t('cms.settings.save') }}
       </AdminButton>
     </form>
   </AdminShell>

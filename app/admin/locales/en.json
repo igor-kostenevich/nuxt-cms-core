@@ -1,5 +1,5 @@
 {
-  "admin": {
+  "cms": {
     "locale": {
       "label": "Language"
     },
@@ -11,7 +11,7 @@
       "caption": "Content Management System",
       "title": "CMS login",
       "email": "Email",
-      "emailPlaceholder": "name{'@'}company.com",
+      "emailPlaceholder": "name@company.com",
       "password": "Password",
       "passwordPlaceholder": "Enter your password",
       "submit": "Log in",

@@ -9,7 +9,7 @@ const emit = defineEmits<{
   dismiss: []
 }>()
 
-const { t } = useI18n()
+const { t } = useAdminI18n()
 
 const toneIcon = {
   info: 'lucide:info',
@@ -58,7 +58,7 @@ const role = computed(() => {
       size="sm"
       icon-only
       type="button"
-      :aria-label="t('admin.alert.dismiss')"
+      :aria-label="t('cms.alert.dismiss')"
       @click="emit('dismiss')"
     >
       <template #leading>

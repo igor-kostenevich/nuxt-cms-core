@@ -1,11 +1,13 @@
 import { createResolver } from '@nuxt/kit'
 import { defineNuxtConfig } from 'nuxt/config'
-import i18n from './i18n/i18n.options'
 
 const { resolve } = createResolver(import.meta.url)
 
+// Admin translations use useAdminI18n() over app/admin/locales/*.json, not @nuxtjs/i18n:
+// a layer-level i18n module would merge its locales into the Client Project and
+// put vue-i18n into the public entry (MASTER_PLAN C-36).
 export default defineNuxtConfig({
-  modules: ['@nuxtjs/i18n', '@nuxt/icon', resolve('./src/module')],
+  modules: ['@nuxt/icon', resolve('./src/module')],
   icon: {
     mode: 'svg',
     provider: 'server',
@@ -17,7 +19,6 @@ export default defineNuxtConfig({
       scan: false,
     },
   },
-  i18n,
   // Auth responses set session cookies, so they must not be cached and replayed
   // for a different visitor.
   routeRules: {

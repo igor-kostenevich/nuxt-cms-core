@@ -3,7 +3,7 @@ import { useForm } from 'vee-validate'
 import { adminErrorKey } from '../../admin/error-key'
 import { safeRedirect } from '../../auth/redirect'
 
-const { t } = useI18n()
+const { t } = useAdminI18n()
 const route = useRoute()
 const { all, required, email: emailRule, password: passwordRule } = useAdminValidation()
 const submitting = ref(false)
@@ -46,7 +46,7 @@ const submit = handleSubmit(async (values) => {
     const result = await login(values.email.trim(), values.password)
 
     if (!result.ok) {
-      message.value = t('admin.login.invalid')
+      message.value = t('cms.login.invalid')
       return
     }
 
@@ -90,16 +90,16 @@ async function onDevLogin(accountEmail: string) {
           class="login__mark"
           aria-hidden="true"
         >
-          {{ t('admin.login.mark') }}
+          {{ t('cms.login.mark') }}
         </div>
         <p class="login__caption">
-          {{ t('admin.login.caption') }}
+          {{ t('cms.login.caption') }}
         </p>
       </div>
 
       <section class="login__card">
         <h1 class="login__title">
-          {{ t('admin.login.title') }}
+          {{ t('cms.login.title') }}
         </h1>
 
         <form
@@ -122,8 +122,8 @@ async function onDevLogin(accountEmail: string) {
           <AdminInput
             v-model="email"
             v-bind="emailProps"
-            :label="t('admin.login.email')"
-            :placeholder="t('admin.login.emailPlaceholder')"
+            :label="t('cms.login.email')"
+            :placeholder="t('cms.login.emailPlaceholder')"
             :error="errors.email"
             :disabled="submitting"
             name="email"
@@ -142,8 +142,8 @@ async function onDevLogin(accountEmail: string) {
           <AdminInput
             v-model="password"
             v-bind="passwordProps"
-            :label="t('admin.login.password')"
-            :placeholder="t('admin.login.passwordPlaceholder')"
+            :label="t('cms.login.password')"
+            :placeholder="t('cms.login.passwordPlaceholder')"
             :error="errors.password"
             :disabled="submitting"
             name="password"
@@ -166,7 +166,7 @@ async function onDevLogin(accountEmail: string) {
             size="md"
             :loading="submitting"
           >
-            {{ t('admin.login.submit') }}
+            {{ t('cms.login.submit') }}
           </AdminButton>
 
           <div

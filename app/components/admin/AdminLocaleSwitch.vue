@@ -1,42 +1,26 @@
 <script setup lang="ts">
-const { locale, locales, setLocale, t } = useI18n()
+const { locale, locales, setLocale, t } = useAdminI18n()
 
-const options = computed(() => {
-  return locales.value.flatMap((item) => {
-    if (typeof item === 'string') {
-      return [{ code: item, name: item }]
-    }
-
-    return [{ code: item.code, name: item.name ?? item.code }]
-  })
-})
-
-async function onChange(event: Event) {
+function onChange(event: Event) {
   const target = event.target
 
   if (!(target instanceof HTMLSelectElement)) {
     return
   }
 
-  const next = options.value.find((item) => item.code === target.value)
-
-  if (!next) {
-    return
-  }
-
-  await setLocale(next.code)
+  setLocale(target.value)
 }
 </script>
 
 <template>
   <label>
-    {{ t('admin.locale.label') }}
+    {{ t('cms.locale.label') }}
     <select
       :value="locale"
       @change="onChange"
     >
       <option
-        v-for="item in options"
+        v-for="item in locales"
         :key="item.code"
         :value="item.code"
       >

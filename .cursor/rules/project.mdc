@@ -222,7 +222,15 @@ Avoid unnecessary dependencies.
 
 Avoid heavy UI frameworks.
 
-Use Tailwind and CSS Variables following project conventions.
+Use native CSS: CSS variables (UI kit tokens) and scoped CSS.
+
+Never use Tailwind or SCSS in Core. Client Projects may use Tailwind for their own site.
+
+Admin tokens are prefixed `--cms-` and live under `.cms-admin`, never on `:root`.
+
+Admin UI translations go through `useAdminI18n()` with `cms.*` keys
+(dictionaries in `app/admin/locales`). Never use vue-i18n or `@nuxtjs/i18n` in Core,
+and do not add a root `i18n/` directory: it is the default `@nuxtjs/i18n` directory.
 
 ---
 

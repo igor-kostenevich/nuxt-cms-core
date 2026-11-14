@@ -12,8 +12,7 @@ page builder.
 2. `docs/source/architecture.md` — почищена архітектурна дока (Architecture Summary + Блоки 3–21).
    Читати лише блоки, які епік вказує в «Джерела»: файл великий (~17.5k рядків).
 3. `docs/implementation/README.md` — статуси епіків; `docs/implementation/00N-*.md` — що зроблено.
-4. `.cursor/rules/project.mdc` — правила коду. Рядок «Use Tailwind» застарів: діє MASTER_PLAN C-23
-   (нативний CSS, без Tailwind і SCSS у Core) — виправляється в епіку 004c.
+4. `.cursor/rules/project.mdc` — правила коду.
 
 Якщо вимога неоднозначна або рішення є в реєстрі відкритих (§6) — питати, не вигадувати
 схему БД, API чи архітектуру.
@@ -30,14 +29,17 @@ page builder.
 ## Структура репо
 
 ```
-nuxt.config.ts        Layer entry, реєструє src/module, @nuxtjs/i18n (адмінка), @nuxt/icon
+nuxt.config.ts        Layer entry, реєструє src/module і @nuxt/icon
 src/                  Nuxt Module і контракт cms.config (defineCmsConfig, #cms/config)
+bin/                  Заготовка CLI nuxt-cms (сам CLI — 016)
 app/data/             Supabase-клієнти (єдині імпорти SDK), CmsDataError, repositories
 app/auth/             Матриця прав can() — має збігатися з SQL cms_can()
-app/composables/      useCms, useCmsAuth, useSiteSettings, usePermissions, ...
+app/composables/      useCms, useCmsAuth, useSiteSettings, usePermissions, ... (усі exports — глобальні
+                      auto-imports у Client; хелпери адмінки — в app/admin/, його не сканують)
 app/components/admin/ Admin* UI під .cms-admin
 app/pages/admin/      Admin-сторінки (login, shell, settings)
-i18n/                 Переклади адмінки (en, uk)
+app/admin/            Хелпери адмінки поза auto-imports; locales/ — словники (en, uk) для
+                      useAdminI18n(), ключі cms.*
 supabase/migrations/  Core migrations (публікуються з пакетом)
 playground/           Тестовий Client Project
 tests/                Vitest
@@ -49,11 +51,13 @@ docs/                 MASTER_PLAN, source/architecture.md, implementation/
 ```
 npm run dev       # playground (nuxi dev playground)
 npm run build     # build playground
-npm test          # vitest run
+npm test          # vitest run (node; Nuxt-середовище — файли `*.nuxt.test.ts` / `tests/nuxt/**`)
+npm run typecheck # nuxi typecheck playground + tsc -p src
+npm run lint      # eslint (@nuxt/eslint-config, без stylistic)
 supabase start    # локальний Supabase (Docker); ключі — supabase status → .env
 ```
 
-Скриптів `typecheck` / `lint` поки немає (з'являться в 004c).
+Без Docker — хмарний dev-проєкт (`supabase link`), див. README (MASTER_PLAN C-37).
 
 ## Ключові інваріанти (деталі — MASTER_PLAN §2)
 
@@ -64,6 +68,6 @@ supabase start    # локальний Supabase (Docker); ключі — supabas
 - Public Runtime не тягне Admin / Editor / Tiptap / admin CSS — перевірка бандла в DoD.
 - Edit Mode — `/admin/edit/...`, та сама клієнтська сторінка, Draft замість Published.
 - `cms.config.ts` — лише серіалізовані значення (потрапляє в client bundle).
-- Переклади адмінки ізольовані від i18n Client Project.
+- Переклади адмінки — `useAdminI18n()`, не vue-i18n / `@nuxtjs/i18n`; ізольовані від i18n Client Project.
 - Тести — лише критична логіка (permissions, Publish, Lock, repositories, міграції). Без E2E.
 - Мова документації — українська; код, ідентифікатори й коментарі в коді — англійською.

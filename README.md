@@ -78,7 +78,11 @@ Security, so the secret/service_role key must never be used for it.
 These two values are the only difference between a local Supabase CLI instance and a hosted
 project, so the same code covers both.
 
-### Local development
+### Local development (Docker)
+
+The local Supabase stack runs in Docker, so Docker is required for this path. It is the
+default for working on Core and for integration tests against a real database. Deploying a
+Client Project never needs Docker.
 
 ```bash
 supabase start        # prints the URL and keys, also available via `supabase status`
@@ -87,7 +91,11 @@ supabase db reset     # applies the Core migrations
 
 The playground reads `playground/.env`, so copy the values there when working in this repository.
 
-### Hosted project
+### Hosted project (no Docker)
+
+A hosted Supabase project works the same way, for production and as a development backend
+when Docker is not available. Use a separate project for development, never the production
+one. Integration tests still need the local stack.
 
 ```bash
 supabase link --project-ref <project-ref>
@@ -144,8 +152,18 @@ later and are the first place that key will be required, only on the server.
 All commands run the playground app:
 
 ```bash
-npm install       # links the layer into playground and prepares types
-npm run dev       # http://localhost:3000
+npm install         # links the layer into playground and prepares types
+npm run dev         # http://localhost:3000
 npm run build
 npm run preview
+npm test            # Vitest
+npm run typecheck   # vue-tsc over the playground (includes the layer) and tsc over src/
+npm run lint        # ESLint
 ```
+
+## Admin translations
+
+The admin UI is translated with `useAdminI18n()` over `app/admin/locales/*.json` (keys under `cms.*`),
+not with `@nuxtjs/i18n`. Core therefore adds no locales, routes or vue-i18n to the Client
+Project, which is free to use its own i18n setup. The admin language is stored in the
+`cms_locale` cookie.
