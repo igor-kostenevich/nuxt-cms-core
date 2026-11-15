@@ -72,6 +72,10 @@
     "errors": {
       "notFound": "The requested record was not found.",
       "permissionDenied": "You do not have permission to do that.",
+      "validation": "The data could not be saved: it is invalid or too large.",
+      "conflict": "This would replace changes that are not published yet.",
+      "locked": "Someone else is editing this page.",
+      "lockLost": "Your editing session is no longer active.",
       "unknown": "Something went wrong. Try again."
     }
   }

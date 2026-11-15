@@ -9,6 +9,70 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cms_page_draft: {
+        Row: {
+          content: Json
+          locale: string
+          page_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          content: Json
+          locale: string
+          page_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          content?: Json
+          locale?: string
+          page_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_page_draft_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "cms_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cms_page_locks: {
+        Row: {
+          acquired_at: string
+          heartbeat_at: string
+          page_id: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          heartbeat_at?: string
+          page_id: string
+          token?: string
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          heartbeat_at?: string
+          page_id?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_page_locks_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: true
+            referencedRelation: "cms_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cms_page_published: {
         Row: {
           content: Json
@@ -31,6 +95,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "cms_page_published_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "cms_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cms_page_revisions: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          locale: string
+          page_id: string
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          locale: string
+          page_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          locale?: string
+          page_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_page_revisions_page_id_fkey"
             columns: ["page_id"]
             isOneToOne: false
             referencedRelation: "cms_pages"
@@ -113,6 +212,59 @@ export type Database = {
     }
     Functions: {
       cms_can: { Args: { requested: string }; Returns: boolean }
+      cms_page_held_lock: {
+        Args: { lock_token: string; page_key: string }
+        Returns: string
+      }
+      cms_page_lock_acquire: { Args: { page_key: string }; Returns: string }
+      cms_page_lock_force_unlock: {
+        Args: { page_key: string }
+        Returns: undefined
+      }
+      cms_page_lock_heartbeat: {
+        Args: { lock_token: string; page_key: string }
+        Returns: undefined
+      }
+      cms_page_lock_release: {
+        Args: { lock_token: string; page_key: string }
+        Returns: undefined
+      }
+      cms_page_lock_ttl: { Args: never; Returns: string }
+      cms_page_publish: {
+        Args: { lock_token: string; page_key: string; page_locale: string }
+        Returns: string
+      }
+      cms_page_restore: {
+        Args: {
+          lock_token: string
+          page_key: string
+          page_locale: string
+          replace_draft?: boolean
+          revision_id: string
+        }
+        Returns: string
+      }
+      cms_page_save_draft: {
+        Args: {
+          content: Json
+          lock_token: string
+          page_key: string
+          page_locale: string
+        }
+        Returns: string
+      }
+      cms_page_write_draft: {
+        Args: {
+          next_content: Json
+          target_locale: string
+          target_page_id: string
+        }
+        Returns: string
+      }
+      cms_require_permission: {
+        Args: { requested: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

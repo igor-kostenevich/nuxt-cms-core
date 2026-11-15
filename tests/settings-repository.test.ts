@@ -80,6 +80,9 @@ describe('SettingsRepository.update', () => {
     expect((await updateError()).code).toBe('permission_denied')
 
     response = { data: null, error: postgrestError('23514') }
+    expect((await updateError()).code).toBe('validation')
+
+    response = { data: null, error: postgrestError('08006') }
     expect((await updateError()).code).toBe('unknown')
   })
 })
@@ -89,7 +92,14 @@ describe('toCmsDataError', () => {
     ['PGRST116', 'not_found'],
     ['42501', 'permission_denied'],
     ['PGRST301', 'permission_denied'],
+    ['P0002', 'not_found'],
+    ['23514', 'validation'],
+    ['23502', 'validation'],
+    ['CMSCF', 'conflict'],
+    ['CMSLK', 'locked'],
+    ['CMSLL', 'lock_lost'],
     ['08006', 'unknown'],
+    ['constructor', 'unknown'],
   ])('maps %s to %s and keeps the backend error as cause', (code, expected) => {
     const backend = postgrestError(code)
     const error = toCmsDataError(backend, 'Context')

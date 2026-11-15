@@ -35,7 +35,7 @@
 | 004c | Alignment (вирівнювання перед 005) | 0 | `done` | [004c](./004c-alignment.md) |
 | 005 | Pages як content entity (published read) | 1 | `done` | [005](./005-pages.md) |
 | 006 | CMS Primitives, тільки Public Runtime | 1 | `done` | [006](./006-primitives.md) |
-| 007 | Draft / Publish / Revisions (дані) | 1 | `todo` | — |
+| 007 | Draft / Publish / Revisions (дані) | 1 | `done` | [007](./007-draft-publish.md) |
 | 008 | Edit Mode (мінімальний вертикальний зріз) | 1 | `todo` | — |
 | 009 | Media + Storage Adapter | 1 | `todo` | — |
 | 010 | Localization v2 | 2 | `todo` | — |
@@ -99,3 +99,12 @@ Public `/` не вантажить vue-i18n, vee-validate і admin CSS. Є ск�
 без `v-model` (C-47). Rich text — Tiptap JSON і власний renderer без `v-html` (C-49), `href` — через
 allow-list. Адреса поля — dotted path у вкладеному документі (C-48). Типи для Client —
 `nuxt-cms-core/types`. Public bundle перевіряє `npm run check:bundle`. `runtime.css` не знадобився.
+
+### 007 — Draft / Publish / Revisions (дані)
+
+`cms_page_draft` (рядок лише поки є неопубліковані зміни), `cms_page_revisions` (знімок кожної
+публікації), `cms_page_locks` (токен на editor-сесію, клієнтам не читається). Запис — лише через RPC
+у транзакції: право → lock → інваріанти (object, ≤ 512 KB). Publish просуває збережений Draft, Restore
+без `replace_draft` не перезаписує наявний Draft. Нове право `pages.unlock`, коди `CmsDataError`
+`validation` / `conflict` / `locked` / `lock_lost`. Revalidation і soft delete Pages перенесено
+(C-11, C-34).

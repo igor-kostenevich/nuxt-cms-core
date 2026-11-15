@@ -107,3 +107,8 @@ select id, 'uk', $json$
 }
 $json$::jsonb
 from home;
+
+-- Every publication has a revision (C-51), the seeded one included.
+insert into public.cms_page_revisions (page_id, locale, content, created_at)
+select page_id, locale, content, published_at
+from public.cms_page_published;

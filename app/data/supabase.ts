@@ -51,17 +51,24 @@ export function getSupabaseClient(): SupabaseClient<Database> {
   return client
 }
 
+/**
+ * PostgREST and Postgres codes the Core reaches. The `CMS..` codes are raised
+ * by the page editing functions (migration cms_page_drafts).
+ */
+const ERROR_CODES: Record<string, CmsDataErrorCode> = {
+  PGRST116: 'not_found',
+  P0002: 'not_found',
+  '42501': 'permission_denied',
+  PGRST301: 'permission_denied',
+  '23514': 'validation',
+  '23502': 'validation',
+  CMSCF: 'conflict',
+  CMSLK: 'locked',
+  CMSLL: 'lock_lost',
+}
+
 function toErrorCode(code: string): CmsDataErrorCode {
-  // Only the cases actually reachable today are mapped.
-  if (code === 'PGRST116') {
-    return 'not_found'
-  }
-
-  if (code === '42501' || code === 'PGRST301') {
-    return 'permission_denied'
-  }
-
-  return 'unknown'
+  return (Object.hasOwn(ERROR_CODES, code) ? ERROR_CODES[code] : undefined) ?? 'unknown'
 }
 
 export function toCmsDataError(error: PostgrestError, context: string): CmsDataError {

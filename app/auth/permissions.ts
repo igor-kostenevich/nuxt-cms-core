@@ -10,8 +10,8 @@ export { CMS_PERMISSIONS } from '../types/auth'
  * Keep the two copies identical; tests/permissions-sync.test.ts fails when they drift.
  */
 const GRANTED: Record<CmsRole, readonly CmsPermission[]> = {
-  owner: ['settings.update', 'users.manage', 'pages.edit', 'pages.publish'],
-  admin: ['settings.update', 'pages.edit', 'pages.publish'],
+  owner: ['settings.update', 'users.manage', 'pages.edit', 'pages.publish', 'pages.unlock'],
+  admin: ['settings.update', 'pages.edit', 'pages.publish', 'pages.unlock'],
   editor: ['pages.edit'],
 }
 

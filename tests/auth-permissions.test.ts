@@ -10,18 +10,21 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
     'users.manage': true,
     'pages.edit': true,
     'pages.publish': true,
+    'pages.unlock': true,
   },
   admin: {
     'settings.update': true,
     'users.manage': false,
     'pages.edit': true,
     'pages.publish': true,
+    'pages.unlock': true,
   },
   editor: {
     'settings.update': false,
     'users.manage': false,
     'pages.edit': true,
     'pages.publish': false,
+    'pages.unlock': false,
   },
 }
 

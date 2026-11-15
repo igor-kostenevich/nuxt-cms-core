@@ -75,7 +75,8 @@ Architecture Summary, `Б N` — блок доки.
 - **C-07. Атомарні операції — Postgres-функції (RPC).** Publish, Restore, acquire/heartbeat/
   release lock виконуються однією функцією в транзакції. Side effects (cache revalidation,
   нотифікації) — після commit, best-effort.
-- **C-08. Mutations через RLS.** Кожна mutation має RLS policy; UI `can()` — не захист.
+- **C-08. Mutations через RLS.** Кожна mutation має RLS policy або йде лише через security definer
+  RPC, яка перевіряє `cms_can()` (Draft / Publish / Lock, 007); UI `can()` — не захист.
   Update/delete, відфільтровані RLS, повертають 0 рядків, а не помилку — repository мапить
   це на `permission_denied` / `not_found`.
 - **C-09. Схема бізнес-зрозуміла.** Окремі таблиці на сутність, без EAV/`entities`.
@@ -87,7 +88,8 @@ Architecture Summary, `Б N` — блок доки.
 
 - **C-11. Draft / Published / Revision розділені.** Public ніколи не читає Draft. Один
   спільний Draft на сутність. Revision immutable, мінімально — на Publish. Restore створює
-  Draft, не переписує Published. Cache invalidation після Publish — частина 007 (§18–19).
+  Draft, не переписує Published. Cache invalidation після Publish — разом із першим публічним кешем
+  (ISR / SWR, 016): у 007 кешу немає, кожен SSR-запит читає БД (§18–19).
 - **C-12. History ≠ Undo.** Undo/Redo — локальна editor-session. Revisions — server-side.
   `editor.historyLimit` у config — розмір Undo stack (§19).
 - **C-13. Concurrency = Content Lock.** Одна entity → один active editor, heartbeat,
@@ -162,7 +164,9 @@ Architecture Summary, `Б N` — блок доки.
 
 ### Розкладка по епіках (із «Зафіксовано після 004a»)
 
-- **C-34.** Soft delete / Trash — по сутностях: Pages у 007, Media у 009, Collections у 014.
+- **C-34.** Soft delete / Trash — по сутностях: Pages у 015 (разом зі списком Pages; перенесено з
+  007 — для code-defined сторінки видалення має сенс лише для рядка-сироти, видимого в списку), Media
+  у 009, Collections у 014.
 - **C-35.** Maintenance mode і robots/indexing на публічному сайті — 015 (поле вже в `cms_site_settings`).
 
 ### Закрито в 004c
@@ -212,7 +216,7 @@ Architecture Summary, `Б N` — блок доки.
   дизайн-ТЗ означає створення запису template-типу колекції, а не рядка `cms_pages`.
 - **C-44. До 010 locale контенту — `defaultLocale` у `cms.config.ts`** (дефолт `'en'`). У 010 джерелом
   стане таблиця мов; коди в уже записаних рядках лишаються валідними. Формат — канонічний BCP 47
-  (`uk`, `en-GB`, `zh-Hant`, `es-419`), однаковий у SQL-constraint і `CMS_LOCALE_PATTERN`; невалідний
+  (`uk`, `en-GB`, `zh-Hant`, `es-419`), однаковий у SQL-домені `cms_locale` і `CMS_LOCALE_PATTERN`; невалідний
   `defaultLocale` відкидається на build з попередженням. Мовонезалежні поля і fallback на default
   locale — D-60 (010).
 - **C-46. Publish — на entity × locale (було D-26).** Кожна мова публікується окремо: нову мову
@@ -257,6 +261,44 @@ Architecture Summary, `Б N` — блок доки.
   стабільний контракт (Б3 §31), і він має бути зафіксований до Draft (007). Нові вузли/marks — лише
   адитивно.
 
+### Закрито перед 007
+
+- **C-50. Draft — окрема таблиця `cms_page_draft` тієї самої форми, що й published (було D-09).**
+  Anon до неї доступу не має, читає лише `pages.edit`, пише лише RPC. Рядок lazy: з'являється на першому
+  Save Draft. Формат locale — спільний домен `cms_locale` (міграція pages) для всіх таблиць, що його
+  зберігають.
+- **C-51. Ревізія — знімок нової опублікованої версії (було D-10).** Перша публікація теж створює
+  ревізію, тож остання ревізія дорівнює Published. `cms_page_published` лишається самодостатнім (без
+  join на ревізію), дублювання свідоме. Кількість ревізій у V1 не обмежена; retention — коли обсяг
+  стане проблемою.
+- **C-52. Правила полів живуть на primitives, сервер перевіряє лише інваріанти (було D-11).**
+  `required`, `maxLength` тощо задає компонент, перевіряє Validation Engine в Edit Mode (008). RPC
+  перевіряють право, lock, «content — object» і жорсткий ліміт розміру (512 KB). Декларативної схеми
+  полів немає: поле довелося б описувати двічі, а Postgres не виконає JS-схему. Схему можна додати
+  адитивно, коли з'явиться правило, яке справді мусить тримати сервер. **Відхід від рекомендації аудиту.**
+  R-03 — прийнятий ризик: обійти UI може лише довірена роль `pages.publish`, а рендер безпечний за
+  будь-якого вмісту (C-49, allow-list `href`, дефолт зі slot).
+- **C-53. Статус сторінки derived, без колонки (було D-12).** Рядок Draft існує лише тоді, коли є
+  неопубліковані зміни: Publish його видаляє, Save Draft з контентом, що дорівнює Published, — теж.
+  Статуси: Draft (лише draft) / Published / Published зі змінами / немає контенту (дефолти коду).
+  Hidden і Unpublish для статичних сторінок немає: маршрут живе в коді Client, CMS його не прибирає.
+  Hide — для записів колекцій (D-44).
+- **C-54. Дані Content Lock і перевірка токена — у 007, UI — у 008 (було D-13).** Один lock на
+  сторінку, спільний для мов. Токен — випадковий на editor-сесію, тому таблиця lock клієнтам не читається
+  (C-06). Lock без heartbeat 2 хв може забрати інший користувач; той самий користувач (друга вкладка)
+  забирає свій lock одразу. Save Draft / Publish / Restore без валідного токена відхиляються.
+- **C-55. Force unlock — окреме право `pages.unlock`, owner і admin (було D-57).**
+- **C-56. Activity на Publish — у 012 (було D-14).** Хто і коли опублікував, зберігає ревізія. 012
+  додає запис Activity в ту саму транзакцію RPC.
+- **C-57. Restore вимагає lock і явного `replace_draft` (було D-56).** Якщо Draft уже є, без
+  підтвердження Restore повертає `conflict`. Резервної копії старого Draft немає. Restore останньої
+  ревізії при наявному Draft скидає сторінку до Published.
+- **C-58. Save Draft і Publish мають однакові серверні перевірки (було D-59).** Різниця — на клієнті:
+  Save Draft не блокується `required`, Publish блокується будь-якою blocking error. Жорсткі ліміти
+  Edit Mode не дає перевищити вже під час введення.
+- **Publish лише зі збереженого Draft (частина D-20).** RPC `publish` не приймає контент, а просуває
+  збережений Draft. Для 008 у D-20 лишається лише Undo після Publish.
+
 ---
 
 ## 3. Стан проекту
@@ -273,6 +315,7 @@ Architecture Summary, `Б N` — блок доки.
 | 004c | Admin i18n без `@nuxtjs/i18n` (C-36), public bundle без vue-i18n / vee-validate / admin CSS, `typecheck` / `lint` / `@nuxt/test-utils`, тест синхронності прав TS ↔ SQL, `package.json` під публічний npm | [004c](./implementation/004c-alignment.md) |
 | 005 | `cms_pages` + `cms_page_published` (документ на page × locale, select-only RLS), `PagesRepository.getByKey()`, `useCmsPage()`, `defaultLocale` у config, generated types, pgTAP smoke-тест | [005](./implementation/005-pages.md) |
 | 006 | `CmsText`, `CmsRichText` (renderer без Tiptap / `v-html`), `CmsLink`, `CmsButton`, `CmsImage` (src до 009); allow-list `href`; типи `nuxt-cms-core/types`; `npm run check:bundle` | [006](./implementation/006-primitives.md) |
+| 007 | `cms_page_draft`, `cms_page_revisions`, `cms_page_locks`, домен `cms_locale`; RPC save draft / publish / restore / lock; право `pages.unlock`; методи `PagesRepository`; pgTAP на атомарність і lock | [007](./implementation/007-draft-publish.md) |
 
 ### Drift код ↔ план
 
@@ -355,19 +398,21 @@ read → draft → edit → publish до локалізації; Collections п�
 
 ### 007 — Draft / Publish / Revisions (дані)
 
-`todo` · Фаза 1
+`done` · Фаза 1 · [запис](./implementation/007-draft-publish.md)
 
 - **Ціль.** Контракт даних і атомарний Publish до появи UI редактора.
 - **Будуємо.** Editor State (ще не тут) / Saved Draft / Published / Revision як різні поняття;
   `saveDraft` / `getDraft` / `publish` у `PagesRepository`; Publish як Postgres-функція:
   permission → серверна validation → revision snapshot → promote → publish metadata,
   revalidation після commit (C-07, C-11); Restore = новий Draft; soft delete Pages (C-34).
+  *Факт:* revalidation відкладено до першого кешу (C-11), soft delete Pages — у 015 (C-34).
   Тести: Publish атомарний, Draft не світиться в public read.
 - **Anti-scope.** Editor Engine, Undo/Redo, Lock UI, scheduled publish, approval workflow,
-  персональні drafts, realtime collaboration, per-locale publish.
+  персональні drafts, realtime collaboration, окремий lock на мову (lock спільний для мов, Publish —
+  per-locale за C-46).
 - **Залежності.** 005.
-- **Блокуючі рішення.** D-09, D-10, D-11, D-12, D-13, D-14, D-56, D-59.
-- **Примітка.** Activity на Publish — тонкий хук або відкласти до 012 (D-14).
+- **Блокуючі рішення.** D-09 → C-50, D-10 → C-51, D-11 → C-52, D-12 → C-53, D-13 → C-54,
+  D-14 → C-56, D-56 → C-57, D-59 → C-58, D-57 → C-55 (закрито).
 - **Джерела.** §18–20; Б8.
 
 ### 008 — Edit Mode (мінімальний вертикальний зріз)
@@ -391,7 +436,10 @@ read → draft → edit → publish до локалізації; Collections п�
 - **Anti-scope.** Page builder, окремий editable tree, iframe, Media Picker (009),
   collaborative editing, History UI як Undo, language switcher (після 010).
 - **Залежності.** 006, 007.
-- **Блокуючі рішення.** D-15, D-16, D-17, D-18, D-19, D-20, D-57.
+- **Блокуючі рішення.** D-15, D-16, D-17, D-18, D-19, D-20 (лише Undo після Publish). D-57 закрито в
+  007 (C-55).
+- **Дизайни.** Edit Mode — перший епік з UI після адмін-оболонки: тулбар Save Draft / Publish, save
+  status, стани поля, Preview, UI lock. Попросити в автора до плану; токени — `--cms-*`.
 - **DoD.** Public не імпортує Editor — `npm run check:bundle` входить у Definition of Done. Скрипт не
   бачить lazy-імпортів, які public-сторінка виконує безумовно, а editable-гілка підключається саме
   так. Тому DoD також включає перевірку в браузері (Network): `/` не запитує editor-чанки.
@@ -457,9 +505,10 @@ read → draft → edit → publish до локалізації; Collections п�
 - **Будуємо.** Хто / що / коли / яка сутність; запис із repositories (не з Vue); фільтри;
   групування по датах; Restore для подій, прив'язаних до ревізій.
 - **Anti-scope.** Infrastructure backup log, «відновити базу з Activity», field-level diff
-  для всіх подій, другий лог, якщо тонкий sink з'явився в 007.
+  для всіх подій.
 - **Залежності.** 007 (ревізії), 011 (події форм).
-- **Блокуючі рішення.** D-14 (якщо не закрите в 007), D-37.
+- **Блокуючі рішення.** D-37. Activity у 007 не будувалась (C-56): запис Publish / Restore — insert у
+  RPC `cms_page_publish` / `cms_page_restore`; історія Publish до 012 — у `cms_page_revisions`.
 - **Джерела.** Б8, Б21; дизайн-ТЗ §7.
 
 ### 013 — Integrations (перший живий provider)
@@ -498,7 +547,8 @@ read → draft → edit → publish до локалізації; Collections п�
 
 Екран за екраном, коли є дані. Не «намалювати всю адмінку».
 
-1. Pages list (статуси, Edit / View / History / Publish) — після 007–008.
+1. Pages list (статуси, Edit / View / History / Publish) — після 007–008. Soft delete Pages (C-34):
+   рядки-сироти, маршрут яких зник з коду.
 2. Settings → Users (C-19) — в ТЗ цього екрану немає, треба додати.
 3. Settings → SEO / Social / Advanced / Navigation — окремі таблиці/поля; maintenance і robots
    на публічному сайті (C-35; maintenance — server middleware, 503).
@@ -539,7 +589,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | Testing (Б18) | Vitest + Nuxt Test Utils. Unit: permissions, validation, status transitions, error mapping. Integration на локальному Supabase: Publish → Revision, Content Lock, FormsService. Component: `CmsText` / `CmsImage` / `CmsCollection` (stable ids). Smoke-тест міграцій, bundle regression. Без E2E, snapshots, coverage-цілей. |
 | Security (Б6, Б11) | `can()` в UI ≠ захист; RLS на кожну mutation; secret key лише server-side; заборона self-escalation у `cms_users`; останній Owner захищений у БД. |
 | Configuration (Б10) | П'ять рівнів (C-28) не змішуються; `cms.config.ts` серіалізований (C-27). |
-| Data Layer (Б5, Б12) | UI → Composable → Repository → Backend Adapter; domain types на виході; нормалізовані помилки (`CmsDataError` розширюється по факту: `validation` у 007, `conflict` у 008). |
+| Data Layer (Б5, Б12) | UI → Composable → Repository → Backend Adapter; domain types на виході; нормалізовані помилки (`CmsDataError` розширюється по факту: `validation`, `conflict`, `locked`, `lock_lost` — у 007). |
 | Deployment (Б20) | Деплоїться Client Project; окрема БД на environment; міграція → deploy; backward-compatible міграції; noindex і вимкнений GA поза Production. |
 | Backup (Б21) | Помилка редактора → Revision / Trash. Інфраструктура → backup провайдера. Storage-файли провайдер не бекапить — потрібен задокументований скрипт синхронізації (R-08). Власний backup engine не пишемо. |
 
@@ -554,18 +604,12 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
-| D-09 | 007 | Де живе Draft | Окрема таблиця draft / published; колонки + view; окрема схема | Окреме сховище (C-06) |
-| D-10 | 007 | Що знімає revision при Publish | Нову published-версію; попередню | Нову (перша публікація теж має ревізію) |
-| D-11 | 007 | Серверна validation при Publish | Правила реєструють компоненти (сервер не бачить); декларативна схема полів у Client; лише required/limits на сервері | Мінімальна декларативна схема полів, спільна для клієнта й сервера |
-| D-12 | 007 | Модель статусів сторінки | Draft / Published; + Hidden (з ТЗ); + «published, є неопубліковані зміни» | Derived статус із draft/published + окремий прапорець видимості, якщо Hide реально потрібен |
-| D-13 | 007 | Lock-дані: у 007 чи 008 | RPC 007 одразу приймають lock-токен; 008 переписує сигнатури | Таблиця lock і перевірка в RPC — у 007, UI — у 008 |
-| D-14 | 007 | Activity на Publish до 012 | Тонкий write-sink у 007; відкласти до 012 | Що дешевше на момент 007 (не будувати таблицю «про запас») |
 | D-15 | 008 | Механізм `/admin/edit/[...path]` | `router.resolve().matched` + ручний рендер; той самий маршрут + edit-прапорець; catch-all у Client | Spike на старті 008 |
 | D-16 | 008 | Editor binding для сутностей | Context: entity type + id + repository; мінімальний Draftable-контракт (`getDraft` / `saveDraft` / `publish`) | Так, мінімальний контракт |
 | D-17 | 008 | Autosave у V1 | Явний Save Draft (як у ТЗ); autosave з debounce | Явний Save Draft; autosave — пізніше |
 | D-18 | 008 | Чи пише autosave/Save Draft в Activity | Кожне збереження; лише Publish/Restore | Лише meaningful (Publish, Restore, Reset) |
 | D-19 | 008 | Глобальний контент у Edit Mode (header, footer, логотип) | Окрема сутність із Draft/Publish і своїм lock; read-only в Edit Mode; редагується в Settings | Не в першому зрізі; логотип — Settings → Brand |
-| D-20 | 008 | Publish з незбереженим Editor State; Undo після Publish | Auto-save перед Publish; Publish лише зі збереженого; очищати Undo | Publish лише зі збереженого Draft (як у ТЗ) |
+| D-20 | 008 | Undo після Publish (Publish лише зі збереженого Draft — закрито в 007, див. §2) | Очищати Undo stack; лишати | Очищати: Undo не повинен «відкочувати» опубліковане |
 | D-21 | 009 | Upload | Прямо в Storage з policies; через server endpoint (перевірка magic bytes) | Server endpoint для валідації; або direct + post-check |
 | D-22 | 009 | Media usage tracking | Registry `media_usage`; запити по контенту; резолвери для клієнтських таблиць | Registry, якщо дешево; інакше наступним кроком |
 | D-23 | 009 | Оптимізація зображень | Оригінали; `@nuxt/image` + IPX / провайдер хостингу; Supabase transformations (платно) | `@nuxt/image` з провайдером хостингу, без власного pipeline |
@@ -615,10 +659,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
 | D-55 | 016 | Набір CI-перевірок: Б18 §29 — typecheck, lint, test, build; Б20 §15 — без lint; release Core — + migration check | Мінімальний (typecheck, test, build); повний (+ lint); release Core + migration check | typecheck + lint + test + build для Core; + migration smoke перед release; Client Project — typecheck + critical tests + build |
-| D-56 | 007 | Restore, коли вже є незбережений спільний Draft (Б8 §14 «створити / оновити Draft» перезапише чужу роботу) | Restore мовчки перезаписує Draft; вимагає lock + підтвердження; перед перезаписом знімає snapshot поточного Draft | Restore вимагає lock і явне підтвердження «поточний Draft буде замінено» |
-| D-57 | 008 | Хто може робити Force Unlock (у доці «користувач із відповідними permissions», право не назване) | Лише Owner; Owner + Admin; окреме право за матрицею | Окреме право (`pages.unlock`, далі `<entity>.unlock`), за матрицею — owner і admin |
 | D-58 | 015 | Чи мають Settings ревізії (DB v1 «History» включала налаштування; Б8 §26 — Draft/Revisions лише там, де є work-in-progress) | Revisions для settings; лише Activity-запис змін; нічого | Без ревізій у V1, лише Activity-запис значущих змін (після 012) |
-| D-59 | 007 | «Базова» validation на Save Draft (Б3 §20) vs «Save Draft не вимагає повної validation» (Б8 §28) — межа не визначена | Save Draft без валідації; лише типи й жорсткі ліміти; повна | Save Draft перевіряє лише типи й жорсткі ліміти (без required); повна — на Publish. Узгодити з D-11 |
 
 ---
 
@@ -628,9 +669,9 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Ризик | Наслідок | Де вирішується |
 | --- | --- | --- | --- |
-| R-01 | RLS рядкова | Draft / приватні поля в рядку, видимому anon, витікають | C-06, D-09 |
+| R-01 | RLS рядкова | Draft / приватні поля в рядку, видимому anon, витікають | C-06, C-50 |
 | R-02 | Supabase JS не має клієнтських транзакцій | Publish / Restore / Lock неатомарні без RPC | C-07 |
-| R-03 | Validation з Vue-компонентів сервер не бачить | Прямий API-запит публікує невалідний контент | D-11 |
+| R-03 | Validation з Vue-компонентів сервер не бачить | Прямий API-запит публікує невалідний контент | C-52: прийнятий ризик (лише довірена роль, безпечний рендер) |
 | R-04 | Статичний import editable-гілки primitive | Editor-код у public bundle | 006, 008 (async-гілка) |
 | R-05 | Nuxt не рендерить чужий page-компонент із layout «з коробки» | Edit Mode не відтворює сайт | D-15 (spike) |
 | R-06 | Supabase CLI — одна лінійна історія міграцій | «Два незалежні джерела» не працюють as-is | D-50 |
@@ -670,7 +711,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | Edit Mode: History «останні 10 змін» | Плутає Undo і Revisions | C-12; назвати розведено |
 | Edit Mode: логотип як обов'язкове поле | Логотип — Settings → Brand | D-19 |
 | Edit Mode: перемикач мов EN/UA/DE | Лише після 010 | 010 |
-| Pages: статус Hidden, дія Publish/Hide | Немає в моделі Draft/Publish | D-12 |
+| Pages: статус Hidden, дія Publish/Hide | Немає в моделі Draft/Publish | C-53: без Hidden для статичних сторінок |
 | Dashboard: «Create page» | Статичні сторінки задає розробник | C-43: запис template-типу колекції |
 | Collections: Active/Hidden; Delete | Draft/Publish; soft delete | D-44, C-34 |
 | Activity: Restore з diff | Restore лише для подій з ревізією | D-37 |
@@ -773,7 +814,7 @@ Google Doc такими правками. Цей список — і чеклі�
 | Два механізми реєстрації колекцій — config і `registerCollection` (Б13 §5 vs §39) | D-41, C-27 |
 | Docker «не вимагається» (Б20 §45) | C-37 |
 | Різний набір CI-перевірок (Б18 §29, Б20 §15) | D-55 |
-| Restore «створити / оновити Draft» (Б8 §14) | D-56 |
-| Force unlock «з відповідними permissions» (Б8 Content Lock) | D-57 |
+| Restore «створити / оновити Draft» (Б8 §14) | C-57 |
+| Force unlock «з відповідними permissions» (Б8 Content Lock) | C-55 |
 | History включає налаштування (DB v1) | D-58 |
-| «Базова» validation на Save Draft (Б3 §20 vs Б8 §28) | D-59 |
+| «Базова» validation на Save Draft (Б3 §20 vs Б8 §28) | C-58 |

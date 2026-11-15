@@ -14,6 +14,16 @@
 -- The locale is part of the key from the start, so localization (010) adds a
 -- languages table without rewriting existing rows.
 
+-- One spelling per language, shared by every table that stores a locale:
+-- canonical BCP 47 casing, so a languages table (010) can reference it:
+-- uk, en-GB, zh-Hant, es-419. Keep identical to CMS_LOCALE_PATTERN in src/config.ts.
+create domain public.cms_locale as text
+  constraint cms_locale_format
+    check (value ~ '^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?$');
+
+comment on domain public.cms_locale is
+  'Canonical BCP 47 casing: uk, en-GB, zh-Hant, es-419.';
+
 create table public.cms_pages (
   id uuid primary key default gen_random_uuid(),
   key text not null,
@@ -28,17 +38,12 @@ comment on table public.cms_pages is
 
 create table public.cms_page_published (
   page_id uuid not null references public.cms_pages (id) on delete cascade,
-  locale text not null,
+  locale public.cms_locale not null,
   -- The page content as one document. The shape inside the object is
   -- defined by the field address format (006), not by this table.
   content jsonb not null default '{}'::jsonb,
   published_at timestamptz not null default now(),
   primary key (page_id, locale),
-  -- Canonical BCP 47 casing, so one language has exactly one spelling and
-  -- a languages table (010) can reference it: uk, en-GB, zh-Hant, es-419.
-  -- Keep identical to CMS_LOCALE_PATTERN in src/config.ts.
-  constraint cms_page_published_locale_format
-    check (locale ~ '^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|[0-9]{3}))?$'),
   constraint cms_page_published_content_object
     check (jsonb_typeof(content) = 'object')
 );

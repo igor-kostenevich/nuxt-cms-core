@@ -9,6 +9,7 @@ export const CMS_PERMISSIONS = [
   'users.manage',
   'pages.edit',
   'pages.publish',
+  'pages.unlock',
 ] as const
 export const CMS_USER_STATUSES = ['active', 'disabled'] as const
 

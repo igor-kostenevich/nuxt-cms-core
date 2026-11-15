@@ -57,6 +57,7 @@ as $$
         when 'users.manage' then role = 'owner'
         when 'pages.edit' then role in ('owner', 'admin', 'editor')
         when 'pages.publish' then role in ('owner', 'admin')
+        when 'pages.unlock' then role in ('owner', 'admin')
         else false
       end
       from public.cms_users

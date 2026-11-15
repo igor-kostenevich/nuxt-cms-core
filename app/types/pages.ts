@@ -16,3 +16,16 @@ export interface CmsPage {
   /** ISO timestamp of the publication. */
   publishedAt: string
 }
+
+/**
+ * Unpublished changes of a page in one locale. Exists only while there is
+ * something to publish: Publish removes it, and so does saving content equal
+ * to the published version.
+ */
+export interface CmsPageDraft {
+  key: string
+  locale: string
+  content: CmsPageContent
+  /** ISO timestamp of the last Save Draft. */
+  updatedAt: string
+}

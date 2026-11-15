@@ -22,7 +22,7 @@ export interface ResolvedCmsConfig {
 /**
  * Canonical BCP 47 subset: language, optional script, optional region
  * (`uk`, `en-GB`, `zh-Hant`, `es-419`). One spelling per language, so `en-gb`
- * is rejected. Keep identical to `cms_page_published_locale_format` in SQL.
+ * is rejected. Keep identical to the `cms_locale` domain in SQL (migration cms_pages).
  */
 export const CMS_LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Z][a-z]{3})?(-([A-Z]{2}|\d{3}))?$/
 

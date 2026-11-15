@@ -3,6 +3,10 @@ import { CmsDataError, type CmsDataErrorCode } from '../data/errors'
 const ERROR_KEYS = {
   not_found: 'cms.errors.notFound',
   permission_denied: 'cms.errors.permissionDenied',
+  validation: 'cms.errors.validation',
+  conflict: 'cms.errors.conflict',
+  locked: 'cms.errors.locked',
+  lock_lost: 'cms.errors.lockLost',
   unknown: 'cms.errors.unknown',
 } as const satisfies Record<CmsDataErrorCode, string>
 
