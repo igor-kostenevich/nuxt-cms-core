@@ -21,8 +21,8 @@ page builder.
 
 Епік за епіком, маленькими завершеними зрізами:
 план епіку (plan mode, закрити блокуючі рішення) → реалізація → запис
-`docs/implementation/00N-*.md` → агент `review` (`.claude/agents/review.md`) → оновити статус
-у MASTER_PLAN і README.
+`docs/implementation/00N-*.md` + важливі сценарії ручної перевірки в `docs/testing/` (кандидати в
+e2e) → агент `review` (`.claude/agents/review.md`) → оновити статус у MASTER_PLAN і README.
 
 Не комітити, не пушити, не створювати PR і не встановлювати залежності без явного прохання.
 
@@ -50,7 +50,8 @@ supabase/tests/       pgTAP smoke-тести міграцій (не публік
 playground/           Тестовий Client Project
 scripts/              Dev-скрипти (не публікуються): check-public-bundle.mjs
 tests/                Vitest
-docs/                 MASTER_PLAN, source/architecture.md, implementation/
+docs/                 MASTER_PLAN, source/architecture.md, implementation/, testing/ (сценарії
+                      ручної перевірки, кандидати в e2e)
 ```
 
 ## Команди

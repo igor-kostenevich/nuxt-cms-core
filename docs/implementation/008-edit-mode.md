@@ -365,6 +365,9 @@ stacking contexts у CSS Client нічого не ламають, а admin CSS �
   - Skip-link.
   - Lazy-зображення нижче першого екрана; фон hero — eager з високим пріоритетом.
 
+Сценарії ручної перевірки, зокрема Content Lock у двох браузерах:
+[docs/testing/edit-mode.md](../testing/edit-mode.md).
+
 ## Обмеження
 
 - Зображення не зберігаються до 009 (C-68).
