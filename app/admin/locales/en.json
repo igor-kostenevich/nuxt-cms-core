@@ -46,7 +46,8 @@
         "integrations": "Integrations",
         "users": "Users",
         "secrets": "Secrets",
-        "settings": "Settings"
+        "settings": "Settings",
+        "editSite": "Edit site"
       },
       "soon": "Coming soon",
       "logoutFailed": "Could not log out. Try again."
@@ -77,6 +78,171 @@
       "locked": "Someone else is editing this page.",
       "lockLost": "Your editing session is no longer active.",
       "unknown": "Something went wrong. Try again."
+    },
+    "editor": {
+      "toolbar": {
+        "label": "Editor toolbar",
+        "exit": "Exit",
+        "undo": "Undo",
+        "redo": "Redo",
+        "pages": "Switch page",
+        "history": "Publication history",
+        "highlight": "Highlight editable content",
+        "preview": "Preview",
+        "exitPreview": "Back to editing",
+        "save": "Save draft",
+        "publish": "Publish"
+      },
+      "status": {
+        "loading": "Loading…",
+        "unsaved": "Unsaved changes",
+        "saving": "Saving…",
+        "draft": "Draft not published",
+        "published": "Published",
+        "error": "Not saved",
+        "retry": "Retry",
+        "readOnly": "Read only",
+        "issues": "Issues blocking publish: {count}"
+      },
+      "kinds": {
+        "text": "Text",
+        "richText": "Text",
+        "link": "Link",
+        "button": "Button",
+        "image": "Image",
+        "background": "Background",
+        "collection": "List",
+        "item": "Item",
+        "optional": "Block"
+      },
+      "field": {
+        "reset": "Reset",
+        "resetTitle": "Reset to the published version?",
+        "resetConfirm": "Reset",
+        "hide": "Hide",
+        "show": "Show",
+        "hidden": "Hidden: {name}",
+        "counter": "{count} / {max}",
+        "required": "Required",
+        "placeholder": "Empty — type to add text",
+        "done": "Done",
+        "counterLabel": "{count} of {max} characters",
+        "nearLimit": "Close to the limit of {max} characters",
+        "overLimit": "Over the limit of {max} characters"
+      },
+      "link": {
+        "label": "Label",
+        "destination": "Link",
+        "destinationHint": "/page, #section, https://…, mailto: or tel:",
+        "type": "Type: {type}",
+        "types": {
+          "internal": "Page on this site",
+          "section": "Section on this page",
+          "external": "External website",
+          "email": "Email",
+          "phone": "Phone",
+          "none": "No link",
+          "invalid": "Not allowed — will not be clickable"
+        },
+        "newTab": "Open in a new tab",
+        "open": "Open",
+        "openHint": "Cmd/Ctrl + click opens a link right away"
+      },
+      "richText": {
+        "bold": "Bold",
+        "italic": "Italic",
+        "link": "Link",
+        "unlink": "Remove link",
+        "linkPrompt": "Link address"
+      },
+      "image": {
+        "replace": "Replace image",
+        "library": "Choose from Media",
+        "upload": "Upload from device",
+        "alt": "Alt text",
+        "altHint": "Describe the image for people who cannot see it.",
+        "decorative": "Decorative image (no alt text)",
+        "focal": "Focal point",
+        "focalHint": "Click the thumbnail to set the focal point ({x}%, {y}%)",
+        "notSaved": "Preview only: image changes are not saved until Media arrives.",
+        "libraryTitle": "Media",
+        "wrongType": "Choose a JPG, PNG, WebP or SVG image."
+      },
+      "collection": {
+        "add": "Add item",
+        "duplicate": "Duplicate",
+        "delete": "Delete",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "drag": "Drag to reorder",
+        "deleted": "Item deleted",
+        "undo": "Undo",
+        "max": "Limit reached: {max}",
+        "empty": "No items yet",
+        "moved": "Moved to position {position} of {count}",
+        "undoGone": "This change can no longer be undone from here. Use Undo in the toolbar.",
+        "keys": "Use the arrow keys to move the item.",
+        "addAfter": "Add an item after this one"
+      },
+      "lock": {
+        "lockedBy": "{name} has been editing this page since {time}. You can look, but not change it.",
+        "someone": "Someone",
+        "stale": "Their session looks inactive.",
+        "forceUnlock": "Take over editing",
+        "lostTitle": "Your editing session is no longer active",
+        "lostBody": "Someone else took over this page, or it was opened in another tab. Your unsaved changes are still here.",
+        "takeBack": "Take back and continue",
+        "takeBackFailed": "The page is still being edited by someone else.",
+        "takeOverTitle": "Take over editing?",
+        "takeOverBody": "{name} will lose their editing session. Their unsaved changes stay only in their tab."
+      },
+      "leave": {
+        "title": "Leave without saving?",
+        "body": "You have unsaved changes on this page.",
+        "save": "Save and leave",
+        "discard": "Leave without saving",
+        "cancel": "Cancel",
+        "takeBackAndSave": "Take back and save"
+      },
+      "history": {
+        "title": "Publication history",
+        "hint": "Each entry is a version that went live. This is not Undo.",
+        "empty": "This page has not been published yet.",
+        "current": "Live now",
+        "restore": "Restore",
+        "restoreTitle": "Restore this version?",
+        "restoreBody": "It becomes the draft. Your unsaved changes and the current draft are replaced. The live site does not change until you publish.",
+        "restored": "Version restored as draft",
+        "close": "Close",
+        "reset": "Reset page to the published version",
+        "resetTitle": "Reset the whole page?",
+        "resetBody": "Every field returns to the published version. Save the draft to keep it.",
+        "restoreVersion": "Restore the version of {date}"
+      },
+      "toasts": {
+        "saved": "Draft saved",
+        "published": "Published",
+        "publishFailed": "Not published",
+        "saveFailed": "Draft not saved"
+      },
+      "load": {
+        "failed": "The page could not be opened for editing.",
+        "notFound": "There is no page at {path}.",
+        "back": "Back to the dashboard"
+      },
+      "pages": {
+        "home": "Home"
+      },
+      "documentTitle": "{page} · Edit",
+      "discard": {
+        "title": "Discard unsaved changes?",
+        "body": "The page returns to its last saved state.",
+        "confirm": "Discard changes"
+      },
+      "issues": {
+        "required": "{name}: required",
+        "maxLength": "{name}: too long"
+      }
     }
   }
 }

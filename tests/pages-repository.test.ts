@@ -7,7 +7,7 @@ vi.mock('#imports', () => ({ useRuntimeConfig: vi.fn() }))
 const calls: { client: 'anon' | 'session', method: string, args: unknown[] }[] = []
 let response: { data: unknown, error: unknown }
 
-// Records the PostgREST chain and resolves `.maybeSingle()` / `.rpc()` with `response`.
+// Records the PostgREST chain and resolves `.maybeSingle()` / `.rpc()` / `.limit()` with `response`.
 // `client` tells the anonymous and the session client apart.
 function recorder(client: 'anon' | 'session') {
   const builder: object = new Proxy({}, {
@@ -20,7 +20,7 @@ function recorder(client: 'anon' | 'session') {
 
       return (...args: unknown[]) => {
         calls.push({ client, method, args })
-        return method === 'maybeSingle' || method === 'rpc' ? Promise.resolve(response) : builder
+        return ['maybeSingle', 'rpc', 'limit'].includes(method) ? Promise.resolve(response) : builder
       }
     },
   })
@@ -193,6 +193,48 @@ describe('PagesRepository editing functions', () => {
       ['cms_page_lock_release', { page_key: 'home', lock_token: 'token' }],
       ['cms_page_lock_force_unlock', { page_key: 'home' }],
     ])
+  })
+
+  it('lists revisions of one page and locale, newest first, without content', async () => {
+    response = {
+      data: [{ id: 'r2', locale: 'uk', created_at: '2026-11-15T12:00:00+00:00', page: { key: 'home' } }],
+      error: null,
+    }
+
+    await expect(createPagesRepository().listRevisions('home', 'uk')).resolves.toEqual([
+      { id: 'r2', locale: 'uk', createdAt: '2026-11-15T12:00:00+00:00' },
+    ])
+    expect(calls.every(call => call.client === 'session')).toBe(true)
+    expect(argsOf('from')).toEqual([['cms_page_revisions']])
+    expect(argsOf('select')[0]?.[0]).not.toContain('content')
+    expect(argsOf('eq')).toEqual([['page.key', 'home'], ['locale', 'uk']])
+    expect(argsOf('order')).toEqual([['created_at', { ascending: false }]])
+  })
+
+  it('reads the lock holder without the token, and null when nobody holds it', async () => {
+    response = {
+      data: [{
+        holder_email: 'anna@example.test',
+        acquired_at: '2026-11-15T12:00:00+00:00',
+        heartbeat_at: '2026-11-15T12:01:00+00:00',
+        is_mine: false,
+        is_stale: false,
+      }],
+      error: null,
+    }
+    const repository = createPagesRepository()
+
+    await expect(repository.getLockStatus('home')).resolves.toEqual({
+      holderEmail: 'anna@example.test',
+      acquiredAt: '2026-11-15T12:00:00+00:00',
+      heartbeatAt: '2026-11-15T12:01:00+00:00',
+      mine: false,
+      stale: false,
+    })
+    expect(argsOf('rpc')).toEqual([['cms_page_lock_status', { page_key: 'home' }]])
+
+    response = { data: [], error: null }
+    await expect(repository.getLockStatus('home')).resolves.toBeNull()
   })
 
   it.each([

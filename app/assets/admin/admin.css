@@ -1,10 +1,13 @@
 /*
- * Admin tokens. Imported only by AdminRoot, and every variable lives under
- * .cms-admin so a client project never inherits them.
- * Names follow the UI kit, with a --cms- prefix.
+ * Admin tokens. Imported only by AdminRoot and EditorRoot, never on the public
+ * site. Names follow the UI kit, with a --cms- prefix.
+ *
+ * The tokens live on admin screens (.cms-admin) and on the Edit Mode frame
+ * (.cms-edit), whose marks on the Client page use them. That rule holds only
+ * custom properties, so nothing of the admin look leaks into the site.
  */
-
-.cms-admin {
+.cms-admin,
+.cms-edit {
   --cms-font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --cms-primary: #2271b1;
@@ -126,6 +129,7 @@
   --cms-radius-lg: 10px;
   --cms-radius-full: 999px;
 
+  --cms-control-xs: 28px;
   --cms-control-sm: 32px;
   --cms-control-md: 36px;
   --cms-control-lg: 40px;
@@ -142,9 +146,12 @@
   --cms-shadow-sm: 0 1px 1px rgb(0 0 0 / 6%);
   --cms-shadow-md: 0 4px 8px rgb(0 0 0 / 10%);
   --cms-shadow-overlay: 0 20px 30px rgb(0 0 0 / 20%);
-  --cms-focus-ring: 0 0 0 3px color-mix(in srgb, var(--cms-primary) 30%, transparent);
+  /* Solid, offset by the card colour: visible on any background (WCAG 1.4.11). */
+  --cms-focus-ring: 0 0 0 2px var(--cms-card), 0 0 0 4px var(--cms-ring);
   --cms-focus-ring-field: 0 0 0 2px color-mix(in srgb, var(--cms-ring) 20%, transparent);
+}
 
+.cms-admin {
   box-sizing: border-box;
   min-height: 100%;
   background: var(--cms-background);

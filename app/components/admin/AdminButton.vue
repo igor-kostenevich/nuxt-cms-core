@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   variant?: 'primary' | 'secondary' | 'ghost' | 'destructive' | 'link'
-  size?: 'sm' | 'md' | 'lg'
+  /** `xs` is the compact size of editor panels and toolbars; 44px on touch screens. */
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   iconOnly?: boolean
   loading?: boolean
   disabled?: boolean
@@ -110,6 +111,13 @@ const showTrailing = computed(() => !props.iconOnly && Boolean(slots.trailing))
   cursor: not-allowed;
 }
 
+.admin-button--xs {
+  height: var(--cms-control-xs);
+  padding-inline: var(--cms-space-2);
+  font-size: var(--cms-type-label-size);
+  font-weight: var(--cms-type-label-weight);
+}
+
 .admin-button--sm {
   height: var(--cms-control-sm);
   padding-inline: var(--cms-space-3);
@@ -130,8 +138,25 @@ const showTrailing = computed(() => !props.iconOnly && Boolean(slots.trailing))
   padding-inline: 0;
 }
 
+.admin-button--xs.admin-button--icon {
+  width: var(--cms-control-xs);
+}
+
 .admin-button--sm.admin-button--icon {
   width: var(--cms-control-sm);
+}
+
+/* Touch targets: 44px where the pointer is a finger (WCAG 2.5.8 / Apple HIG). */
+@media (pointer: coarse) {
+  .admin-button--xs,
+  .admin-button--sm {
+    min-height: 44px;
+  }
+
+  .admin-button--xs.admin-button--icon,
+  .admin-button--sm.admin-button--icon {
+    min-width: 44px;
+  }
 }
 
 .admin-button--lg.admin-button--icon {

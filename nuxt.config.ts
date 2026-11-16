@@ -24,5 +24,9 @@ export default defineNuxtConfig({
   routeRules: {
     '/admin': { headers: { 'cache-control': 'no-store' } },
     '/admin/**': { headers: { 'cache-control': 'no-store' } },
+    // Edit Mode renders in the browser only: Draft and the Content Lock belong
+    // to the editor's session, and a server render would load content twice.
+    '/admin/edit': { ssr: false, headers: { 'cache-control': 'no-store' } },
+    '/admin/edit/**': { ssr: false, headers: { 'cache-control': 'no-store' } },
   },
 })

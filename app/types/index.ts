@@ -2,7 +2,10 @@
 export type { CmsPage, CmsPageContent } from './pages'
 export type {
   CmsButtonValue,
+  CmsCollectionItem,
+  CmsCollectionValue,
   CmsLinkValue,
+  CmsOptionalValue,
   CmsRichTextInline,
   CmsRichTextMark,
   CmsRichTextParagraph,

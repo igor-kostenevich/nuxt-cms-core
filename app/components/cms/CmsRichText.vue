@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
+import { injectCmsEditor } from '../../editor/context'
 import type { CmsRichTextValue } from '../../types/primitives'
 import { warnInvalidFieldKey } from '../../primitives/field-key'
 import { isRichTextDoc, renderRichText, warnBlockInPhrasingTag } from '../../primitives/rich-text'
@@ -13,14 +15,28 @@ const props = withDefaults(defineProps<{
   tag?: string
   /** Inline content only (paragraphs joined by `<br>`), for headings and other inline tags. */
   inline?: boolean
+  /** Name of the field in the editor UI. */
+  fieldLabel?: string
+  /** Edit Mode blocks Publish while the field is empty. */
+  required?: boolean
+  /** Edit Mode blocks Publish above this many characters of text. */
+  maxLength?: number
 }>(), {
   value: null,
   tag: 'div',
   inline: false,
+  fieldLabel: undefined,
+  required: false,
+  maxLength: undefined,
 })
 
 warnInvalidFieldKey('CmsRichText', props.fieldKey)
 warnBlockInPhrasingTag(props.tag, props.inline)
+
+// Edit Mode only, with Tiptap; the public site never runs this import
+// (MASTER_PLAN C-21).
+const EditableRichText = defineAsyncComponent(() => import('../../editor/fields/EditableRichText.vue'))
+const editor = injectCmsEditor()
 
 // A stored value that is not a document (null, or a plain string of an older
 // format) falls back to the default from the slot.
@@ -29,7 +45,16 @@ const RichTextContent = () => renderRichText(props.value, { inline: props.inline
 </script>
 
 <template>
-  <component :is="tag">
+  <EditableRichText
+    v-if="editor"
+    v-bind="props"
+  >
+    <slot />
+  </EditableRichText>
+  <component
+    :is="tag"
+    v-else
+  >
     <RichTextContent v-if="hasDocument" />
     <slot v-else />
   </component>

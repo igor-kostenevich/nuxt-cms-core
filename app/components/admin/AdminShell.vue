@@ -91,6 +91,17 @@ async function onLogout() {
           />
           <span>{{ t('cms.shell.nav.dashboard') }}</span>
         </NuxtLink>
+        <NuxtLink
+          to="/admin/edit/"
+          class="shell__item"
+          :prefetch="false"
+        >
+          <Icon
+            name="lucide:square-pen"
+            aria-hidden="true"
+          />
+          <span>{{ t('cms.shell.nav.editSite') }}</span>
+        </NuxtLink>
 
         <div
           v-for="group in groups"

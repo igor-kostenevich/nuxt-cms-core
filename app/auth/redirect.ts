@@ -1,3 +1,5 @@
+import { isAdminPath, isLoginPath } from './paths'
+
 const FALLBACK = '/admin'
 
 /**
@@ -32,7 +34,7 @@ export function safeRedirect(value: unknown): string {
     return FALLBACK
   }
 
-  const allowed = decoded === '/admin' || decoded.startsWith('/admin/')
+  const allowed = isAdminPath(decoded)
 
   if (!allowed) {
     return FALLBACK
@@ -46,5 +48,5 @@ export function safeRedirect(value: unknown): string {
 }
 
 function isAuthScreen(path: string): boolean {
-  return path === '/admin/login' || path.startsWith('/admin/login/')
+  return isLoginPath(path)
 }

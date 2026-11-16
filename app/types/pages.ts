@@ -29,3 +29,22 @@ export interface CmsPageDraft {
   /** ISO timestamp of the last Save Draft. */
   updatedAt: string
 }
+
+/** One publication of a page: the content that went live at `createdAt`. */
+export interface CmsPageRevision {
+  id: string
+  locale: string
+  /** ISO timestamp of the publication. */
+  createdAt: string
+}
+
+/** Who holds the Content Lock of a page. The token itself never leaves the server. */
+export interface CmsPageLockStatus {
+  holderEmail: string | null
+  acquiredAt: string
+  heartbeatAt: string
+  /** The lock belongs to the current user (this or another tab). */
+  mine: boolean
+  /** Past its TTL without a heartbeat: another session may take it. */
+  stale: boolean
+}

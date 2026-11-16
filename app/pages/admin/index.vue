@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useAdminI18n } from '../../admin/useAdminI18n'
 definePageMeta({
+  // The Client Project's layouts frame the site, not the admin.
+  layout: false,
   middleware: ['cms-auth'],
 })
 

@@ -6,6 +6,8 @@ import { useAdminValidation } from '../../../admin/useAdminValidation'
 import { useAdminSettings } from '../../../admin/useAdminSettings'
 
 definePageMeta({
+  // The Client Project's layouts frame the site, not the admin.
+  layout: false,
   middleware: ['cms-auth'],
 })
 

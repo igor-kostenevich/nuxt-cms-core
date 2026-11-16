@@ -36,3 +36,21 @@ export interface CmsLinkValue {
 
 /** Value of `CmsButton`. Same as a link for now; a separate name lets it grow on its own. */
 export type CmsButtonValue = CmsLinkValue
+
+/**
+ * One item of a `CmsCollection` (local repeatable content, MASTER_PLAN C-03).
+ * `id` is stable across reorder: field addresses inside an item use it, e.g.
+ * `services.k3f9.title`. The other fields belong to the Client Project.
+ */
+export interface CmsCollectionItem {
+  id: string
+  [field: string]: unknown
+}
+
+/** Value of `CmsCollection`: the items in display order. */
+export type CmsCollectionValue = CmsCollectionItem[]
+
+/** Value of `CmsOptional`. An object, so it can grow without breaking stored data. */
+export interface CmsOptionalValue {
+  hidden?: boolean
+}

@@ -42,8 +42,13 @@ const MARKERS = [
   { name: 'admin shell', pattern: 'AdminShell', expected: true },
   { name: 'session Supabase client', pattern: 'createBrowserClient', expected: true },
   { name: 'cms_users table', pattern: 'cms_users', expected: true },
-  { name: 'Tiptap', pattern: 'tiptap', ignoreCase: true, expected: false },
-  { name: 'ProseMirror', pattern: 'prosemirror', ignoreCase: true, expected: false },
+  { name: 'Tiptap', pattern: 'tiptap', ignoreCase: true, expected: true },
+  { name: 'ProseMirror', pattern: 'prosemirror', ignoreCase: true, expected: true },
+  // Edit Mode (008). The editable branches load through import(), which this
+  // script does not follow; these markers catch a static import by mistake.
+  { name: 'editor overlay', pattern: 'data-cms-overlay', expected: true },
+  { name: 'editor runtime guard', pattern: 'must run inside Edit Mode', expected: true },
+  { name: 'editor UI class', pattern: 'cms-editor-ui', expected: true },
 ]
 
 function fail(message) {

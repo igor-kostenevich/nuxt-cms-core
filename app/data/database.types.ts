@@ -229,6 +229,16 @@ export type Database = {
         Args: { lock_token: string; page_key: string }
         Returns: undefined
       }
+      cms_page_lock_status: {
+        Args: { page_key: string }
+        Returns: {
+          acquired_at: string
+          heartbeat_at: string
+          holder_email: string
+          is_mine: boolean
+          is_stale: boolean
+        }[]
+      }
       cms_page_lock_ttl: { Args: never; Returns: string }
       cms_page_publish: {
         Args: { lock_token: string; page_key: string; page_locale: string }

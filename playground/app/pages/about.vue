@@ -7,27 +7,36 @@ interface AboutContent {
   back?: CmsLinkValue
 }
 
+useHead({ title: 'About — Luminary' })
+
 // No `about` row is seeded: every primitive renders its default from the slot.
 const { page, error } = useCmsPage('about')
 const about = computed(() => (page.value?.content ?? {}) as AboutContent)
 </script>
 
 <template>
-  <main>
+  <main
+    id="main"
+    class="container about-page"
+  >
     <CmsText
       :value="about.title"
       field-key="title"
       tag="h1"
+      class="section-title"
     >
       About us
     </CmsText>
     <CmsRichText
       :value="about.body"
       field-key="body"
+      class="about-page__body"
     >
       <p>Default text from the page code.</p>
     </CmsRichText>
-    <p v-if="error">{{ error.message }}</p>
+    <p v-if="error">
+      {{ error.message }}
+    </p>
     <p>
       <CmsLink
         :value="about.back"
@@ -39,3 +48,15 @@ const about = computed(() => (page.value?.content ?? {}) as AboutContent)
     </p>
   </main>
 </template>
+
+<style scoped>
+.about-page {
+  min-height: 60vh;
+  padding: 96px 0;
+}
+
+.about-page__body {
+  max-width: 680px;
+  color: var(--ink-soft);
+}
+</style>

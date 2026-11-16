@@ -39,6 +39,8 @@ app/composables/      Публічне API: useCms, useCmsAuth, useSiteSettings,
 app/components/admin/ Admin* UI під .cms-admin
 app/components/cms/   Cms* primitives (Public Runtime): :value + field-key, дефолт — slot, без v-model (C-47)
 app/primitives/       Хелпери primitives поза auto-imports: field-key, безпечний href, rich-text renderer
+app/editor/           Editor Runtime (Edit Mode): Engine, Overlay, панелі, editable-гілки primitives.
+                      Public імпортує лише context.ts; решта — через import() (C-21, C-65)
 app/types/            Domain types; index.ts — публічний entry `nuxt-cms-core/types` для Client
 app/pages/admin/      Admin-сторінки (login, shell, settings)
 app/admin/            Композабли й хелпери адмінки поза auto-imports (useAdminI18n, useAdminSettings,

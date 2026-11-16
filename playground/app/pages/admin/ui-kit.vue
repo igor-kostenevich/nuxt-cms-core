@@ -1,5 +1,7 @@
 <script setup lang="ts">
 definePageMeta({
+  // The Client Project's layouts frame the site, not the admin.
+  layout: false,
   middleware: ['cms-auth'],
 })
 

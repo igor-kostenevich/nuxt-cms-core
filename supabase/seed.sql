@@ -90,19 +90,20 @@ insert into public.cms_page_published (page_id, locale, content)
 select id, 'uk', $json$
 {
   "hero": {
-    "title": "Вітаємо на сайті",
+    "eyebrow": "Creative studio",
+    "title": "We craft digital experiences that move people.",
     "lead": {
       "type": "doc",
       "content": [{
         "type": "paragraph",
         "content": [
-          { "type": "text", "text": "Цей текст прийшов з " },
-          { "type": "text", "text": "cms_page_published", "marks": [{ "type": "bold" }] },
-          { "type": "text", "text": "." }
+          { "type": "text", "text": "Strategy, identity and websites for brands that want to be " },
+          { "type": "text", "text": "remembered", "marks": [{ "type": "bold" }] },
+          { "type": "text", "text": ". This text comes from cms_page_published." }
         ]
       }]
     },
-    "cta": { "label": "Про нас", "href": "/about" }
+    "cta": { "label": "Start a project", "href": "/#contact" }
   }
 }
 $json$::jsonb

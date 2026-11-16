@@ -5,6 +5,11 @@ import { safeRedirect } from '../../auth/redirect'
 import { useAdminI18n } from '../../admin/useAdminI18n'
 import { useAdminValidation } from '../../admin/useAdminValidation'
 
+definePageMeta({
+  // The Client Project's layouts frame the site, not the admin.
+  layout: false,
+})
+
 const { t } = useAdminI18n()
 const route = useRoute()
 const { all, required, email: emailRule, password: passwordRule } = useAdminValidation()

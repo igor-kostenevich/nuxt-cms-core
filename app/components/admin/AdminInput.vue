@@ -3,22 +3,40 @@ defineOptions({ inheritAttrs: false })
 
 const model = defineModel<string>({ default: '' })
 
-defineProps<{
+const props = withDefaults(defineProps<{
   label: string
   disabled?: boolean
   error?: string
-}>()
+  /** Help text under the field, read with it by screen readers. */
+  hint?: string
+  /** `sm` is the compact size of editor panels. */
+  size?: 'sm' | 'md'
+  /** Several lines of text. */
+  multiline?: boolean
+  rows?: number
+}>(), {
+  error: undefined,
+  hint: undefined,
+  size: 'md',
+  multiline: false,
+  rows: 2,
+})
 
 const attrs = useAttrs()
 const slots = useSlots()
 const id = useId()
 const errorId = `${id}-error`
+const hintId = `${id}-hint`
+const describedBy = computed(() => [props.error ? errorId : null, props.hint ? hintId : null]
+  .filter(Boolean)
+  .join(' ') || undefined)
 </script>
 
 <template>
   <div class="admin-input">
     <label
       class="admin-input__label"
+      :class="{ 'admin-input__label--sm': size === 'sm' }"
       :for="id"
     >
       {{ label }}
@@ -33,16 +51,25 @@ const errorId = `${id}-error`
       >
         <slot name="leading" />
       </span>
-      <input
+      <!-- v-model on <component :is> binds a component model, not the native
+           field: value and input are wired by hand for both tags. -->
+      <component
+        :is="multiline ? 'textarea' : 'input'"
         :id="id"
-        v-model="model"
+        :value="model"
         v-bind="attrs"
         class="admin-input__control"
-        :class="{ 'admin-input__control--error': error }"
+        :class="{
+          'admin-input__control--error': error,
+          'admin-input__control--sm': size === 'sm',
+          'admin-input__control--multiline': multiline,
+        }"
+        :rows="multiline ? rows : undefined"
         :disabled="disabled"
         :aria-invalid="error ? true : undefined"
-        :aria-describedby="error ? errorId : undefined"
-      >
+        :aria-describedby="describedBy"
+        @input="model = ($event.target as HTMLInputElement).value"
+      />
     </div>
     <p
       v-if="error"
@@ -50,6 +77,13 @@ const errorId = `${id}-error`
       class="admin-input__error"
     >
       {{ error }}
+    </p>
+    <p
+      v-if="hint"
+      :id="hintId"
+      class="admin-input__hint"
+    >
+      {{ hint }}
     </p>
   </div>
 </template>
@@ -62,6 +96,13 @@ const errorId = `${id}-error`
   font-size: var(--cms-type-label-large-size);
   font-weight: var(--cms-type-label-large-weight);
   line-height: var(--cms-type-label-large-line);
+}
+
+.admin-input__label--sm {
+  margin-bottom: var(--cms-space-1);
+  font-size: var(--cms-type-label-size);
+  font-weight: var(--cms-type-label-weight);
+  line-height: var(--cms-type-label-line);
 }
 
 .admin-input__field {
@@ -130,6 +171,25 @@ const errorId = `${id}-error`
   color: var(--cms-destructive-text);
   font-size: var(--cms-type-helper-size);
   font-weight: var(--cms-type-helper-weight);
+  line-height: var(--cms-type-helper-line);
+}
+
+.admin-input__control--sm {
+  height: var(--cms-control-sm);
+  padding-inline: var(--cms-space-2);
+  font-size: var(--cms-type-body-small-size);
+}
+
+.admin-input__control--multiline {
+  height: auto;
+  padding-block: var(--cms-space-2);
+  resize: vertical;
+}
+
+.admin-input__hint {
+  margin: var(--cms-space-1) 0 0;
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-helper-size);
   line-height: var(--cms-type-helper-line);
 }
 

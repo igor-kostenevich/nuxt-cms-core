@@ -10,6 +10,7 @@ describe('resolveCmsConfig', () => {
     expect(resolveCmsConfig({ debug: true, defaultLocale: 'uk' }).config).toEqual({
       debug: true,
       defaultLocale: 'uk',
+      editor: { historyLimit: 100 },
     })
   })
 
@@ -42,5 +43,32 @@ describe('resolveCmsConfig', () => {
         { key: 'secretToken', reason: 'unknown' },
       ],
     })
+  })
+
+  it('merges the editor group key by key', () => {
+    expect(resolveCmsConfig({ editor: { historyLimit: 30 } })).toEqual({
+      config: { ...defaultCmsConfig, editor: { historyLimit: 30 } },
+      ignored: [],
+    })
+    expect(resolveCmsConfig({ editor: {} }).config.editor).toEqual({ historyLimit: 100 })
+  })
+
+  it.each([0, 501, 2.5])('rejects historyLimit %j with a format reason', (historyLimit) => {
+    expect(resolveCmsConfig({ editor: { historyLimit } })).toEqual({
+      config: defaultCmsConfig,
+      ignored: [{ key: 'editor.historyLimit', reason: 'format' }],
+    })
+  })
+
+  it('reports unknown and mistyped nested keys with their dotted path', () => {
+    const config = { editor: { historyLimit: '50', autosave: true } } as unknown as CmsConfig
+
+    expect(resolveCmsConfig(config).ignored).toEqual([
+      { key: 'editor.historyLimit', reason: 'type' },
+      { key: 'editor.autosave', reason: 'unknown' },
+    ])
+    expect(resolveCmsConfig({ editor: 'big' } as unknown as CmsConfig).ignored).toEqual([
+      { key: 'editor', reason: 'type' },
+    ])
   })
 })

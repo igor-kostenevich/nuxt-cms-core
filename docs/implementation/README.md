@@ -36,7 +36,7 @@
 | 005 | Pages як content entity (published read) | 1 | `done` | [005](./005-pages.md) |
 | 006 | CMS Primitives, тільки Public Runtime | 1 | `done` | [006](./006-primitives.md) |
 | 007 | Draft / Publish / Revisions (дані) | 1 | `done` | [007](./007-draft-publish.md) |
-| 008 | Edit Mode (мінімальний вертикальний зріз) | 1 | `todo` | — |
+| 008 | Edit Mode (перша версія UI) | 1 | `done` | [008](./008-edit-mode.md) |
 | 009 | Media + Storage Adapter | 1 | `todo` | — |
 | 010 | Localization v2 | 2 | `todo` | — |
 | 011 | Forms infrastructure | 3 | `todo` | — |
@@ -108,3 +108,18 @@ allow-list. Адреса поля — dotted path у вкладеному док
 без `replace_draft` не перезаписує наявний Draft. Нове право `pages.unlock`, коди `CmsDataError`
 `validation` / `conflict` / `locked` / `lock_lost`. Revalidation і soft delete Pages перенесено
 (C-11, C-34).
+
+### 008 — Edit Mode (перша версія UI)
+
+`/admin/edit/[...path]` рендерить сторінку Client з її layout (C-59). `useCmsPage` в Edit Mode віддає
+документ Editor Engine: Draft, dirty, Undo / Redo, validation, Content Lock. Усе, що малює редактор,
+живе в Overlay Layer поверх сторінки (C-65):
+- inline-текст і rich text на Tiptap;
+- popover для лінків, кнопок і зображень;
+- колекції з reorder / duplicate / delete;
+- optional-блоки, затемнення нередагованого.
+
+Нові primitives — `CmsCollection`, `CmsOptional`, `CmsBackground`. Зображення до 009 лише
+попередньо переглядаються (C-68). У playground — лендинг «Luminary». Перша версія UI: далі — правки
+автора (008b).
+

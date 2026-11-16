@@ -1,0 +1,19 @@
+/*
+ * Technical styles of public primitives (MASTER_PLAN C-23). Loaded with the
+ * primitives that use them, on the public site and in Edit Mode alike. No
+ * admin tokens here: the public bundle must not carry `--cms-*`.
+ */
+
+.cms-background {
+  position: relative;
+  isolation: isolate;
+}
+
+.cms-background__image {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

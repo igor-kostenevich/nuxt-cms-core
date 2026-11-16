@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from 'vue'
+import { injectCmsEditor } from '../../editor/context'
 import { warnInvalidFieldKey } from '../../primitives/field-key'
 
 // Until Media (009) there is no stored image value: `src` is the default from
@@ -11,18 +13,32 @@ const props = withDefaults(defineProps<{
   src?: string
   /** Empty alt marks the image as decorative. */
   alt?: string
+  /** Decoration only: always an empty alt, and the editor asks for none. */
+  decorative?: boolean
+  /** Name of the field in the editor UI. */
+  fieldLabel?: string
 }>(), {
   src: undefined,
   alt: '',
+  decorative: false,
+  fieldLabel: undefined,
 })
 
 warnInvalidFieldKey('CmsImage', props.fieldKey)
+
+// Edit Mode only; the public site never runs this import (MASTER_PLAN C-21).
+const EditableImage = defineAsyncComponent(() => import('../../editor/fields/EditableImage.vue'))
+const editor = injectCmsEditor()
 </script>
 
 <template>
+  <EditableImage
+    v-if="editor"
+    v-bind="props"
+  />
   <img
-    v-if="src"
+    v-else-if="src"
     :src="src"
-    :alt="alt"
+    :alt="decorative ? '' : alt"
   >
 </template>

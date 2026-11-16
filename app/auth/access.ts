@@ -1,6 +1,7 @@
 import type { CmsAuthIdentity, CmsLoginResult, CmsMembership, CmsUser } from '../types/auth'
 import { roleCan } from './permissions'
 import { safeRedirect } from './redirect'
+import { isEditPath } from './paths'
 
 export interface CmsAuthSnapshot {
   authenticated: boolean
@@ -82,8 +83,4 @@ export function cmsAuthGate(
   }
 
   return { action: 'allow' }
-}
-
-function isEditPath(path: string): boolean {
-  return path === '/admin/edit' || path.startsWith('/admin/edit/')
 }

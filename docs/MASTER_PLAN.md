@@ -91,7 +91,8 @@ Architecture Summary, `Б N` — блок доки.
   Draft, не переписує Published. Cache invalidation після Publish — разом із першим публічним кешем
   (ISR / SWR, 016): у 007 кешу немає, кожен SSR-запит читає БД (§18–19).
 - **C-12. History ≠ Undo.** Undo/Redo — локальна editor-session. Revisions — server-side.
-  `editor.historyLimit` у config — розмір Undo stack (§19).
+  `editor.historyLimit` у config — розмір Undo stack (§19). *Факт 008:* ключ є в `cms.config.ts` (1–500,
+  дефолт 100); вкладені групи конфігу зливаються ключ за ключем.
 - **C-13. Concurrency = Content Lock.** Одна entity → один active editor, heartbeat,
   expiration, force unlock за правом, read-only для інших. Version checking — лише
   страховка (§20, Б8 Content Lock).
@@ -142,6 +143,9 @@ Architecture Summary, `Б N` — блок доки.
   встановлює `@vueuse/core` і використовує його. Pinia —
   лише разом з Editor Engine (008). `vee-validate` — тільки для адмінки, не потрапляє в public
   bundle і не нав'язується Client Project.
+  *Факт 008:* `@vueuse/core` встановлено (події, rAF, інтервал heartbeat, click outside). Pinia не
+  знадобилась: Engine — reactive store через provide / inject. Додано `@tiptap/vue-3`,
+  `@tiptap/starter-kit`, `@tiptap/pm`, `@floating-ui/dom` — лише в Editor Runtime.
 - **C-27. `cms.config.ts` — лише серіалізовані значення** (modules, feature flags, ліміти).
   Він вбудовується в `#cms/config` і потрапляє в client bundle. Реєстрації з функціями чи
   repositories (колекції, форми, інтеграції) — runtime-код Client Project.
@@ -241,6 +245,8 @@ Architecture Summary, `Б N` — блок доки.
   `fieldKey` в Engine. Дефолт із коду (C-42) — вміст slot, а не `value ?? '…'`: Engine має відрізняти
   значення з БД від дефолту (Reset, placeholder). `v-model` / `modelValue` у прикладах доки читати
   так само (§10).
+  *Факт 008:* Engine пише через `engine.set(key, value)` з editable-гілки. Dev-попередження «`value`
+  не збігається з `fieldKey`» не зроблено — перенесено в 008b (див. залишок 008b у §4).
 - **C-48. Документ контенту — вкладений, адреса поля — dotted path (було D-08).** `{ hero: { title } }`,
   адреса `hero.title`. Сегменти — `[a-zA-Z0-9_-]`, без крапок, тож розбір однозначний. Локальні
   колекції (C-03) — масиви елементів з полем `id`; сегмент після масиву — `id` елемента, не індекс
@@ -250,9 +256,13 @@ Architecture Summary, `Б N` — блок доки.
   містить locale і значення не розгалужується за мовою, тож D-60 лишається відкритим: спільний
   документ і документ мови зливаються в одне дерево з тими самими адресами. Умова на 010 — `id`
   елементів однакові в усіх мовах (нова мова копіює документ разом з `id`).
+  *Факт 008:* `id` нового елемента — 6 символів base36, унікальні в межах колекції (адреси коротші за
+  UUID). Дефолтні елементи з коду мають `id` `default-N`. Формат значення `CmsCollectionValue` — C-67.
 - **C-49. Rich text — ProseMirror/Tiptap JSON + власний renderer (було D-07).** Схема — дефолтні назви
   Tiptap StarterKit, обмежений набір (Б3 §14): `doc`, `paragraph`, `text`, `hardBreak`; marks `bold`,
-  `italic`, `link`. Тому Tiptap у 008 пише той самий JSON без конвертації. Renderer рендерить лише
+  `italic`, `link`. Тому Tiptap у 008 пише той самий JSON без конвертації (*факт 008:* перед записом
+  `normalizeRichText` лише прибирає атрибути Tiptap — `rel`, `class`, `target: null` — і невідомі
+  вузли). Renderer рендерить лише
   відомі вузли й marks через `h()`, без `v-html`; невідомі ігнорує; `href` — лише `http(s)`, `mailto`,
   `tel`, `//host`, шляхи сайту `/…` і якорі `#…` (`toSafeHref()`, той самий allow-list у `CmsLink` /
   `CmsButton`). Запис іде з браузера через RLS, тож безпеку дає renderer, а не довіра до вмісту.
@@ -299,6 +309,68 @@ Architecture Summary, `Б N` — блок доки.
 - **Publish лише зі збереженого Draft (частина D-20).** RPC `publish` не приймає контент, а просуває
   збережений Draft. Для 008 у D-20 лишається лише Undo після Publish.
 
+### Закрито перед 008
+
+Закрито в плануванні 008 (grilling з автором). Обсяг 008 розширено: rich text, колекції, optional,
+Undo / Redo і Reset з 008b увійшли в першу версію UI. Деталі — [запис 008](./implementation/008-edit-mode.md).
+
+- **C-59. Рендер сторінки Client під `/admin/edit/[...path]` (було D-15).**
+  - Core-сторінка резолвить шлях через `router.resolve` + `loadRouteLocation` і рендерить його через
+    `RouterView :route` зі скинутим `viewDepthKey`.
+  - Layout — `<NuxtLayout :name="meta.layout">`.
+  - `useRoute()` у сторінці Client бачить її маршрут: ми провайдимо `PageRouteSymbol`, внутрішній API
+    Nuxt, і це ризик оновлень.
+  - Edit Mode рендериться лише в браузері (`ssr: false`, `no-store`).
+  - Route middleware сторінки Client не виконується.
+  - Admin-сторінки Core мають `layout: false`.
+- **C-60. Editor binding — через `useCmsPage` (було D-16).**
+  - В Edit Mode `useCmsPage(key)` прив'язує Engine до сутності й повертає документ Engine. Код
+    сторінки той самий.
+  - Мінімальний Draftable-контракт — `EditorRepository` (`app/editor/engine.ts`).
+  - Одна сутність на сторінку Edit Mode.
+- **C-61. Явний Save draft, без автозбереження (було D-17).** Publish з незбереженими змінами спершу
+  зберігає (C-55 у силі). Cmd+S. Editor без `pages.publish` бачить лише Save draft.
+- **C-62. Save Draft не пише Activity (було D-18).** Publish / Restore лишають ревізію; Activity — 012
+  (C-56).
+- **C-63. Глобальний контент у першій версії не редагується (було D-19).** Header і footer — звичайний
+  код Client; їхні лінки навігують в Edit Mode. Editor-контекст отримує лише сторінка (EditedRoute),
+  тож primitives у layout рендеряться публічно; другий `useCmsPage` з іншим ключем — read-only. Сутність із власним Draft / lock — пізніше. Логотип —
+  Settings → Brand.
+- **C-64. Undo — сесійний стек знімків документа (було D-20).** Одна сесія друку в полі — один крок.
+  Publish очищує стек. Delete елемента колекції виконується одразу, з toast «Undo», без модалки. History
+  у тулбарі — ревізії з Restore, розведено з Undo (C-12).
+- **C-65. Overlay Layer.** Контури, chip типу, затемнення (SVG-маска), контроли й панелі малюються в
+  одному fixed-шарі поверх сторінки за `getBoundingClientRect`, а не стилями на елементах Client.
+  - Поле, яке перекриває вміст сайту, ховається або обрізається.
+  - Виняток — текст: `contenteditable` / Tiptap на справжньому елементі.
+  - Затемнення вмикається при вході, toggle — у тулбарі, Alt — тимчасово.
+- **C-66. Модель взаємодії і навігація.**
+  - Клік по тексту — одразу редагування.
+  - Клік по Cms-лінку / кнопці / зображенню / фону / optional — вибір і popover біля поля (не бічна
+    панель).
+  - Cmd / Ctrl + клік або «Відкрити ↗» — перехід.
+  - Звичайні лінки сайту навігують у межах Edit Mode (`/about` → `/admin/edit/about`) з guard
+    незбережених змін.
+  - Hover не обов'язковий: усе доступне tap і клавіатурою. Desktop-first, планшет підтримується.
+  - Preview: поля не редагуються, лінки лишаються в Edit Mode (на публічній сторінці немає Draft).
+- **C-67. Нові primitives і формати (адитивно до C-47…C-49).**
+  - `CmsCollection` — значення `[{ id, ... }]`. У slot — відносні `field-key` (scope
+    `<collection>.<id>`). Дефолти з коду з id `default-N` копіюються при першій зміні. Обгортки
+    `itemTag` / `itemClass`, `min` / `max`, `template`.
+  - `CmsOptional` — значення `{ hidden?: boolean }`.
+  - `CmsBackground` — `<img object-fit: cover>` позаду slot.
+  - `CmsImage` — prop `decorative`.
+  - Усі primitives — prop `fieldLabel`; `CmsText` / `CmsRichText` — `required`, `maxLength`.
+- **C-68. Зображення в 008 — лише в сесії.** Заміна, alt, decorative, focal не зберігаються до формату
+  `CmsImageValue` (D-24, 009). Медіатека-заглушка — зображення сторінки + файли з пристрою.
+- **C-69. Lock UI.**
+  - Нова RPC `cms_page_lock_status` — без токена (C-54).
+  - Read-only банер; «Забрати редагування» для `pages.unlock` або протермінованої сесії.
+  - Банер «сесія неактивна» з «Забрати назад» — зміни лишаються.
+  - Heartbeat 30 с. Release при закритті вкладки — `fetch keepalive` з кешованим токеном (R-18).
+- **C-70. Рамка Edit Mode.** Сторінка скролиться всередині рамки з `transform`: `fixed` і `sticky`
+  елементи сайту лишаються під тулбаром. Ціна — `window.scrollY` в Edit Mode дорівнює 0.
+
 ---
 
 ## 3. Стан проекту
@@ -316,6 +388,7 @@ Architecture Summary, `Б N` — блок доки.
 | 005 | `cms_pages` + `cms_page_published` (документ на page × locale, select-only RLS), `PagesRepository.getByKey()`, `useCmsPage()`, `defaultLocale` у config, generated types, pgTAP smoke-тест | [005](./implementation/005-pages.md) |
 | 006 | `CmsText`, `CmsRichText` (renderer без Tiptap / `v-html`), `CmsLink`, `CmsButton`, `CmsImage` (src до 009); allow-list `href`; типи `nuxt-cms-core/types`; `npm run check:bundle` | [006](./implementation/006-primitives.md) |
 | 007 | `cms_page_draft`, `cms_page_revisions`, `cms_page_locks`, домен `cms_locale`; RPC save draft / publish / restore / lock; право `pages.unlock`; методи `PagesRepository`; pgTAP на атомарність і lock | [007](./implementation/007-draft-publish.md) |
+| 008 | Edit Mode `/admin/edit/[...path]` на сторінці Client з layout; Editor Engine (Draft, dirty, Undo, validation, Lock); Overlay Layer; editable-гілки primitives + `CmsCollection`, `CmsOptional`, `CmsBackground`; rich text на Tiptap; Save / Publish / History / Lock UI; лендинг «Luminary» у playground | [008](./implementation/008-edit-mode.md) |
 
 ### Drift код ↔ план
 
@@ -417,7 +490,7 @@ read → draft → edit → publish до локалізації; Collections п�
 
 ### 008 — Edit Mode (мінімальний вертикальний зріз)
 
-`todo` · Фаза 1
+`done` (перша версія UI, далі — правки автора) · Фаза 1 · [запис](./implementation/008-edit-mode.md)
 
 - **Ціль.** Перший раз складається головний сценарій CMS.
 - **Будуємо (перший зріз).**
@@ -433,11 +506,15 @@ read → draft → edit → publish до локалізації; Collections п�
 - **Друга хвиля (008b — не планувати зараз).** Undo/Redo, ліміти символів, Reset поля/сторінки,
   toolbar, hotkeys, leave-without-saving, `CmsRichText` + Tiptap (лише коли є реальне rich-поле),
   `CmsCollection` (add/delete/duplicate/reorder зі стабільними id), `CmsOptional`.
+  *Факт:* за рішенням автора друга хвиля майже вся увійшла в 008 (C-59…C-70). Лишилось на 008b:
+  правки UI за відгуком автора, device preview, Translate у полі (після 010), колір у rich text (поза
+  форматом C-49), dev-попередження `value` ↔ `fieldKey` (C-47), жорсткий `maxLength` (C-58: зараз
+  ліміт м'який — блокує Publish, але не друк).
 - **Anti-scope.** Page builder, окремий editable tree, iframe, Media Picker (009),
   collaborative editing, History UI як Undo, language switcher (після 010).
 - **Залежності.** 006, 007.
-- **Блокуючі рішення.** D-15, D-16, D-17, D-18, D-19, D-20 (лише Undo після Publish). D-57 закрито в
-  007 (C-55).
+- **Блокуючі рішення.** D-15 → C-59, D-16 → C-60, D-17 → C-61, D-18 → C-62, D-19 → C-63,
+  D-20 → C-64 (закрито). D-57 закрито в 007 (C-55).
 - **Дизайни.** Edit Mode — перший епік з UI після адмін-оболонки: тулбар Save Draft / Publish, save
   status, стани поля, Preview, UI lock. Попросити в автора до плану; токени — `--cms-*`.
 - **DoD.** Public не імпортує Editor — `npm run check:bundle` входить у Definition of Done. Скрипт не
@@ -604,12 +681,6 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
-| D-15 | 008 | Механізм `/admin/edit/[...path]` | `router.resolve().matched` + ручний рендер; той самий маршрут + edit-прапорець; catch-all у Client | Spike на старті 008 |
-| D-16 | 008 | Editor binding для сутностей | Context: entity type + id + repository; мінімальний Draftable-контракт (`getDraft` / `saveDraft` / `publish`) | Так, мінімальний контракт |
-| D-17 | 008 | Autosave у V1 | Явний Save Draft (як у ТЗ); autosave з debounce | Явний Save Draft; autosave — пізніше |
-| D-18 | 008 | Чи пише autosave/Save Draft в Activity | Кожне збереження; лише Publish/Restore | Лише meaningful (Publish, Restore, Reset) |
-| D-19 | 008 | Глобальний контент у Edit Mode (header, footer, логотип) | Окрема сутність із Draft/Publish і своїм lock; read-only в Edit Mode; редагується в Settings | Не в першому зрізі; логотип — Settings → Brand |
-| D-20 | 008 | Undo після Publish (Publish лише зі збереженого Draft — закрито в 007, див. §2) | Очищати Undo stack; лишати | Очищати: Undo не повинен «відкочувати» опубліковане |
 | D-21 | 009 | Upload | Прямо в Storage з policies; через server endpoint (перевірка magic bytes) | Server endpoint для валідації; або direct + post-check |
 | D-22 | 009 | Media usage tracking | Registry `media_usage`; запити по контенту; резолвери для клієнтських таблиць | Registry, якщо дешево; інакше наступним кроком |
 | D-23 | 009 | Оптимізація зображень | Оригінали; `@nuxt/image` + IPX / провайдер хостингу; Supabase transformations (платно) | `@nuxt/image` з провайдером хостингу, без власного pipeline |
@@ -672,8 +743,8 @@ read → draft → edit → publish до локалізації; Collections п�
 | R-01 | RLS рядкова | Draft / приватні поля в рядку, видимому anon, витікають | C-06, C-50 |
 | R-02 | Supabase JS не має клієнтських транзакцій | Publish / Restore / Lock неатомарні без RPC | C-07 |
 | R-03 | Validation з Vue-компонентів сервер не бачить | Прямий API-запит публікує невалідний контент | C-52: прийнятий ризик (лише довірена роль, безпечний рендер) |
-| R-04 | Статичний import editable-гілки primitive | Editor-код у public bundle | 006, 008 (async-гілка) |
-| R-05 | Nuxt не рендерить чужий page-компонент із layout «з коробки» | Edit Mode не відтворює сайт | D-15 (spike) |
+| R-04 | Статичний import editable-гілки primitive | Editor-код у public bundle | Вирішено в 008: async-гілка + перевірка Network |
+| R-05 | Nuxt не рендерить чужий page-компонент із layout «з коробки» | Edit Mode не відтворює сайт | Вирішено в 008 (C-59); лишається залежність від `PageRouteSymbol` |
 | R-06 | Supabase CLI — одна лінійна історія міграцій | «Два незалежні джерела» не працюють as-is | D-50 |
 | R-07 | `"private": true`, немає `bin`; `npx nuxt-cms` резолвиться за назвою пакета | Пакет не публікується, CLI не запускається | C-30, 016 |
 | R-08 | Supabase не бекапить Storage-файли; daily DB backups — лише на платних планах | Втрата медіа при видаленні bucket/файлів | §5 Backup, 016 Checklist |
@@ -686,7 +757,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | R-15 | `cms.config.ts` серіалізується в client bundle | Функції губляться, «приватні» значення стають публічними | C-27 |
 | R-16 | Custom scripts в Admin | Навмисний stored-XSS канал | D-47 |
 | R-17 | GA4 Data API для Analytics/Dashboard потребує OAuth / service account | Сторінка Analytics із ТЗ — окремий проєкт | 015, D-49 |
-| R-18 | `navigator.sendBeacon` не передає `Authorization` | Release lock при закритті вкладки не автентифікується | 008 (`fetch keepalive` / server route) |
+| R-18 | `navigator.sendBeacon` не передає `Authorization` | Release lock при закритті вкладки не автентифікується | Вирішено в 008: `fetch keepalive` з кешованим токеном (C-69) |
 | R-19 | SMTP-бібліотеки потребують Node runtime | Не працюють на edge-хостингах | 013 (HTTP-API провайдер) |
 
 ---

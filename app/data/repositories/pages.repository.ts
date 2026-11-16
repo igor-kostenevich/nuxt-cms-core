@@ -1,11 +1,20 @@
 import type { H3Event } from 'h3'
-import type { CmsPage, CmsPageContent, CmsPageDraft } from '../../types/pages'
+import type {
+  CmsPage,
+  CmsPageContent,
+  CmsPageDraft,
+  CmsPageLockStatus,
+  CmsPageRevision,
+} from '../../types/pages'
 import type { Json } from '../database.types'
 import { CmsDataError } from '../errors'
-import { getSupabaseClient, toCmsDataError } from '../supabase'
+import { getSupabaseClient, readSupabasePublicConfig, toCmsDataError } from '../supabase'
 
 const PUBLISHED_TABLE = 'cms_page_published'
 const DRAFT_TABLE = 'cms_page_draft'
+const REVISIONS_TABLE = 'cms_page_revisions'
+/** The History panel lists this many latest publications. */
+const REVISIONS_LIMIT = 50
 // The inner join filters by page key in the same request: one round trip per page.
 const PUBLISHED_COLUMNS = 'locale, content, published_at, page:cms_pages!inner(key)'
 const DRAFT_COLUMNS = 'locale, content, updated_at, page:cms_pages!inner(key)'
@@ -222,6 +231,49 @@ export function createPagesRepository(request?: H3Event) {
     }
   }
 
+  /**
+   * Publications of a page in one locale, newest first. The content is not
+   * loaded: Restore copies it on the server.
+   */
+  async function listRevisions(key: string, locale: string): Promise<CmsPageRevision[]> {
+    const { data, error } = await (await getAuthClient(request))
+      .from(REVISIONS_TABLE)
+      .select('id, locale, created_at, page:cms_pages!inner(key)')
+      .eq('page.key', key)
+      .eq('locale', locale)
+      .order('created_at', { ascending: false })
+      .limit(REVISIONS_LIMIT)
+
+    if (error) {
+      throw toCmsDataError(error, `Failed to load the revisions of page "${key}"`)
+    }
+
+    return data.map(row => ({ id: row.id, locale: row.locale, createdAt: row.created_at }))
+  }
+
+  /** Who holds the lock of a page, without the token. Null when nobody does. */
+  async function getLockStatus(key: string): Promise<CmsPageLockStatus | null> {
+    const { data, error } = await (await getAuthClient(request)).rpc('cms_page_lock_status', {
+      page_key: key,
+    })
+
+    if (error) {
+      throw toCmsDataError(error, `Failed to read the lock of page "${key}"`)
+    }
+
+    const row = data[0]
+
+    return row
+      ? {
+          holderEmail: row.holder_email ?? null,
+          acquiredAt: row.acquired_at,
+          heartbeatAt: row.heartbeat_at,
+          mine: row.is_mine,
+          stale: row.is_stale,
+        }
+      : null
+  }
+
   /** Removes another session's lock. Requires `pages.unlock`. */
   async function forceUnlock(key: string): Promise<void> {
     const { error } = await (await getAuthClient(request)).rpc('cms_page_lock_force_unlock', {
@@ -231,6 +283,43 @@ export function createPagesRepository(request?: H3Event) {
     if (error) {
       throw toCmsDataError(error, `Failed to unlock page "${key}"`)
     }
+  }
+
+  // Release on tab close (MASTER_PLAN R-18, C-69). `navigator.sendBeacon`
+  // cannot send an Authorization header, and the Supabase client reads the
+  // session asynchronously, which is too late on `pagehide`. So the URL, key
+  // and access token are cached ahead of time, and the release is a plain
+  // `fetch` with `keepalive`, started synchronously. Best effort: when it does
+  // not arrive, the lock expires after its TTL.
+  let unload: { url: string, apiKey: string, accessToken: string | null } | null = null
+
+  /** Caches what the release on tab close needs. First call during setup: it reads the runtime config. */
+  async function prepareUnloadRelease(): Promise<void> {
+    if (!unload) {
+      const { url, key: apiKey } = readSupabasePublicConfig()
+      unload = { url, apiKey, accessToken: null }
+    }
+
+    const { data } = await (await getAuthClient(request)).auth.getSession()
+    unload.accessToken = data.session?.access_token ?? null
+  }
+
+  /** Starts the lock release synchronously, so it survives the tab closing. */
+  function releaseLockOnUnload(key: string, lockToken: string): void {
+    if (!unload?.accessToken) {
+      return
+    }
+
+    void fetch(`${unload.url}/rest/v1/rpc/cms_page_lock_release`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        'apikey': unload.apiKey,
+        'Authorization': `Bearer ${unload.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ page_key: key, lock_token: lockToken }),
+    }).catch(() => undefined)
   }
 
   return {
@@ -243,5 +332,9 @@ export function createPagesRepository(request?: H3Event) {
     heartbeatLock,
     releaseLock,
     forceUnlock,
+    listRevisions,
+    getLockStatus,
+    prepareUnloadRelease,
+    releaseLockOnUnload,
   }
 }

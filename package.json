@@ -34,11 +34,16 @@
     "prepare": "nuxi prepare playground"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.8.0",
     "@iconify-json/lucide": "^1.2.152",
     "@nuxt/icon": "^2.6.2",
     "@nuxt/kit": "^4.5.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "@tiptap/pm": "^3.34.0",
+    "@tiptap/starter-kit": "^3.34.0",
+    "@tiptap/vue-3": "^3.34.0",
+    "@vueuse/core": "^15.0.0",
     "c12": "^3.3.4",
     "vee-validate": "^4.15.1"
   },

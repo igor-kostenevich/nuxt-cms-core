@@ -1,0 +1,670 @@
+/*
+ * Edit Mode styles (MASTER_PLAN C-23). Loaded only by EditorRoot, never on the
+ * public site. Two kinds of rules:
+ *  - the frame around the Client page and marks on its editable elements
+ *    (data-cms-* attributes, kept minimal so the page looks like itself);
+ *  - editor UI pieces (panels, dialogs, toasts) under .cms-editor-ui.
+ * Colours and sizes come from the --cms-* tokens (admin.css), which are also
+ * defined on .cms-edit.
+ */
+
+/* ── Frame ─────────────────────────────────────────────────────────── */
+
+/* Shared by the frame and the editor UI teleported to <body> (overlay, toasts). */
+.cms-edit,
+.cms-editor-ui {
+  --cms-edit-bar: 64px;
+  /* Layers above the Client page, which may use any z-index of its own. */
+  --cms-edit-z-overlay: 2147482000;
+  --cms-edit-z-bar: 2147482500;
+  --cms-edit-z-drawer: 2147482600;
+  --cms-edit-z-pill: 2147483000;
+  --cms-edit-z-toast: 2147483100;
+  --cms-edit-dim: color-mix(in srgb, var(--cms-neutral-900) 38%, transparent);
+  --cms-edit-outline: color-mix(in srgb, var(--cms-primary) 70%, var(--cms-neutral-0));
+}
+
+.cms-edit {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--cms-neutral-0);
+}
+
+.cms-edit__bar {
+  position: relative;
+  z-index: var(--cms-edit-z-bar);
+  flex: none;
+}
+
+/*
+ * The page scrolls inside this frame. The transform makes it the containing
+ * block of the page's own position: fixed elements (sticky headers, cookie
+ * bars), so they stay below the toolbar instead of covering it.
+ */
+.cms-edit__viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.cms-edit__scroller {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.cms-edit__page--loading {
+  visibility: hidden;
+}
+
+.cms-edit__loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--cms-space-3);
+  background: var(--cms-background);
+  color: var(--cms-text-secondary);
+}
+
+.cms-edit__loading-actions {
+  display: flex;
+  gap: var(--cms-space-2);
+}
+
+/* Editor UI is light whatever the site's colour scheme. */
+.cms-admin.cms-editor-ui {
+  min-height: 0;
+  background: transparent;
+  color-scheme: light;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cms-edit__bar.cms-editor-ui {
+  background: var(--cms-card);
+}
+
+.cms-editor-ui .ed-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Marks on the page's editable elements ─────────────────────────── */
+
+.cms-edit:not(.cms-edit--preview) [data-cms-field] {
+  cursor: pointer;
+}
+
+.cms-edit:not(.cms-edit--preview) [data-cms-kind="text"],
+.cms-edit:not(.cms-edit--preview) [data-cms-kind="richText"] {
+  cursor: text;
+}
+
+/* Every field shows keyboard focus, links and buttons included (WCAG 2.4.7). */
+.cms-edit [data-cms-field]:focus {
+  outline: none;
+}
+
+.cms-edit:not(.cms-edit--preview) [data-cms-field]:focus-visible {
+  outline: 2px solid var(--cms-ring);
+  outline-offset: 4px;
+}
+
+.cms-edit [data-cms-empty]:empty::before {
+  content: attr(data-cms-placeholder);
+  opacity: 0.45;
+}
+
+.cms-edit [data-cms-inline] > p {
+  margin: 0;
+}
+
+.cms-edit [data-cms-rich-text] a {
+  cursor: text;
+}
+
+.cms-edit--preview [data-cms-kind="collection"] > .cms-collection-empty,
+.cms-edit--preview .cms-hidden-block {
+  display: none;
+}
+
+.cms-image-empty {
+  display: inline-grid;
+  place-items: center;
+  min-width: 160px;
+  min-height: 100px;
+  border: var(--cms-border-width) dashed var(--cms-border-strong);
+  border-radius: var(--cms-radius-md);
+  color: var(--cms-text-secondary);
+  font: var(--cms-type-label-weight) var(--cms-type-label-size) / var(--cms-type-label-line) var(--cms-font);
+}
+
+.cms-collection-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cms-space-3);
+  min-height: 96px;
+  padding: var(--cms-space-4);
+  border: var(--cms-border-width) dashed var(--cms-border-strong);
+  border-radius: var(--cms-radius-lg);
+  color: var(--cms-text-secondary);
+  font: var(--cms-type-body-weight) var(--cms-type-body-size) / var(--cms-type-body-line) var(--cms-font);
+  list-style: none;
+}
+
+.cms-collection-empty__add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cms-space-1);
+  min-height: var(--cms-control-md);
+  padding: 0 var(--cms-space-3);
+  border: 0;
+  border-radius: var(--cms-radius-sm);
+  background: var(--cms-primary);
+  color: var(--cms-primary-foreground);
+  font: var(--cms-type-label-weight) var(--cms-type-label-size) / 1 var(--cms-font);
+  cursor: pointer;
+}
+
+.cms-collection-empty__add:hover {
+  background: var(--cms-primary-hover);
+}
+
+.cms-collection-empty__add:focus-visible,
+.cms-hidden-block__show:focus-visible {
+  outline: none;
+  box-shadow: var(--cms-focus-ring);
+}
+
+/* Placeholder of a hidden optional block, inside the page flow. */
+.cms-hidden-block {
+  display: flex;
+  align-items: center;
+  gap: var(--cms-space-3);
+  max-width: 1120px;
+  margin: var(--cms-space-3) auto;
+  padding: var(--cms-space-3) var(--cms-space-4);
+  border: var(--cms-border-width) dashed var(--cms-border-strong);
+  border-radius: var(--cms-radius-lg);
+  background: var(--cms-surface-secondary) !important;
+  color: var(--cms-text-secondary);
+  font-style: italic;
+}
+
+.cms-hidden-block__show {
+  min-height: var(--cms-control-sm);
+  padding: 0 var(--cms-space-2);
+  border: 0;
+  border-radius: var(--cms-radius-sm);
+  background: none;
+  color: var(--cms-primary);
+  font: inherit;
+  font-style: normal;
+  font-weight: var(--cms-type-label-weight);
+  cursor: pointer;
+}
+
+.cms-hidden-block__show:hover {
+  background: var(--cms-surface-hover);
+}
+
+/* ── Editor UI pieces ──────────────────────────────────────────────── */
+
+.cms-editor-ui .ed-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cms-space-3);
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--cms-space-4);
+  border: var(--cms-border-width) solid var(--cms-border);
+  border-radius: var(--cms-radius-lg);
+  background: var(--cms-card);
+  box-shadow: var(--cms-shadow-overlay);
+}
+
+.cms-editor-ui .ed-card--image {
+  width: 280px;
+}
+
+.cms-editor-ui .ed-field,
+.cms-editor-ui .ed-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cms-space-1);
+}
+
+.cms-editor-ui .ed-stack {
+  gap: var(--cms-space-2);
+}
+
+.cms-editor-ui .ed-block {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.cms-editor-ui .ed-section-title {
+  margin: 0;
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-label-small-size);
+  font-weight: var(--cms-type-label-small-weight);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cms-editor-ui .ed-hint {
+  margin: 0;
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-helper-size);
+  line-height: var(--cms-type-helper-line);
+}
+
+.cms-editor-ui .ed-hint--error {
+  color: var(--cms-destructive-text);
+}
+
+.cms-editor-ui .ed-check {
+  display: flex;
+  align-items: center;
+  gap: var(--cms-space-2);
+  min-height: var(--cms-control-xs);
+  font-size: var(--cms-type-body-small-size);
+  cursor: pointer;
+}
+
+.cms-editor-ui .ed-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--cms-primary);
+}
+
+.cms-editor-ui .ed-note {
+  display: flex;
+  gap: var(--cms-space-2);
+  margin: 0;
+  padding: var(--cms-space-2) var(--cms-space-3);
+  border-radius: var(--cms-radius-md);
+  background: var(--cms-warning-subtle);
+  color: var(--cms-warning);
+  font-size: var(--cms-type-helper-size);
+  line-height: var(--cms-type-helper-line);
+}
+
+.cms-editor-ui .ed-note .iconify {
+  flex: none;
+  margin-top: 2px;
+}
+
+.cms-editor-ui .ed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cms-space-2);
+  padding-top: var(--cms-space-1);
+}
+
+.cms-editor-ui .ed-actions__spacer {
+  flex: 1;
+}
+
+/* Mini toolbar next to a field (text, rich text, list, optional block). */
+.cms-editor-ui .ed-mini {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 24px);
+  padding: 3px;
+  border: var(--cms-border-width) solid var(--cms-border);
+  border-radius: var(--cms-radius-md);
+  background: var(--cms-card);
+  box-shadow: var(--cms-shadow-md);
+}
+
+.cms-editor-ui .ed-mini [aria-pressed="true"] {
+  background: var(--cms-primary-subtle);
+  color: var(--cms-primary);
+}
+
+.cms-editor-ui .ed-mini__counter,
+.cms-editor-ui .ed-mini__issue {
+  padding: 0 var(--cms-space-2);
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-label-small-size);
+  white-space: nowrap;
+}
+
+.cms-editor-ui .ed-mini__issue {
+  color: var(--cms-destructive-text);
+  font-weight: var(--cms-type-label-small-weight);
+}
+
+.cms-editor-ui .ed-mini__divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--cms-border);
+}
+
+.cms-editor-ui .ed-mini__link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cms-space-2);
+  width: 280px;
+  padding: var(--cms-space-2);
+}
+
+.cms-editor-ui .ed-counter {
+  padding: 0 var(--cms-space-2);
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-label-small-size);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cms-editor-ui .ed-counter--near {
+  color: var(--cms-warning);
+  font-weight: var(--cms-type-label-small-weight);
+}
+
+.cms-editor-ui .ed-counter--over {
+  color: var(--cms-destructive-text);
+  font-weight: var(--cms-type-label-small-weight);
+}
+
+/* Image library and focal point. */
+.cms-editor-ui .ed-library {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--cms-space-2);
+  max-height: 200px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cms-editor-ui .ed-library__item {
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--cms-radius-md);
+  background: var(--cms-surface-secondary);
+  cursor: pointer;
+}
+
+.cms-editor-ui .ed-library__item[aria-pressed="true"] {
+  border-color: var(--cms-primary);
+}
+
+.cms-editor-ui .ed-library__item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cms-editor-ui .ed-focal {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--cms-radius-md);
+  background: none;
+  cursor: crosshair;
+}
+
+.cms-editor-ui .ed-focal img {
+  display: block;
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+}
+
+.cms-editor-ui .ed-focal__dot {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 3px solid var(--cms-neutral-0);
+  border-radius: var(--cms-radius-full);
+  background: var(--cms-primary);
+  box-shadow: 0 0 0 1px var(--cms-neutral-900), var(--cms-shadow-md);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.cms-editor-ui .ed-library__item:focus-visible,
+.cms-editor-ui .ed-focal:focus-visible,
+.cms-editor-ui .ed-toast__action:focus-visible,
+.cms-editor-ui .ed-toast__close:focus-visible {
+  outline: none;
+  box-shadow: var(--cms-focus-ring);
+}
+
+/* Dialog. */
+.cms-editor-ui.ed-dialog {
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  border: 0;
+  border-radius: var(--cms-radius-lg);
+  background: var(--cms-card);
+  box-shadow: var(--cms-shadow-overlay);
+}
+
+.cms-editor-ui.ed-dialog::backdrop {
+  background: color-mix(in srgb, var(--cms-neutral-900) 45%, transparent);
+}
+
+.cms-editor-ui .ed-dialog__body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cms-space-3);
+  padding: var(--cms-space-6);
+}
+
+.cms-editor-ui .ed-dialog__close {
+  position: absolute;
+  top: var(--cms-space-3);
+  right: var(--cms-space-3);
+}
+
+.cms-editor-ui .ed-dialog__title {
+  margin: 0;
+  padding-right: var(--cms-space-8);
+  font-size: var(--cms-type-h2-size);
+  font-weight: var(--cms-type-h2-weight);
+  line-height: var(--cms-type-h2-line);
+}
+
+.cms-editor-ui .ed-dialog__text {
+  margin: 0;
+  color: var(--cms-text-secondary);
+}
+
+.cms-editor-ui .ed-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cms-space-2);
+  margin-top: var(--cms-space-2);
+}
+
+.cms-editor-ui .ed-dialog__alternative {
+  color: var(--cms-destructive-text);
+}
+
+/* Toasts: bottom right, above the safe area; the Preview pill is centred. */
+.cms-editor-ui.ed-toasts {
+  position: fixed;
+  right: max(var(--cms-space-6), env(safe-area-inset-right));
+  bottom: max(var(--cms-space-6), env(safe-area-inset-bottom));
+  z-index: var(--cms-edit-z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--cms-space-2);
+  max-width: calc(100vw - 2 * var(--cms-space-6));
+  pointer-events: none;
+}
+
+.cms-editor-ui .ed-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--cms-space-3);
+  min-height: 44px;
+  padding: var(--cms-space-2) var(--cms-space-2) var(--cms-space-2) var(--cms-space-4);
+  border-radius: var(--cms-radius-lg);
+  background: var(--cms-neutral-900);
+  color: var(--cms-neutral-0);
+  box-shadow: var(--cms-shadow-overlay);
+  pointer-events: auto;
+}
+
+.cms-editor-ui .ed-toast--success .iconify {
+  color: var(--cms-success-border);
+}
+
+.cms-editor-ui .ed-toast--error .iconify {
+  color: var(--cms-destructive-border);
+}
+
+.cms-editor-ui .ed-toast__action,
+.cms-editor-ui .ed-toast__close {
+  min-height: var(--cms-control-sm);
+  padding: 0 var(--cms-space-2);
+  border: 0;
+  border-radius: var(--cms-radius-sm);
+  background: transparent;
+  color: var(--cms-info-border);
+  font: inherit;
+  font-weight: var(--cms-type-label-large-weight);
+  cursor: pointer;
+}
+
+.cms-editor-ui .ed-toast__close {
+  display: inline-flex;
+  align-items: center;
+  color: var(--cms-neutral-300);
+}
+
+.cms-editor-ui .ed-toast__action:hover,
+.cms-editor-ui .ed-toast__close:hover {
+  background: var(--cms-neutral-800);
+}
+
+.ed-toast-enter-from,
+.ed-toast-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ed-toast-enter-active,
+  .ed-toast-leave-active {
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+}
+
+/* History drawer, below the bar whatever its height (lock banner included). */
+.cms-editor-ui.ed-drawer {
+  position: fixed;
+  top: calc(var(--cms-edit-bar-height, var(--cms-edit-bar)) + var(--cms-space-2));
+  right: max(var(--cms-space-2), env(safe-area-inset-right));
+  bottom: max(var(--cms-space-2), env(safe-area-inset-bottom));
+  z-index: var(--cms-edit-z-drawer);
+  display: flex;
+  flex-direction: column;
+  width: min(360px, calc(100vw - 16px));
+  padding: var(--cms-space-5);
+  border: var(--cms-border-width) solid var(--cms-border);
+  border-radius: var(--cms-radius-lg);
+  background: var(--cms-card);
+  box-shadow: var(--cms-shadow-overlay);
+}
+
+.cms-editor-ui .ed-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cms-editor-ui .ed-drawer__title {
+  margin: 0;
+  font-size: var(--cms-type-h3-size);
+  font-weight: var(--cms-type-h3-weight);
+}
+
+.cms-editor-ui .ed-drawer__title:focus {
+  outline: none;
+}
+
+.cms-editor-ui .ed-drawer__hint {
+  margin: var(--cms-space-1) 0 var(--cms-space-4);
+}
+
+.cms-editor-ui .ed-drawer__empty {
+  color: var(--cms-text-secondary);
+}
+
+.cms-editor-ui .ed-drawer__footer {
+  padding-top: var(--cms-space-3);
+  border-top: var(--cms-border-width) solid var(--cms-border-subtle);
+}
+
+.cms-editor-ui .ed-revisions {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.cms-editor-ui .ed-revisions__item {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  align-items: center;
+  gap: var(--cms-space-3);
+  min-height: 48px;
+  border-bottom: var(--cms-border-width) solid var(--cms-border-subtle);
+}
+
+.cms-editor-ui .ed-revisions__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--cms-radius-full);
+  background: var(--cms-neutral-400);
+}
+
+.cms-editor-ui .ed-revisions__item:first-child .ed-revisions__dot {
+  background: var(--cms-success);
+}
+
+.cms-editor-ui .ed-badge {
+  padding: 2px var(--cms-space-2);
+  border-radius: var(--cms-radius-full);
+  background: var(--cms-success-subtle);
+  color: var(--cms-success-text);
+  font-size: var(--cms-type-label-small-size);
+  font-weight: var(--cms-type-label-small-weight);
+}
