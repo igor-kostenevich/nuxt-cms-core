@@ -11,6 +11,7 @@ useHead({ title: 'About — Luminary' })
 
 // No `about` row is seeded: every primitive renders its default from the slot.
 const { page, error } = useCmsPage('about')
+useLocaleHead(page, '/about')
 const about = computed(() => (page.value?.content ?? {}) as AboutContent)
 </script>
 

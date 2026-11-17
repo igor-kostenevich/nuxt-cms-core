@@ -22,7 +22,23 @@ page builder.
 Епік за епіком, маленькими завершеними зрізами:
 план епіку (plan mode, закрити блокуючі рішення) → реалізація → запис
 `docs/implementation/00N-*.md` + важливі сценарії ручної перевірки в `docs/testing/` (кандидати в
-e2e) → агент `review` (`.claude/agents/review.md`) → оновити статус у MASTER_PLAN і README.
+e2e) → `/epic-review <id>` → правки → `/epic-review <id> recheck` → оновити статус у MASTER_PLAN
+і README.
+
+### Рев'ю епіку (`/epic-review`)
+
+Скіл-оркестратор `.claude/skills/epic-review/` паралельно запускає 4 субагенти з `.claude/agents/`
+і зводить їхні результати в один звіт з одним вердиктом:
+
+- `verify` — typecheck, lint, test, build + check:bundle, test:db, розсинхрон `database.types.ts`;
+  повертає лише помилки (модель Haiku);
+- `review-spec` — scope / anti-scope епіку з MASTER_PLAN §4 і запису `00N-*.md`, рішення §2, doc drift;
+- `review-arch` — шари, runtime-зони (C-21), межі Core, стилі, i18n адмінки, залежності, якість коду;
+- `review-security` — RLS і storage policies, паритет `can()` / `cms_can()`, ключі, рендер недовірених
+  значень.
+
+Запускати один раз у кінці епіку, а не після кожного зрізу: це ~4× токенів від одного рев'ю.
+Окремого агента можна викликати й поодинці, наприклад `verify` після дрібних правок.
 
 Не комітити, не пушити, не створювати PR і не встановлювати залежності без явного прохання.
 
