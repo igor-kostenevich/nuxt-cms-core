@@ -31,6 +31,12 @@ const uid = useId()
 const point = computed(() => focal.value ?? { x: 50, y: 50 })
 const dragging = ref(false)
 
+// One string: the template would swallow the space between the sentences.
+const hint = computed(() => [
+  t('cms.media.focalHint', { x: point.value.x, y: point.value.y }),
+  props.frame ? t('cms.media.frameHint') : '',
+].filter(Boolean).join(' '))
+
 const frameStyle = computed(() => {
   if (!props.frame) {
     return null
@@ -152,8 +158,7 @@ function nudge(event: KeyboardEvent) {
       :id="`${uid}-hint`"
       class="focal-picker__hint"
       :aria-live="dragging ? 'off' : 'polite'"
-    >{{ t('cms.media.focalHint', { x: point.x, y: point.y }) }}<template v-if="frame">
-      {{ t('cms.media.frameHint') }}</template></span>
+    >{{ hint }}</span>
   </div>
 </template>
 
