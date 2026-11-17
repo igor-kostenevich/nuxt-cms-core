@@ -37,7 +37,7 @@
 | 006 | CMS Primitives, тільки Public Runtime | 1 | `done` | [006](./006-primitives.md) |
 | 007 | Draft / Publish / Revisions (дані) | 1 | `done` | [007](./007-draft-publish.md) |
 | 008 | Edit Mode (перша версія UI) | 1 | `done` | [008](./008-edit-mode.md) |
-| 009 | Media + Storage Adapter | 1 | `todo` | — |
+| 009 | Media + Storage Adapter | 1 | `done` | [009](./009-media.md) |
 | 010 | Localization v2 | 2 | `todo` | — |
 | 011 | Forms infrastructure | 3 | `todo` | — |
 | 012 | Activity (Admin UI + Restore) | 3 | `todo` | — |
@@ -123,3 +123,15 @@ allow-list. Адреса поля — dotted path у вкладеному док
 попередньо переглядаються (C-68). У playground — лендинг «Luminary». Перша версія UI: далі — правки
 автора (008b).
 
+### 009 — Media + Storage Adapter
+
+Зображення стали даними: файл у бакеті `cms-media`, рядок `cms_media`, контент зберігає
+`{ mediaId, alt?, decorative?, focal? }` (C-74), не URL. Upload іде напряму в Storage, рядок реєструє
+RPC, яка бере mime і розмір із самого об'єкта (C-71). Читання сторінки повертає документ разом із
+media одним запитом, тож SSR рендерить зображення без N+1 (C-76). Є:
+- `/admin/media`: upload, drag & drop, пошук, фільтр, Replace (новий path, R-13), soft delete з
+  попередженням про usage;
+- один Media Picker для Edit Mode і Settings → Бренд (логотип, favicon);
+- права `media.upload` / `media.edit` / `media.delete`.
+
+Сесійна заглушка зображень з 008 (C-68) прибрана. Пропущене — у реєстрі TODO (MASTER_PLAN §3).

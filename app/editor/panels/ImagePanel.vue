@@ -1,67 +1,90 @@
 <script setup lang="ts">
-import { computed, ref, useId, useTemplateRef } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
+import { useImageCrop } from '../../admin/media/crop'
+import { MEDIA_ACCEPT } from '../../admin/media/files'
+import { useAdminMedia } from '../../admin/useAdminMedia'
 import { useAdminI18n } from '../../admin/useAdminI18n'
+import { resolveImage, toImageValue } from '../../primitives/media'
+import type { CmsFocalPoint, CmsImageValue, CmsMedia } from '../../types/media'
 import { useEditor } from '../inject'
-import type { FieldRegistration, ImageApi } from '../kinds'
+import type { FieldRegistration } from '../kinds'
 import ResetButton from './ResetButton.vue'
 
-// Image and background editor. Media (009) does not exist yet, so the library
-// is a stand-in: the images already on this page plus files picked from the
-// device, kept as object URLs for this session only. Nothing here is saved.
+// Image and background editor. The field stores { mediaId, alt?, decorative?,
+// focal? } (C-74): choosing an image writes the id, the overrides below apply
+// to this usage only. The media's own defaults are edited in the library.
 const props = defineProps<{
   field: Extract<FieldRegistration, { kind: 'image' | 'background' }>
 }>()
 
-/** Arrow keys move the focal point this much; with Shift, more. */
-const FOCAL_STEP = 2
-const FOCAL_STEP_LARGE = 10
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
-
 const { t } = useAdminI18n()
 const { engine, view } = useEditor()
-const uid = useId()
+const library = useAdminMedia()
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
 
-const override = computed(() => view.media.get(props.field.key) ?? {})
-const src = computed(() => override.value.src ?? props.field.api.defaultSrc())
-const decorativeByCode = computed(() => props.field.api.decorative())
-const decorative = computed(() => decorativeByCode.value || override.value.decorative === true)
-const alt = computed(() => override.value.alt ?? props.field.api.defaultAlt())
-const focal = computed(() => override.value.focal ?? { x: 50, y: 50 })
-
-const libraryOpen = ref(false)
-const uploads = ref<string[]>([])
+const pickerOpen = ref(false)
+const uploading = ref(false)
 const uploadError = ref('')
 
-/** Every image source on the page, plus this session's uploads. */
-const library = computed(() => {
-  const sources = new Set<string>(uploads.value)
+const value = computed(() => toImageValue(engine.get(props.field.key)))
+const resolved = computed(() => resolveImage(value.value, engine.media.value, {
+  src: props.field.api.defaultSrc(),
+  alt: props.field.api.defaultAlt(),
+  decorative: props.field.api.decorative(),
+}))
+const media = computed(() => resolved.value.media)
+const decorativeByCode = computed(() => props.field.api.decorative())
+const decorative = computed(() => decorativeByCode.value || value.value?.decorative === true)
+const altPlaceholder = computed(() => media.value?.defaultAlt || props.field.api.defaultAlt())
+// The <img> on the page: the field itself, or the image behind a background.
+// Re-found after a new choice renders, since a background may get its <img> only then.
+const frame = useImageCrop(
+  () => {
+    const el = props.field.el
+    return el instanceof HTMLImageElement ? el : el.querySelector<HTMLImageElement>('.cms-background__image')
+  },
+  () => [props.field.el, value.value?.mediaId],
+)
 
-  for (const field of engine.fields.values()) {
-    if (field.kind !== 'image' && field.kind !== 'background') {
-      continue
-    }
-
-    const own = view.media.get(field.key)?.src ?? (field.api as ImageApi).defaultSrc()
-
-    if (own) {
-      sources.add(own)
-    }
-  }
-
-  return [...sources]
+const focal = computed<CmsFocalPoint | null>({
+  get: () => value.value?.focal ?? media.value?.defaultFocal ?? null,
+  set: next => patch({ focal: next ?? undefined }),
 })
 
-function fileName(source: string) {
-  return decodeURIComponent(source.split('/').pop() ?? source)
+/** Overrides of this usage; undefined removes one. Needs a chosen image. */
+function patch(change: Partial<Omit<CmsImageValue, 'mediaId'>>) {
+  const current = value.value
+
+  if (!current) {
+    return
+  }
+
+  const merged = { ...current, ...change }
+  // Only what is set is stored: an empty alt or `decorative: false` is no override.
+  const next: CmsImageValue = { mediaId: current.mediaId }
+
+  if (merged.alt) {
+    next.alt = merged.alt
+  }
+
+  if (merged.decorative) {
+    next.decorative = true
+  }
+
+  if (merged.focal) {
+    next.focal = merged.focal
+  }
+
+  engine.set(props.field.key, next)
 }
 
-function choose(source: string) {
-  view.setMedia(props.field.key, { src: source })
-  libraryOpen.value = false
+/** A new image starts clean: alt and focal of the previous one do not fit it. */
+function choose(item: CmsMedia) {
+  engine.addMedia([item])
+  engine.set(props.field.key, { mediaId: item.id })
 }
 
-function onFile(event: Event) {
+async function onFile(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
@@ -70,49 +93,17 @@ function onFile(event: Event) {
     return
   }
 
-  if (!ACCEPTED_TYPES.includes(file.type)) {
-    uploadError.value = t('cms.editor.image.wrongType')
-    return
-  }
-
+  uploading.value = true
   uploadError.value = ''
-  const url = URL.createObjectURL(file)
-  uploads.value = [url, ...uploads.value]
-  choose(url)
-}
 
-function setFocal(event: MouseEvent) {
-  const box = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const { added, errors } = await library.upload([file])
+  uploading.value = false
 
-  // A keyboard "click" has no pointer position; arrows move the point instead.
-  if (event.detail === 0) {
-    return
+  if (added[0]) {
+    choose(added[0])
+  } else {
+    uploadError.value = errors[0] ?? ''
   }
-
-  const x = Math.round(((event.clientX - box.left) / box.width) * 100)
-  const y = Math.round(((event.clientY - box.top) / box.height) * 100)
-  view.setMedia(props.field.key, { focal: { x, y } })
-}
-
-function nudgeFocal(event: KeyboardEvent) {
-  const step = event.shiftKey ? FOCAL_STEP_LARGE : FOCAL_STEP
-  const delta: Record<string, [number, number]> = {
-    ArrowLeft: [-step, 0],
-    ArrowRight: [step, 0],
-    ArrowUp: [0, -step],
-    ArrowDown: [0, step],
-  }
-  const move = delta[event.key]
-
-  if (!move) {
-    return
-  }
-
-  event.preventDefault()
-  const clamp = (value: number) => Math.max(0, Math.min(100, value))
-  view.setMedia(props.field.key, {
-    focal: { x: clamp(focal.value.x + move[0]), y: clamp(focal.value.y + move[1]) },
-  })
 }
 </script>
 
@@ -126,9 +117,8 @@ function nudgeFocal(event: KeyboardEvent) {
         variant="secondary"
         size="sm"
         class="ed-block"
-        :aria-expanded="libraryOpen"
-        :aria-controls="`${uid}-library`"
-        @click="libraryOpen = !libraryOpen"
+        aria-haspopup="dialog"
+        @click="pickerOpen = true"
       >
         <template #leading>
           <Icon
@@ -138,32 +128,12 @@ function nudgeFocal(event: KeyboardEvent) {
         </template>
         {{ t('cms.editor.image.library') }}
       </AdminButton>
-      <div
-        v-if="libraryOpen"
-        :id="`${uid}-library`"
-        class="ed-library"
-        role="group"
-        :aria-label="t('cms.editor.image.libraryTitle')"
-      >
-        <button
-          v-for="source in library"
-          :key="source"
-          type="button"
-          class="ed-library__item"
-          :aria-pressed="source === src"
-          :aria-label="fileName(source)"
-          @click="choose(source)"
-        >
-          <img
-            :src="source"
-            alt=""
-          >
-        </button>
-      </div>
       <AdminButton
+        v-if="library.canUpload()"
         variant="secondary"
         size="sm"
         class="ed-block"
+        :loading="uploading"
         @click="fileInput?.click()"
       >
         <template #leading>
@@ -177,7 +147,7 @@ function nudgeFocal(event: KeyboardEvent) {
       <input
         ref="fileInput"
         type="file"
-        :accept="ACCEPTED_TYPES.join(',')"
+        :accept="MEDIA_ACCEPT"
         hidden
         @change="onFile"
       >
@@ -190,73 +160,61 @@ function nudgeFocal(event: KeyboardEvent) {
       </p>
     </div>
 
-    <template v-if="!decorativeByCode">
-      <AdminInput
-        :model-value="decorative ? '' : alt"
-        :label="t('cms.editor.image.alt')"
-        :hint="t('cms.editor.image.altHint')"
-        :disabled="decorative"
-        size="sm"
-        multiline
-        name="cms-image-alt"
-        @update:model-value="view.setMedia(field.key, { alt: $event })"
-      />
-      <label class="ed-check">
-        <input
-          type="checkbox"
-          :checked="decorative"
-          @change="view.setMedia(field.key, { decorative: ($event.target as HTMLInputElement).checked })"
-        >
-        {{ t('cms.editor.image.decorative') }}
-      </label>
-    </template>
-
-    <div
-      v-if="src"
-      class="ed-field"
-    >
-      <span
-        :id="`${uid}-focal`"
-        class="ed-section-title"
-      >{{ t('cms.editor.image.focal') }}</span>
-      <button
-        type="button"
-        class="ed-focal"
-        :aria-labelledby="`${uid}-focal`"
-        :aria-describedby="`${uid}-focal-hint`"
-        @click="setFocal"
-        @keydown="nudgeFocal"
-      >
-        <img
-          :src="src"
-          alt=""
-        >
-        <span
-          class="ed-focal__dot"
-          aria-hidden="true"
-          :style="{ left: `${focal.x}%`, top: `${focal.y}%` }"
+    <template v-if="media">
+      <template v-if="!decorativeByCode">
+        <AdminInput
+          :model-value="decorative ? '' : value?.alt ?? ''"
+          :label="t('cms.editor.image.alt')"
+          :hint="t('cms.editor.image.altHint')"
+          :placeholder="altPlaceholder"
+          :disabled="decorative"
+          size="sm"
+          multiline
+          name="cms-image-alt"
+          @focus="engine.beginEdit(field.key)"
+          @blur="engine.endEdit()"
+          @update:model-value="patch({ alt: $event || undefined })"
         />
-      </button>
-      <span
-        :id="`${uid}-focal-hint`"
-        class="ed-hint"
-        aria-live="polite"
-      >{{ t('cms.editor.image.focalHint', focal) }}</span>
-    </div>
+        <label class="ed-check">
+          <input
+            type="checkbox"
+            :checked="decorative"
+            @change="patch({ decorative: ($event.target as HTMLInputElement).checked })"
+          >
+          {{ t('cms.editor.image.decorative') }}
+        </label>
+      </template>
 
-    <p class="ed-note">
+      <!-- Only where the page crops the image: elsewhere the point changes nothing. -->
+      <AdminFocalPicker
+        v-if="frame"
+        v-model="focal"
+        :src="media.url"
+        :label="t('cms.editor.image.focal')"
+        :frame="frame"
+        @start="engine.beginEdit(field.key)"
+        @end="engine.endEdit()"
+      />
+      <p
+        v-else
+        class="ed-hint"
+      >
+        {{ t('cms.editor.image.notCropped') }}
+      </p>
+    </template>
+    <p
+      v-else
+      class="ed-note"
+    >
       <Icon
         name="lucide:info"
         aria-hidden="true"
       />
-      {{ t('cms.editor.image.notSaved') }}
+      {{ t('cms.editor.image.chooseFirst') }}
     </p>
 
     <div class="ed-actions">
-      <ResetButton
-        :field="field"
-        media
-      />
+      <ResetButton :field="field" />
       <span class="ed-actions__spacer" />
       <AdminButton
         variant="primary"
@@ -266,5 +224,11 @@ function nudgeFocal(event: KeyboardEvent) {
         {{ t('cms.editor.field.done') }}
       </AdminButton>
     </div>
+
+    <AdminMediaPicker
+      v-model:open="pickerOpen"
+      :selected-id="value?.mediaId ?? null"
+      @pick="choose"
+    />
   </div>
 </template>

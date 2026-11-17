@@ -1,3 +1,5 @@
+import type { CmsMediaMap } from './media'
+
 /**
  * Content values of one page in one locale.
  *
@@ -15,6 +17,8 @@ export interface CmsPage {
   content: CmsPageContent
   /** ISO timestamp of the publication. */
   publishedAt: string
+  /** Media the content references by id (MASTER_PLAN C-76). Deleted media is absent. */
+  media: CmsMediaMap
 }
 
 /**
@@ -28,6 +32,8 @@ export interface CmsPageDraft {
   content: CmsPageContent
   /** ISO timestamp of the last Save Draft. */
   updatedAt: string
+  /** Media the content references by id. */
+  media: CmsMediaMap
 }
 
 /** One publication of a page: the content that went live at `createdAt`. */

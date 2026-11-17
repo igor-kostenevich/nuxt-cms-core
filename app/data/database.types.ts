@@ -9,6 +9,54 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cms_media: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_alt: string
+          default_focal: Json | null
+          deleted_at: string | null
+          display_name: string
+          height: number | null
+          id: string
+          mime: string
+          size: number
+          storage_path: string
+          updated_at: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_alt?: string
+          default_focal?: Json | null
+          deleted_at?: string | null
+          display_name: string
+          height?: number | null
+          id?: string
+          mime: string
+          size: number
+          storage_path: string
+          updated_at?: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_alt?: string
+          default_focal?: Json | null
+          deleted_at?: string | null
+          display_name?: string
+          height?: number | null
+          id?: string
+          mime?: string
+          size?: number
+          storage_path?: string
+          updated_at?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
       cms_page_draft: {
         Row: {
           content: Json
@@ -159,7 +207,9 @@ export type Database = {
         Row: {
           contact_email: string | null
           contact_phone: string | null
+          favicon_media_id: string | null
           id: number
+          logo_media_id: string | null
           maintenance_mode: boolean
           site_name: string
           updated_at: string
@@ -167,7 +217,9 @@ export type Database = {
         Insert: {
           contact_email?: string | null
           contact_phone?: string | null
+          favicon_media_id?: string | null
           id?: number
+          logo_media_id?: string | null
           maintenance_mode?: boolean
           site_name?: string
           updated_at?: string
@@ -175,12 +227,29 @@ export type Database = {
         Update: {
           contact_email?: string | null
           contact_phone?: string | null
+          favicon_media_id?: string | null
           id?: number
+          logo_media_id?: string | null
           maintenance_mode?: boolean
           site_name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cms_site_settings_favicon_media_fkey"
+            columns: ["favicon_media_id"]
+            isOneToOne: false
+            referencedRelation: "cms_media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cms_site_settings_logo_media_fkey"
+            columns: ["logo_media_id"]
+            isOneToOne: false
+            referencedRelation: "cms_media"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cms_users: {
         Row: {
@@ -212,6 +281,72 @@ export type Database = {
     }
     Functions: {
       cms_can: { Args: { requested: string }; Returns: boolean }
+      cms_is_focal: { Args: { value: Json }; Returns: boolean }
+      cms_media_create: {
+        Args: {
+          display_name: string
+          height?: number
+          storage_path: string
+          width?: number
+        }
+        Returns: string
+      }
+      cms_media_delete: { Args: { media_id: string }; Returns: undefined }
+      cms_media_object: {
+        Args: { path: string }
+        Returns: {
+          mime: string
+          size: number
+        }[]
+      }
+      cms_media_of: { Args: { content: Json }; Returns: Json }
+      cms_media_path_in_use: { Args: { path: string }; Returns: boolean }
+      cms_media_replace: {
+        Args: {
+          height?: number
+          media_id: string
+          storage_path: string
+          width?: number
+        }
+        Returns: string
+      }
+      cms_media_update: {
+        Args: {
+          default_alt: string
+          default_focal?: Json
+          display_name: string
+          media_id: string
+        }
+        Returns: undefined
+      }
+      cms_media_usage: {
+        Args: { media_ids?: string[] }
+        Returns: {
+          is_draft: boolean
+          locale: string
+          media_id: string
+          page_key: string
+          source: string
+        }[]
+      }
+      cms_page_get_draft: {
+        Args: { page_key: string; page_locale: string }
+        Returns: {
+          content: Json
+          locale: string
+          media: Json
+          updated_at: string
+        }[]
+      }
+      cms_page_get_published: {
+        Args: { page_key: string; page_locale: string }
+        Returns: {
+          content: Json
+          locale: string
+          media: Json
+          published_at: string
+        }[]
+      }
       cms_page_held_lock: {
         Args: { lock_token: string; page_key: string }
         Returns: string

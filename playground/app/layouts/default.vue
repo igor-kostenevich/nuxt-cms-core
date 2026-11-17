@@ -11,6 +11,17 @@ const nav = [
 ]
 
 const year = new Date().getFullYear()
+
+// Settings → Brand (009): the logo and favicon are media the CMS manages.
+// Without them the site keeps its own wordmark and the default favicon.
+const { settings } = useSiteSettings()
+const logo = computed(() => settings.value?.logo ?? null)
+
+useHead({
+  link: computed(() => (settings.value?.favicon
+    ? [{ rel: 'icon', href: settings.value.favicon.url, type: settings.value.favicon.mime }]
+    : [])),
+})
 </script>
 
 <template>
@@ -25,7 +36,15 @@ const year = new Date().getFullYear()
           to="/"
           class="logo"
         >
-          Luminary
+          <img
+            v-if="logo"
+            :src="logo.url"
+            :width="logo.width ?? undefined"
+            :height="logo.height ?? undefined"
+            alt="Luminary"
+            class="logo__image"
+          >
+          <template v-else>Luminary</template>
         </NuxtLink>
         <nav
           class="site-nav"
@@ -220,6 +239,14 @@ a {
   font-weight: 800;
   letter-spacing: -0.03em;
   text-decoration: none;
+}
+
+.logo__image {
+  display: block;
+  width: auto;
+  max-width: 180px;
+  height: 36px;
+  object-fit: contain;
 }
 
 .site-nav {

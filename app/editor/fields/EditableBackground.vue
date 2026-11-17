@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import '../../assets/runtime.css'
-import { focalPosition } from '../../primitives/media'
+import { resolveImage } from '../../primitives/media'
+import type { CmsImageValue } from '../../types/media'
 import { useEditorField } from '../field'
 
 // Editable branch of CmsBackground. The section itself is the field: clicking
 // its empty area (not a field inside it) selects the background.
 const props = defineProps<{
+  value?: CmsImageValue | null
   fieldKey: string
   src?: string
   tag: string
@@ -17,7 +19,7 @@ const props = defineProps<{
 }>()
 
 const el = ref<HTMLElement | null>(null)
-const { view, key } = useEditorField({
+const { engine } = useEditorField({
   kind: 'background',
   fieldKey: () => props.fieldKey,
   el,
@@ -29,9 +31,7 @@ const { view, key } = useEditorField({
   },
 })
 
-const override = computed(() => view.media.get(key.value))
-const src = computed(() => override.value?.src ?? props.src)
-const objectPosition = computed(() => focalPosition(override.value?.focal, props.position))
+const image = computed(() => resolveImage(props.value, engine.media.value, { ...props, decorative: true }))
 </script>
 
 <template>
@@ -41,14 +41,16 @@ const objectPosition = computed(() => focalPosition(override.value?.focal, props
     class="cms-background"
   >
     <img
-      v-if="src"
-      :src="src"
+      v-if="image.src"
+      :src="image.src"
       alt=""
       aria-hidden="true"
       class="cms-background__image"
+      :width="image.width"
+      :height="image.height"
       :loading="loading"
       :fetchpriority="fetchpriority"
-      :style="objectPosition ? { objectPosition } : undefined"
+      :style="image.objectPosition ? { objectPosition: image.objectPosition } : undefined"
     >
     <slot />
   </component>

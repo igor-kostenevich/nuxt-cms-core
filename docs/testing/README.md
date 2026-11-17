@@ -46,3 +46,4 @@
 | [admin.md](./admin.md) | Settings → General, права editor, мова адмінки |
 | [public-site.md](./public-site.md) | Публічні сторінки: дефолти, Draft не видно, безпечний рендер, бандл |
 | [edit-mode.md](./edit-mode.md) | Edit Mode (008): редагування, Save / Publish, Undo, колекції, Preview, навігація, Content Lock, клавіатура |
+| [media.md](./media.md) | Медіа (009): медіатека, upload / replace / delete, Media Picker в Edit Mode, пріоритет alt, Settings → Brand, SVG |

@@ -118,7 +118,7 @@ function onPointerMove(event: PointerEvent) {
   }
 
   const boxes = siblings().map(field => toBox(field.el.getBoundingClientRect()))
-  const next = dropIndex(boxes, { x: event.clientX, y: event.clientY }, index.value)
+  const next = dropIndex(boxes, { x: event.clientX, y: event.clientY })
   target.value = next
 
   const box = boxes[next]

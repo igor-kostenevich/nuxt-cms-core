@@ -9,18 +9,14 @@ import { useEditorUi } from '../ui'
 // Back to the published value of one field, after a confirmation.
 const props = defineProps<{
   field: FieldRegistration
-  /** Image fields reset their session-only preview, not the document. */
-  media?: boolean
 }>()
 
 const { t } = useAdminI18n()
-const { engine, view } = useEditor()
+const { engine } = useEditor()
 const ui = useEditorUi()
 const session = useEditorSession()
 
-const changed = computed(() => props.media
-  ? view.media.has(props.field.key)
-  : engine.changed(props.field.key))
+const changed = computed(() => engine.changed(props.field.key))
 
 async function reset() {
   session.blurActiveField()
@@ -36,11 +32,7 @@ async function reset() {
     return
   }
 
-  if (props.media) {
-    view.media.delete(props.field.key)
-  } else {
-    engine.reset(props.field.key)
-  }
+  engine.reset(props.field.key)
 
   props.field.el.focus({ preventScroll: true })
 }

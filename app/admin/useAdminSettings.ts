@@ -1,7 +1,7 @@
 import { useRequestEvent } from '#imports'
 import { useSiteSettings } from '../composables/useSiteSettings'
 import { createSettingsRepository } from '../data/repositories/settings.repository'
-import type { SiteSettings } from '../types/settings'
+import type { SiteBrandForm, SiteSettings, SiteSettingsForm } from '../types/settings'
 
 /**
  * Settings for the admin form: the public settings state plus `save`.
@@ -15,11 +15,17 @@ export function useAdminSettings() {
   const repository = createSettingsRepository(request)
   const { settings, error, ready } = useSiteSettings()
 
-  async function save(next: SiteSettings): Promise<SiteSettings> {
+  async function save(next: SiteSettingsForm): Promise<SiteSettings> {
     const saved = await repository.update(next)
     settings.value = saved
     return saved
   }
 
-  return { settings, error, ready, save }
+  async function saveBrand(next: SiteBrandForm): Promise<SiteSettings> {
+    const saved = await repository.updateBrand(next)
+    settings.value = saved
+    return saved
+  }
+
+  return { settings, error, ready, save, saveBrand }
 }

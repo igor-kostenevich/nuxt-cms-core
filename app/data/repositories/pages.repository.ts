@@ -6,28 +6,16 @@ import type {
   CmsPageLockStatus,
   CmsPageRevision,
 } from '../../types/pages'
-import type { Json } from '../database.types'
+import type { Database, Json } from '../database.types'
 import { CmsDataError } from '../errors'
+import { toMediaMap } from '../media-row'
+import type { CmsStorageAdapter } from '../storage/storage-adapter'
+import { createSupabaseStorage } from '../storage/supabase-storage'
 import { getSupabaseClient, readSupabasePublicConfig, toCmsDataError } from '../supabase'
 
-const PUBLISHED_TABLE = 'cms_page_published'
-const DRAFT_TABLE = 'cms_page_draft'
 const REVISIONS_TABLE = 'cms_page_revisions'
 /** The History panel lists this many latest publications. */
 const REVISIONS_LIMIT = 50
-// The inner join filters by page key in the same request: one round trip per page.
-const PUBLISHED_COLUMNS = 'locale, content, published_at, page:cms_pages!inner(key)'
-const DRAFT_COLUMNS = 'locale, content, updated_at, page:cms_pages!inner(key)'
-
-function selectPublished() {
-  return getSupabaseClient().from(PUBLISHED_TABLE).select(PUBLISHED_COLUMNS)
-}
-
-/**
- * Row shape inferred from the generated Database types, so a renamed column
- * or a typo in the columns fails typecheck. snake_case stays inside the data layer.
- */
-type PublishedPageRow = NonNullable<Awaited<ReturnType<typeof selectPublished>>['data']>[number]
 
 /**
  * The session client is imported only when an editing method runs, so the
@@ -38,11 +26,11 @@ async function getAuthClient(request?: H3Event) {
   return getSupabaseAuthClient(request)
 }
 
-function selectDraft(client: Awaited<ReturnType<typeof getAuthClient>>) {
-  return client.from(DRAFT_TABLE).select(DRAFT_COLUMNS)
-}
-
-type DraftPageRow = NonNullable<Awaited<ReturnType<typeof selectDraft>>['data']>[number]
+// Reads go through functions that return the document and the media it
+// references in one request (MASTER_PLAN C-76). Row shapes come from the
+// generated Database types, so a renamed column fails typecheck.
+type PublishedPageRow = Database['public']['Functions']['cms_page_get_published']['Returns'][number]
+type DraftPageRow = Database['public']['Functions']['cms_page_get_draft']['Returns'][number]
 
 function isContent(value: Json): value is { [key: string]: Json | undefined } {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -58,21 +46,23 @@ function toContent(value: Json, what: string): CmsPageContent {
   return value as CmsPageContent
 }
 
-function toCmsPage(row: PublishedPageRow): CmsPage {
+function toCmsPage(key: string, row: PublishedPageRow, storage: CmsStorageAdapter): CmsPage {
   return {
-    key: row.page.key,
+    key,
     locale: row.locale,
     content: toContent(row.content, 'Published page'),
     publishedAt: row.published_at,
+    media: toMediaMap(row.media, storage),
   }
 }
 
-function toCmsPageDraft(row: DraftPageRow): CmsPageDraft {
+function toCmsPageDraft(key: string, row: DraftPageRow, storage: CmsStorageAdapter): CmsPageDraft {
   return {
-    key: row.page.key,
+    key,
     locale: row.locale,
     content: toContent(row.content, 'Page draft'),
     updatedAt: row.updated_at,
+    media: toMediaMap(row.media, storage),
   }
 }
 
@@ -86,22 +76,23 @@ function toCmsPageDraft(row: DraftPageRow): CmsPageDraft {
  * Only the editing methods need it.
  */
 export function createPagesRepository(request?: H3Event) {
+  const storage = createSupabaseStorage(request)
+
   /**
    * Reads the published content of a page in one locale.
    * Returns null when the page has no published content yet: a code-defined
    * page then renders its defaults (MASTER_PLAN C-42).
    */
   async function getByKey(key: string, locale: string): Promise<CmsPage | null> {
-    const { data, error } = await selectPublished()
-      .eq('page.key', key)
-      .eq('locale', locale)
+    const { data, error } = await getSupabaseClient()
+      .rpc('cms_page_get_published', { page_key: key, page_locale: locale })
       .maybeSingle()
 
     if (error) {
       throw toCmsDataError(error, `Failed to load page "${key}"`)
     }
 
-    return data ? toCmsPage(data) : null
+    return data ? toCmsPage(key, data, storage) : null
   }
 
   /**
@@ -109,16 +100,15 @@ export function createPagesRepository(request?: H3Event) {
    * editor then starts from the published content, or from the code defaults.
    */
   async function getDraft(key: string, locale: string): Promise<CmsPageDraft | null> {
-    const { data, error } = await selectDraft(await getAuthClient(request))
-      .eq('page.key', key)
-      .eq('locale', locale)
+    const { data, error } = await (await getAuthClient(request))
+      .rpc('cms_page_get_draft', { page_key: key, page_locale: locale })
       .maybeSingle()
 
     if (error) {
       throw toCmsDataError(error, `Failed to load the draft of page "${key}"`)
     }
 
-    return data ? toCmsPageDraft(data) : null
+    return data ? toCmsPageDraft(key, data, storage) : null
   }
 
   /**

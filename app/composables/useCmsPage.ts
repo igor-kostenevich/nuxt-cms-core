@@ -3,6 +3,7 @@ import { getCurrentInstance, provide } from 'vue'
 import { useAsyncData } from '#imports'
 import { CMS_EDITOR, injectCmsEditor } from '../editor/context'
 import { createPagesRepository } from '../data/repositories/pages.repository'
+import { provideCmsMedia } from '../primitives/media'
 
 /**
  * Published content of a code-defined page.
@@ -11,6 +12,8 @@ import { createPagesRepository } from '../data/repositories/pages.repository'
  * template's own defaults in that case. The locale comes from
  * `cms.config.ts` until localization (010) makes it a per-request value.
  * Await `ready` when the page needs the value before it renders.
+ * Images in the content resolve through the media the read returned: pass
+ * the stored value to `CmsImage` / `CmsBackground` as `:value`.
  *
  * In Edit Mode the same call returns the edited document (Draft ?? Published)
  * from the Editor Engine, so the page code is identical in both modes
@@ -35,6 +38,8 @@ export function useCmsPage(key: string) {
   const locale = cmsConfig.defaultLocale
   const query = useAsyncData(`cms:page:${key}:${locale}`, () => repository.getByKey(key, locale))
   const { data: page, pending, error, refresh } = query
+  // Primitives below this component resolve image ids against this map (C-76).
+  provideCmsMedia(() => page.value?.media)
   const ready: Promise<void> = Promise.resolve(query).then(() => undefined)
 
   return { page, pending, error, refresh, ready }

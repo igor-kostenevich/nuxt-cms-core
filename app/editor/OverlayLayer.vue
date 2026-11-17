@@ -35,8 +35,15 @@ const boxes = shallowRef(new Map<string, Box>())
 const frame = ref<Box>({ x: 0, y: 0, w: 0, h: 0 })
 const focused = ref<string | null>(null)
 const hoveredItem = ref<string | null>(null)
-/** An item whose controls hold focus keeps them, wherever the pointer goes. */
+/**
+ * An item whose controls hold keyboard focus keeps them, wherever the
+ * pointer goes, so they do not vanish from under the focus (WCAG 2.4.3).
+ * After a click focus may sit in the controls too (the handle gets it back
+ * after a move); then the controls follow the pointer as usual.
+ */
 const pinnedItem = ref<string | null>(null)
+/** Last kind of input: decides whether focus in the controls pins them. */
+let lastInput: 'pointer' | 'keyboard' = 'pointer'
 
 let scroller: HTMLElement | null = null
 let rawBoxes = new Map<string, Box>()
@@ -200,11 +207,19 @@ useEventListener(document.documentElement, 'pointerleave', () => {
   hoveredItem.value = null
 })
 
+useEventListener(document, 'pointerdown', () => {
+  lastInput = 'pointer'
+}, { capture: true, passive: true })
+
+useEventListener(document, 'keydown', () => {
+  lastInput = 'keyboard'
+}, { capture: true, passive: true })
+
 useEventListener(document, 'focusin', (event: FocusEvent) => {
   const target = event.target as Element | null
 
   if (target?.closest?.('[data-cms-item-controls]')) {
-    pinnedItem.value = activeItem.value?.field.id ?? pinnedItem.value
+    pinnedItem.value = lastInput === 'keyboard' ? activeItem.value?.field.id ?? pinnedItem.value : null
     return
   }
 
@@ -355,9 +370,13 @@ const focusedItem = computed(() => {
   return field?.el.closest<HTMLElement>('[data-cms-kind="item"]')?.dataset.cmsField ?? null
 })
 
-/** Item whose controls show: pinned by focus, selected, under the pointer or focused. */
+/**
+ * Item whose controls show: pinned by keyboard focus, else under the pointer,
+ * else the one holding the selection or focus. The pointer wins over the
+ * selection: moving to another card brings its controls along.
+ */
 const activeItem = computed(() => {
-  const candidates = [pinnedItem.value, view.selection.value, hoveredItem.value, focusedItem.value]
+  const candidates = [pinnedItem.value, hoveredItem.value, view.selection.value, focusedItem.value]
 
   for (const id of candidates) {
     const field = id ? engine.fields.get(id) : undefined

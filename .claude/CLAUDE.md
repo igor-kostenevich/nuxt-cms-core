@@ -32,7 +32,7 @@ e2e) → агент `review` (`.claude/agents/review.md`) → оновити с�
 nuxt.config.ts        Layer entry, реєструє src/module і @nuxt/icon
 src/                  Nuxt Module і контракт cms.config (defineCmsConfig, #cms/config)
 bin/                  Заготовка CLI nuxt-cms (сам CLI — 016)
-app/data/             Supabase-клієнти (єдині імпорти SDK), CmsDataError, repositories
+app/data/             Supabase-клієнти (єдині імпорти SDK), CmsDataError, repositories, storage/ (Storage Adapter)
 app/auth/             Матриця прав can() — має збігатися з SQL cms_can()
 app/composables/      Публічне API: useCms, useCmsAuth, useSiteSettings, useCmsPage, usePermissions (усі exports —
                       глобальні auto-imports у Client)

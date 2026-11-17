@@ -8,6 +8,7 @@ import type {
   CmsPageLockStatus,
   CmsPageRevision,
 } from '../types/pages'
+import type { CmsMedia, CmsMediaMap } from '../types/media'
 import type { CmsCollectionItem } from '../types/primitives'
 import type { FieldRegistration } from './kinds'
 import {
@@ -82,8 +83,8 @@ function toDocument(content: CmsPageContent | null | undefined): DocumentNode {
  * Editor Engine (architecture §11): the single owner of the edited document.
  * Primitives never write to the backend; they call `set` and the collection
  * operations, and the Engine keeps dirty state, history, validation, save
- * status and the Content Lock. What the editor shows (selection, preview,
- * media previews) lives in the view (`view.ts`).
+ * status and the Content Lock. What the editor shows (selection, hover,
+ * Preview) lives in the view (`view.ts`).
  */
 export function createEditorEngine(options: EditorEngineOptions) {
   const { repository, locale, historyLimit } = options
@@ -114,6 +115,12 @@ export function createEditorEngine(options: EditorEngineOptions) {
   const redoStack = shallowReactive<UndoStep[]>([])
   let nextStepId = 1
   let editSession: { key: string, before: string } | null = null
+
+  /**
+   * Media the document may reference: from the reads and from the Picker.
+   * It only grows: Undo can bring back an image chosen earlier in the session.
+   */
+  const media = shallowRef<CmsMediaMap>({})
 
   const fields = shallowReactive(new Map<string, FieldRegistration>())
   const collectionDefaults = new Map<string, () => CmsCollectionItem[]>()
@@ -197,6 +204,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     const published = toDocument(page?.content)
     const start = draft ? toDocument(draft.content) : published
 
+    addMedia(page?.media, draft?.media)
     publishedSnapshot.value = stableStringify(published)
     publishedAt.value = page?.publishedAt ?? null
     hasDraft.value = Boolean(draft)
@@ -423,6 +431,8 @@ export function createEditorEngine(options: EditorEngineOptions) {
       const draft = savedAt ? await repository.getDraft(key, locale) : null
       const start = draft ? toDocument(draft.content) : cloneDocument(publishedDocument.value)
 
+      addMedia(draft?.media)
+
       endEdit()
       record(() => {
         document.value = start
@@ -435,6 +445,19 @@ export function createEditorEngine(options: EditorEngineOptions) {
       handleLockError(error)
       throw error
     }
+  }
+
+  /** Makes media known to the editor: a Picker choice, or what a read returned. */
+  function addMedia(...sources: (CmsMediaMap | CmsMedia[] | null | undefined)[]) {
+    const next = { ...media.value }
+
+    for (const source of sources) {
+      for (const item of Array.isArray(source) ? source : Object.values(source ?? {})) {
+        next[item.id] = item
+      }
+    }
+
+    media.value = next
   }
 
   // ── Editing ──────────────────────────────────────────────────────────
@@ -753,6 +776,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     canRedo,
     lastStepId,
     fields,
+    media,
     // lifecycle
     load,
     reload,
@@ -788,6 +812,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     moveItem,
     registerField,
     updateField,
+    addMedia,
   }
 }
 

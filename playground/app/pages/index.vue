@@ -2,6 +2,7 @@
 import type {
   CmsButtonValue,
   CmsCollectionItem,
+  CmsImageValue,
   CmsLinkValue,
   CmsOptionalValue,
   CmsRichTextValue,
@@ -18,9 +19,17 @@ interface HomeContent {
     lead?: CmsRichTextValue
     cta?: CmsButtonValue
     secondary?: CmsLinkValue
+    background?: CmsImageValue
   }
   services?: { eyebrow?: string, title?: string, items?: CmsCollectionItem[] }
-  about?: { eyebrow?: string, title?: string, body?: CmsRichTextValue, more?: CmsLinkValue }
+  about?: {
+    eyebrow?: string
+    title?: string
+    body?: CmsRichTextValue
+    more?: CmsLinkValue
+    image?: CmsImageValue
+    decor?: CmsImageValue
+  }
   work?: { eyebrow?: string, title?: string, items?: CmsCollectionItem[] }
   quote?: { visibility?: CmsOptionalValue, text?: string, author?: string, role?: string }
   faq?: { title?: string, items?: CmsCollectionItem[] }
@@ -58,14 +67,21 @@ const defaultFaq = [
   { question: 'Can you maintain the site after launch?', answer: 'We offer monthly care plans with updates, monitoring and small design changes.' },
 ]
 
+// A default item's cover is a file path from code; a chosen one is a media
+// value (C-74). CmsImage takes the path as `src` and the value as `value`.
 function coverOf(item: CmsCollectionItem) {
   return typeof item.cover === 'string' ? item.cover : '/media/work-1.svg'
+}
+
+function coverValue(item: CmsCollectionItem) {
+  return typeof item.cover === 'object' ? item.cover as CmsImageValue : null
 }
 </script>
 
 <template>
   <main id="main">
     <CmsBackground
+      :value="hero.background"
       field-key="hero.background"
       field-label="Hero background"
       src="/media/hero.svg"
@@ -181,6 +197,7 @@ function coverOf(item: CmsCollectionItem) {
     <section class="section about">
       <div class="container about__grid">
         <CmsImage
+          :value="about.image"
           field-key="about.image"
           field-label="Studio photo"
           src="/media/studio.svg"
@@ -225,6 +242,7 @@ function coverOf(item: CmsCollectionItem) {
           </CmsLink>
         </div>
         <CmsImage
+          :value="about.decor"
           field-key="about.decor"
           src="/media/about-alt.svg"
           decorative
@@ -269,6 +287,7 @@ function coverOf(item: CmsCollectionItem) {
         >
           <template #default="{ item }">
             <CmsImage
+              :value="coverValue(item)"
               field-key="cover"
               field-label="Project cover"
               :src="coverOf(item)"

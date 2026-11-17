@@ -8,6 +8,7 @@ const calls: { client: 'anon' | 'session', method: string, args: unknown[] }[] =
 let response: { data: unknown, error: unknown }
 
 // Records the PostgREST chain and resolves `.maybeSingle()` / `.rpc()` / `.limit()` with `response`.
+// `.rpc()` is awaited directly or continued with `.maybeSingle()`.
 // `client` tells the anonymous and the session client apart.
 function recorder(client: 'anon' | 'session') {
   const builder: object = new Proxy({}, {
@@ -20,12 +21,60 @@ function recorder(client: 'anon' | 'session') {
 
       return (...args: unknown[]) => {
         calls.push({ client, method, args })
-        return ['maybeSingle', 'rpc', 'limit'].includes(method) ? Promise.resolve(response) : builder
+
+        if (method === 'rpc') {
+          return Object.assign(Promise.resolve(response), {
+            maybeSingle: (...rest: unknown[]) => {
+              calls.push({ client, method: 'maybeSingle', args: rest })
+              return Promise.resolve(response)
+            },
+          })
+        }
+
+        return ['maybeSingle', 'limit'].includes(method) ? Promise.resolve(response) : builder
       }
     },
   })
 
   return builder
+}
+
+vi.mock('../app/data/storage/supabase-storage', () => ({
+  createSupabaseStorage: () => ({
+    publicUrl: (path: string) => `https://storage.test/cms-media/${path}`,
+    upload: vi.fn(),
+    remove: vi.fn(),
+  }),
+}))
+
+const mediaRow = {
+  id: '00000000-0000-4000-8000-000000000001',
+  display_name: 'hero.jpg',
+  storage_path: '3f2c0a4e-0000-4000-8000-000000000000.jpg',
+  mime: 'image/jpeg',
+  size: 1024,
+  width: 1600,
+  height: 900,
+  default_alt: 'Studio',
+  default_focal: { x: 40, y: 60 },
+  created_at: '2026-11-17T10:00:00+00:00',
+  updated_at: '2026-11-17T10:00:00+00:00',
+}
+
+const media = {
+  [mediaRow.id]: {
+    id: mediaRow.id,
+    name: 'hero.jpg',
+    url: `https://storage.test/cms-media/${mediaRow.storage_path}`,
+    mime: 'image/jpeg',
+    size: 1024,
+    width: 1600,
+    height: 900,
+    defaultAlt: 'Studio',
+    defaultFocal: { x: 40, y: 60 },
+    createdAt: '2026-11-17T10:00:00+00:00',
+    updatedAt: '2026-11-17T10:00:00+00:00',
+  },
 }
 
 const anonBuilder = recorder('anon')
@@ -49,13 +98,13 @@ beforeEach(() => {
 })
 
 describe('PagesRepository.getByKey', () => {
-  it('reads published content by page key and locale in one request', async () => {
+  it('reads published content and its media by page key and locale in one request', async () => {
     response = {
       data: {
         locale: 'uk',
-        content: { hero: { title: 'Title' } },
+        content: { hero: { title: 'Title', image: { mediaId: mediaRow.id } } },
         published_at: '2026-11-15T12:00:00+00:00',
-        page: { key: 'home' },
+        media: [mediaRow],
       },
       error: null,
     }
@@ -63,12 +112,12 @@ describe('PagesRepository.getByKey', () => {
     await expect(createPagesRepository().getByKey('home', 'uk')).resolves.toEqual({
       key: 'home',
       locale: 'uk',
-      content: { hero: { title: 'Title' } },
+      content: { hero: { title: 'Title', image: { mediaId: mediaRow.id } } },
       publishedAt: '2026-11-15T12:00:00+00:00',
+      media,
     })
 
-    expect(argsOf('from')).toEqual([['cms_page_published']])
-    expect(argsOf('eq')).toEqual([['page.key', 'home'], ['locale', 'uk']])
+    expect(argsOf('rpc')).toEqual([['cms_page_get_published', { page_key: 'home', page_locale: 'uk' }]])
     // The public read never touches the session client.
     expect(calls.every(call => call.client === 'anon')).toBe(true)
   })
@@ -81,7 +130,7 @@ describe('PagesRepository.getByKey', () => {
 
   it('rejects content that is not an object', async () => {
     response = {
-      data: { locale: 'uk', content: [], published_at: '2026-11-15T12:00:00+00:00', page: { key: 'home' } },
+      data: { locale: 'uk', content: [], published_at: '2026-11-15T12:00:00+00:00', media: [] },
       error: null,
     }
 
@@ -116,7 +165,7 @@ describe('PagesRepository.getDraft', () => {
         locale: 'uk',
         content: { hero: { title: 'Draft' } },
         updated_at: '2026-11-15T13:00:00+00:00',
-        page: { key: 'home' },
+        media: [],
       },
       error: null,
     }
@@ -126,11 +175,11 @@ describe('PagesRepository.getDraft', () => {
       locale: 'uk',
       content: { hero: { title: 'Draft' } },
       updatedAt: '2026-11-15T13:00:00+00:00',
+      media: {},
     })
 
     expect(calls.every(call => call.client === 'session')).toBe(true)
-    expect(argsOf('from')).toEqual([['cms_page_draft']])
-    expect(argsOf('eq')).toEqual([['page.key', 'home'], ['locale', 'uk']])
+    expect(argsOf('rpc')).toEqual([['cms_page_get_draft', { page_key: 'home', page_locale: 'uk' }]])
   })
 
   it('returns null when the page has no unpublished changes', async () => {

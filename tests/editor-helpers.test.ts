@@ -68,22 +68,50 @@ describe('normalizeRichText', () => {
 describe('dropIndex', () => {
   const column = [0, 1, 2, 3].map(index => ({ x: 0, y: index * 100, w: 300, h: 80 }))
   const row = [0, 1, 2].map(index => ({ x: index * 320, y: 0, w: 300, h: 200 }))
+  // Two columns, two rows, like the playground's project grid.
+  const grid = [
+    { x: 0, y: 0, w: 400, h: 300 },
+    { x: 420, y: 0, w: 400, h: 300 },
+    { x: 0, y: 320, w: 400, h: 300 },
+    { x: 420, y: 320, w: 400, h: 300 },
+  ]
 
-  it('moves within a column by the side of the nearest center', () => {
-    // Below the last center: after it, so the item ends up last.
-    expect(dropIndex(column, { x: 100, y: 350 }, 0)).toBe(3)
-    // Above the last center: before it.
-    expect(dropIndex(column, { x: 100, y: 330 }, 0)).toBe(2)
-    expect(dropIndex(column, { x: 100, y: 5 }, 3)).toBe(0)
+  it('takes the place of the item it is dropped on, in a column', () => {
+    expect(dropIndex(column, { x: 100, y: 350 })).toBe(3)
+    expect(dropIndex(column, { x: 100, y: 305 })).toBe(3)
+    expect(dropIndex(column, { x: 100, y: 5 })).toBe(0)
   })
 
-  it('moves within a row horizontally', () => {
-    expect(dropIndex(row, { x: 900, y: 100 }, 0)).toBe(2)
-    expect(dropIndex(row, { x: 10, y: 100 }, 2)).toBe(0)
+  it('takes the place of the item it is dropped on, in a row', () => {
+    expect(dropIndex(row, { x: 900, y: 100 })).toBe(2)
+    expect(dropIndex(row, { x: 10, y: 100 })).toBe(0)
+  })
+
+  // Regressions: a grid was read as one row, so only the horizontal half of
+  // the target counted, and the left half of the next item was a no-op.
+  it('moves right onto any part of the neighbour', () => {
+    expect(dropIndex(grid, { x: 440, y: 150 })).toBe(1)
+    expect(dropIndex(grid, { x: 800, y: 150 })).toBe(1)
+  })
+
+  it('moves down and up within a column of the grid', () => {
+    expect(dropIndex(grid, { x: 50, y: 400 })).toBe(2)
+    expect(dropIndex(grid, { x: 350, y: 400 })).toBe(2)
+    expect(dropIndex(grid, { x: 350, y: 50 })).toBe(0)
+  })
+
+  it('moves diagonally', () => {
+    expect(dropIndex(grid, { x: 600, y: 500 })).toBe(3)
+    expect(dropIndex(grid, { x: 100, y: 100 })).toBe(0)
+  })
+
+  it('picks the nearest item in a gap between items', () => {
+    expect(dropIndex(grid, { x: 410, y: 150 })).toBe(0)
+    expect(dropIndex(grid, { x: 600, y: 310 })).toBe(1)
   })
 
   it('stays put when dropped on itself', () => {
-    expect(dropIndex(column, { x: 100, y: 120 }, 1)).toBe(1)
+    expect(dropIndex(column, { x: 100, y: 120 })).toBe(1)
   })
 })
 

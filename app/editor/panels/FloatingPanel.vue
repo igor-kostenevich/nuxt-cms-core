@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { autoUpdate, computePosition, flip, offset, shift, type Placement } from '@floating-ui/dom'
+import { autoUpdate, computePosition, flip, offset, shift, size, type Placement } from '@floating-ui/dom'
 import { useEditor } from '../inject'
 
 /**
@@ -40,7 +40,18 @@ function track(anchor: HTMLElement) {
     const { x, y } = await computePosition(anchor, floating, {
       placement: props.placement,
       strategy: 'absolute',
-      middleware: [offset(props.gap), flip({ padding: 12 }), shift({ padding: 12 })],
+      middleware: [
+        offset(props.gap),
+        flip({ padding: 12 }),
+        shift({ padding: 12 }),
+        // A card never runs past the screen edge: it scrolls inside, its footer stays visible.
+        size({
+          padding: 12,
+          apply({ availableHeight }) {
+            floating.style.setProperty('--ed-available-height', `${Math.max(160, Math.floor(availableHeight))}px`)
+          },
+        }),
+      ],
     })
 
     style.value = { transform: `translate(${Math.round(x)}px, ${Math.round(y)}px)` }

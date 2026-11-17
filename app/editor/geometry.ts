@@ -19,21 +19,31 @@ export function sameBox(a: Box | undefined, b: Box | undefined): boolean {
 
 /**
  * Index an item dragged to `point` should move to, given the boxes of the
- * items in their current order. Works for rows, columns and grids: the
- * nearest item center wins, and the side of that center decides before/after.
+ * items in their current order: it takes the place of the item under the
+ * pointer, and the items in between shift. Between items, the nearest one
+ * wins. Works the same for a column, a row and a grid of any shape.
  */
-export function dropIndex(boxes: Box[], point: { x: number, y: number }, fromIndex: number): number {
+export function dropIndex(boxes: Box[], point: { x: number, y: number }): number {
   if (boxes.length === 0) {
     return 0
+  }
+
+  const under = boxes.findIndex(box => point.x >= box.x && point.x <= box.x + box.w
+    && point.y >= box.y && point.y <= box.y + box.h)
+
+  if (under !== -1) {
+    return under
   }
 
   let nearest = 0
   let best = Number.POSITIVE_INFINITY
 
   boxes.forEach((box, index) => {
-    const cx = box.x + box.w / 2
-    const cy = box.y + box.h / 2
-    const distance = (point.x - cx) ** 2 + (point.y - cy) ** 2
+    // Distance to the box, not its center: a wide item next to a narrow one
+    // must not lose a point that is right at its edge.
+    const dx = Math.max(box.x - point.x, 0, point.x - (box.x + box.w))
+    const dy = Math.max(box.y - point.y, 0, point.y - (box.y + box.h))
+    const distance = dx ** 2 + dy ** 2
 
     if (distance < best) {
       best = distance
@@ -41,18 +51,5 @@ export function dropIndex(boxes: Box[], point: { x: number, y: number }, fromInd
     }
   })
 
-  const box = boxes[nearest]!
-  const horizontal = boxes.length > 1 && Math.abs(boxes[1]!.y - boxes[0]!.y) < boxes[0]!.h / 2
-  const after = horizontal
-    ? point.x > box.x + box.w / 2
-    : point.y > box.y + box.h / 2
-
-  let target = after ? nearest + 1 : nearest
-
-  // Removing the item first shifts every later index down by one.
-  if (target > fromIndex) {
-    target -= 1
-  }
-
-  return Math.max(0, Math.min(boxes.length - 1, target))
+  return nearest
 }

@@ -18,7 +18,7 @@ const groups = [
     label: 'cms.shell.groups.content',
     items: [
       { label: 'cms.shell.nav.pages', icon: 'lucide:file' },
-      { label: 'cms.shell.nav.media', icon: 'lucide:image' },
+      { label: 'cms.shell.nav.media', icon: 'lucide:image', to: '/admin/media' },
       { label: 'cms.shell.nav.forms', icon: 'lucide:clipboard-list' },
     ],
   },
@@ -111,18 +111,35 @@ async function onLogout() {
           <p class="shell__group-label">
             {{ t(group.label) }}
           </p>
-          <span
+          <template
             v-for="item in group.items"
             :key="item.label"
-            class="shell__item shell__item--stub"
           >
-            <Icon
-              :name="item.icon"
-              aria-hidden="true"
-            />
-            <span>{{ t(item.label) }}</span>
-            <span class="shell__visually-hidden">({{ t('cms.shell.soon') }})</span>
-          </span>
+            <NuxtLink
+              v-if="'to' in item"
+              :to="item.to"
+              class="shell__item"
+              :class="{ 'shell__item--current': isCurrent(item.to) }"
+              :aria-current="isCurrent(item.to) ? 'page' : undefined"
+            >
+              <Icon
+                :name="item.icon"
+                aria-hidden="true"
+              />
+              <span>{{ t(item.label) }}</span>
+            </NuxtLink>
+            <span
+              v-else
+              class="shell__item shell__item--stub"
+            >
+              <Icon
+                :name="item.icon"
+                aria-hidden="true"
+              />
+              <span>{{ t(item.label) }}</span>
+              <span class="shell__visually-hidden">({{ t('cms.shell.soon') }})</span>
+            </span>
+          </template>
         </div>
       </nav>
 
@@ -363,26 +380,6 @@ async function onLogout() {
   display: flex;
   align-items: center;
   gap: var(--cms-space-3);
-}
-
-.shell__locale :deep(label) {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cms-space-2);
-  color: var(--cms-text-secondary);
-  font-size: var(--cms-type-label-size);
-  line-height: var(--cms-type-label-line);
-}
-
-.shell__locale :deep(select) {
-  height: var(--cms-control-sm);
-  padding: 0 var(--cms-space-2);
-  border: var(--cms-border-width) solid var(--cms-border);
-  border-radius: var(--cms-radius-sm);
-  background: var(--cms-card);
-  color: var(--cms-foreground);
-  font: inherit;
-  font-size: var(--cms-type-body-small-size);
 }
 
 .shell__content {

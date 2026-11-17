@@ -1,21 +1,12 @@
-import { computed, reactive, ref } from 'vue'
-import type { CmsFocalPoint } from '../primitives/media'
+import { computed, ref } from 'vue'
 import type { EditorEngine } from './engine'
-
-/** Session-only image choice. Media and the image value format arrive in 009 (C-68, D-24). */
-export interface ImageOverride {
-  src?: string
-  alt?: string
-  decorative?: boolean
-  focal?: CmsFocalPoint
-}
 
 /** How a field got selected: a keyboard selection moves focus into its panel. */
 export type SelectionSource = 'pointer' | 'keyboard'
 
 /**
- * What the editor shows, apart from the document: selection, hover, Preview,
- * the highlight toggle and image previews. The Engine owns the data; this owns
+ * What the editor shows, apart from the document: selection, hover, Preview
+ * and the highlight toggle. The Engine owns the data; this owns
  * the view of it, so neither changes for the other's reasons.
  */
 export function createEditorView(engine: EditorEngine) {
@@ -24,7 +15,6 @@ export function createEditorView(engine: EditorEngine) {
   const hover = ref<string | null>(null)
   const preview = ref(false)
   const highlight = ref(true)
-  const media = reactive(new Map<string, ImageOverride>())
 
   /** Fields take input: the lock is held and Preview is off. */
   const editable = computed(() => !engine.readOnly.value && !preview.value)
@@ -61,10 +51,6 @@ export function createEditorView(engine: EditorEngine) {
     preview.value = on
   }
 
-  function setMedia(key: string, override: ImageOverride) {
-    media.set(key, { ...media.get(key), ...override })
-  }
-
   return {
     selection,
     selectionSource,
@@ -72,12 +58,10 @@ export function createEditorView(engine: EditorEngine) {
     hover,
     preview,
     highlight,
-    media,
     editable,
     select,
     forget,
     setPreview,
-    setMedia,
   }
 }
 

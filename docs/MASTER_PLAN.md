@@ -363,6 +363,7 @@ Undo / Redo і Reset з 008b увійшли в першу версію UI. Де�
   - Усі primitives — prop `fieldLabel`; `CmsText` / `CmsRichText` — `required`, `maxLength`.
 - **C-68. Зображення в 008 — лише в сесії.** Заміна, alt, decorative, focal не зберігаються до формату
   `CmsImageValue` (D-24, 009). Медіатека-заглушка — зображення сторінки + файли з пристрою.
+  *Замінено в 009:* C-74, зображення зберігаються в документі.
 - **C-69. Lock UI.**
   - Нова RPC `cms_page_lock_status` — без токена (C-54).
   - Read-only банер; «Забрати редагування» для `pages.unlock` або протермінованої сесії.
@@ -370,6 +371,49 @@ Undo / Redo і Reset з 008b увійшли в першу версію UI. Де�
   - Heartbeat 30 с. Release при закритті вкладки — `fetch keepalive` з кешованим токеном (R-18).
 - **C-70. Рамка Edit Mode.** Сторінка скролиться всередині рамки з `transform`: `fixed` і `sticky`
   елементи сайту лишаються під тулбаром. Ціна — `window.scrollY` в Edit Mode дорівнює 0.
+
+### Закрито перед 009
+
+Деталі — [запис 009](./implementation/009-media.md).
+
+- **C-71. Upload — напряму в Storage + RPC (було D-21).**
+  - Браузер вантажить файл у public-бакет `cms-media`. RLS на `storage.objects` перевіряє `cms_can`.
+  - Бакет обмежує тип і розмір.
+  - `cms_media_create` бере mime і size з метаданих об'єкта: size — фактичний, mime — `Content-Type`,
+    який заявив клієнт і пропустив бакет (вміст файла не перевіряється, magic bytes — TODO). Функція
+    звіряє розширення шляху з типом і реєструє лише файл, завантажений тим самим користувачем.
+  - Insert-policy бакета приймає лише імена формату `<uuid>.<jpg|png|webp|svg>`.
+  - Розміри читає браузер.
+  - Server route і `SUPABASE_SECRET` не потрібні; ліміт тіла serverless не діє.
+  - Перевірка magic bytes — TODO (§3).
+- **C-72. Usage — запит по контенту, без registry (було D-22).** `cms_media_usage` шукає `mediaId` у
+  published і draft сторінок та в Brand. Revisions не враховуються. Клієнтські колекції — TODO 014.
+- **C-73. Оригінали + `width` / `height`, без pipeline (було D-23).** `@nuxt/image` з провайдером
+  хостингу — TODO 016 (R-09).
+- **C-74. `CmsImageValue = { mediaId, alt?, decorative?, focal? }`, без caption (було D-24).**
+  - Alt — перший непорожній з: override у значенні → default alt медіа → prop `alt` з коду.
+  - Decorative (prop або значення) дає порожній alt.
+  - Focal: значення → default медіа → `position` з коду.
+  - Без значення або з видаленим / невідомим медіа рендериться `src` / `alt` з коду.
+  - Формат — стабільний контракт, змінювати адитивно.
+- **C-75. Типи — JPG / PNG / WebP / SVG, до 5 МБ (було D-25).** SVG рендериться лише через `<img>`.
+  Документи й відео — TODO.
+  - SVG — документ: якщо відкрити його напряму за URL Storage, скрипти виконуються (перевірено:
+    Storage віддає `image/svg+xml` без CSP).
+  - Тому адмінка перед upload перебудовує кожен SVG за allow-list (`app/admin/media/svg.ts`): прибирає
+    script, `on*`, `foreignObject`, `animate` / `set`, зовнішні й `javascript:` / `data:` посилання,
+    небезпечний CSS. Файл, який не розбирається як SVG, відхиляється.
+  - *Залишковий ризик:* це не межа безпеки. CMS-користувач, який вантажить напряму через API, очистку
+    обходить (C-71). Серверна перевірка — TODO.
+- **C-76. `mediaId` → URL резолвить репозиторій (було D-61, нове).**
+  - Читання сторінки (published і draft) одним RPC повертає документ і media, на які він посилається.
+  - `useCmsPage` провайдить мапу primitives.
+  - SSR без запиту на кожне зображення.
+  - Brand-медіа приходять із `useSiteSettings()`.
+- **C-77. Права на медіа.** `media.upload` і `media.edit` (метадані, Replace) — owner / admin / editor;
+  `media.delete` — owner / admin. Soft delete: RLS ховає рядок від усіх клієнтів, файл лишається.
+  Storage-policy не дає видалити файл, на який посилається будь-який рядок `cms_media`, живий чи
+  видалений; прибирання — TODO 015.
 
 ---
 
@@ -389,10 +433,37 @@ Undo / Redo і Reset з 008b увійшли в першу версію UI. Де�
 | 006 | `CmsText`, `CmsRichText` (renderer без Tiptap / `v-html`), `CmsLink`, `CmsButton`, `CmsImage` (src до 009); allow-list `href`; типи `nuxt-cms-core/types`; `npm run check:bundle` | [006](./implementation/006-primitives.md) |
 | 007 | `cms_page_draft`, `cms_page_revisions`, `cms_page_locks`, домен `cms_locale`; RPC save draft / publish / restore / lock; право `pages.unlock`; методи `PagesRepository`; pgTAP на атомарність і lock | [007](./implementation/007-draft-publish.md) |
 | 008 | Edit Mode `/admin/edit/[...path]` на сторінці Client з layout; Editor Engine (Draft, dirty, Undo, validation, Lock); Overlay Layer; editable-гілки primitives + `CmsCollection`, `CmsOptional`, `CmsBackground`; rich text на Tiptap; Save / Publish / History / Lock UI; лендинг «Luminary» у playground | [008](./implementation/008-edit-mode.md) |
+| 009 | `cms_media` + бакет `cms-media`, Storage Adapter, `MediaRepository`; `CmsImage` / `CmsBackground` на `CmsImageValue`; читання сторінки з media одним RPC; `/admin/media`, Media Picker, Settings → Бренд; права `media.*` | [009](./implementation/009-media.md) |
 
 ### Drift код ↔ план
 
 Відкритого drift немає: усе, що було тут, закрито в 004c.
+
+### Відкладено (TODO)
+
+Що свідомо пропущено в закритих епіках. Тут — єдиний список, щоб нічого не загубилось: записи
+епіків посилаються сюди. Пункт закривається, коли його беруть у план епіку з колонки «Куди».
+
+| Що | Звідки | Чому відкладено | Куди |
+| --- | --- | --- | --- |
+| Правки UI Edit Mode за відгуком автора | 008 | Перша версія UI, автор тестує наживо | 008b |
+| Dev-попередження, коли `value` не відповідає `fieldKey` (C-47) | 006 / 008 | Не блокує сценарій | 008b |
+| Жорсткий `maxLength` (зараз лише блокує Publish, C-58) | 008 | М'який ліміт достатній для першої версії | 008b |
+| Device preview (мобільна ширина) | 008 | Без iframe медіа-запити не перемикаються чесно | 008b, якщо з'явиться iframe |
+| Translate у міні-тулбарі поля, перемикач мов | 008 | Потрібна мультимовність | 010 |
+| Колір у rich text | 008 | Немає у форматі C-49 | Поза V1 |
+| Серверна перевірка файлів: magic bytes, SVG за allow-list (зараз SVG чиститься лише в браузері, API її обходить) | 009 | Upload іде напряму в Storage, server route ще немає (C-71, C-75) | 011, коли з'явиться server-only клієнт |
+| Replace одразу видаляє старий файл: HTML у публічному кеші покаже биту картинку до інвалідації | 009 | Публічного кешу ще немає (C-11), техборг за рішенням автора | 016 (разом з ISR / SWR) |
+| Ресайз / WebP / `@nuxt/image` | 009 | Залежить від хостингу (C-73, R-09) | 016 |
+| Документи й відео в медіатеці, таби Documents / Videos з макета | 009 | Немає споживача (C-75) | За потребою |
+| Usage для клієнтських колекцій | 009 | Колекцій ще немає (C-72) | 014 |
+| Alt по мовах | 009 | Потрібна мультимовність (D-28) | 010 |
+| Caption у `CmsImageValue` | 009 | Немає споживача (C-74) | За потребою, адитивно |
+| Private files / signed URLs | 009 | Потрібні вкладенням форм | 011 |
+| Фізичне прибирання soft-deleted і невикористаних файлів | 009 | Revisions можуть посилатися на `mediaId` | 015 (System) |
+| Людські назви місць у «Використовується» (зараз — ключ сторінки) | 009 | `fieldLabel` живе в коді Client | Після 015 (Pages list) |
+| Пагінація медіатеки | 009 | Бібліотека V1 невелика | Коли знадобиться |
+| `<link rel="icon">` з Brand автоматично в Core | 009 | Client підключає сам через `useSiteSettings()` | 015 |
 
 ---
 
@@ -506,10 +577,8 @@ read → draft → edit → publish до локалізації; Collections п�
 - **Друга хвиля (008b — не планувати зараз).** Undo/Redo, ліміти символів, Reset поля/сторінки,
   toolbar, hotkeys, leave-without-saving, `CmsRichText` + Tiptap (лише коли є реальне rich-поле),
   `CmsCollection` (add/delete/duplicate/reorder зі стабільними id), `CmsOptional`.
-  *Факт:* за рішенням автора друга хвиля майже вся увійшла в 008 (C-59…C-70). Лишилось на 008b:
-  правки UI за відгуком автора, device preview, Translate у полі (після 010), колір у rich text (поза
-  форматом C-49), dev-попередження `value` ↔ `fieldKey` (C-47), жорсткий `maxLength` (C-58: зараз
-  ліміт м'який — блокує Publish, але не друк).
+  *Факт:* за рішенням автора друга хвиля майже вся увійшла в 008 (C-59…C-70). Що лишилось на 008b, —
+  у реєстрі TODO (§3).
 - **Anti-scope.** Page builder, окремий editable tree, iframe, Media Picker (009),
   collaborative editing, History UI як Undo, language switcher (після 010).
 - **Залежності.** 006, 007.
@@ -524,7 +593,7 @@ read → draft → edit → publish до локалізації; Collections п�
 
 ### 009 — Media + Storage Adapter
 
-`todo` · Фаза 1
+`done` · Фаза 1 · [запис](./implementation/009-media.md)
 
 - **Ціль.** Зображення в Edit Mode через Media Entity (сирий URL як джерело істини заборонено).
 - **Будуємо.** `media` (display name, storage path, mime, size, dimensions, default alt/focal,
@@ -536,7 +605,9 @@ read → draft → edit → publish до локалізації; Collections п�
 - **Anti-scope.** Image pipeline, auto WebP/AVIF, crop, version history файлів, власний CDN,
   DAM / folder permissions, транскодування відео, Copy URL як контракт контенту.
 - **Залежності.** 008.
-- **Блокуючі рішення.** D-21, D-22, D-23, D-24, D-25.
+- **Блокуючі рішення.** D-21 → C-71, D-22 → C-72, D-23 → C-73, D-24 → C-74, D-25 → C-75, D-61 → C-76
+  (закрито).
+- **Дизайни.** Figma «Media» (сітка). Модал, Picker і Brand зроблено в стилі сітки, автор править.
 - **Джерела.** §22; Б7; дизайн-ТЗ §4.
 
 ### 010 — Localization v2
@@ -679,13 +750,7 @@ read → draft → edit → publish до локалізації; Collections п�
 
 ### Фаза 0–1
 
-| ID | Епік | Питання | Варіанти | Рекомендація |
-| --- | --- | --- | --- | --- |
-| D-21 | 009 | Upload | Прямо в Storage з policies; через server endpoint (перевірка magic bytes) | Server endpoint для валідації; або direct + post-check |
-| D-22 | 009 | Media usage tracking | Registry `media_usage`; запити по контенту; резолвери для клієнтських таблиць | Registry, якщо дешево; інакше наступним кроком |
-| D-23 | 009 | Оптимізація зображень | Оригінали; `@nuxt/image` + IPX / провайдер хостингу; Supabase transformations (платно) | `@nuxt/image` з провайдером хостингу, без власного pipeline |
-| D-24 | 009 | Формат `CmsImageValue` | `{ mediaId, altOverride?, decorative, focal?, caption? }` | Цей набір, без caption, поки немає споживача. Вирішити й пріоритет alt: prop `alt` `CmsImage` (дефолт коду, з 006) ↔ alt медіа ↔ `altOverride` (ревʼю 006) |
-| D-25 | 009 | Upload limits і типи | Як у ТЗ (JPG/PNG/WebP, 5MB) + SVG / документи / відео з фільтрів | Почати з ТЗ + SVG; документи/відео — за потребою |
+Відкритих немає: рішення 009 закрито (C-71…C-77).
 
 ### Фаза 2–3
 
@@ -748,11 +813,11 @@ read → draft → edit → publish до локалізації; Collections п�
 | R-06 | Supabase CLI — одна лінійна історія міграцій | «Два незалежні джерела» не працюють as-is | D-50 |
 | R-07 | `"private": true`, немає `bin`; `npx nuxt-cms` резолвиться за назвою пакета | Пакет не публікується, CLI не запускається | C-30, 016 |
 | R-08 | Supabase не бекапить Storage-файли; daily DB backups — лише на платних планах | Втрата медіа при видаленні bucket/файлів | §5 Backup, 016 Checklist |
-| R-09 | Image transformations Supabase — платні | Немає ресайзу / WebP на free-плані | D-23 |
+| R-09 | Image transformations Supabase — платні | Немає ресайзу / WebP на free-плані | C-73: оригінали у 009, ресайз — 016 |
 | R-10 | In-memory rate limit у serverless не спільний | Захист форм від спаму не працює | D-32 |
 | R-11 | Custom JWT claims застарівають до refresh (~1 год) | Деактивація / пониження ролі не миттєві | C-16 |
 | R-12 | `inviteUserByEmail` падає для існуючого email; немає події `invited → active` | Invite існуючого користувача ламається | 015.2 |
-| R-13 | Replace у той самий storage path | Застарілий CDN/браузерний кеш | 009 (новий path) |
+| R-13 | Replace у той самий storage path | Застарілий CDN/браузерний кеш | Вирішено в 009: новий випадковий path при тому самому `mediaId` |
 | R-14 | `@nuxtjs/i18n` в Core layer | Злиття locales із Client, vue-i18n у public | Вирішено в 004c (C-36) |
 | R-15 | `cms.config.ts` серіалізується в client bundle | Функції губляться, «приватні» значення стають публічними | C-27 |
 | R-16 | Custom scripts в Admin | Навмисний stored-XSS канал | D-47 |
@@ -786,7 +851,7 @@ read → draft → edit → publish до локалізації; Collections п�
 | Dashboard: «Create page» | Статичні сторінки задає розробник | C-43: запис template-типу колекції |
 | Collections: Active/Hidden; Delete | Draft/Publish; soft delete | D-44, C-34 |
 | Activity: Restore з diff | Restore лише для подій з ревізією | D-37 |
-| Media: Replace «з медіатеки» | Змішує Replace Media і Change Image | 009 |
+| Media: Replace «з медіатеки» | Змішує Replace Media і Change Image | 009: Replace — лише новий файл; інше зображення вибирають у полі |
 | Integrations: 8 провайдерів | V1 — Telegram, Email, GA, GTM; решта Soon / Client | 013 |
 | Settings → SEO: GA ID | GA в трьох місцях (SEO, Integrations, Analytics) — одне джерело: Integrations | 013, 015 |
 | Settings → Brand: основний колір | Механізм передачі в CSS Client не визначений | D-48 |

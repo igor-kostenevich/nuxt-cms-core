@@ -11,6 +11,9 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
     'pages.edit': true,
     'pages.publish': true,
     'pages.unlock': true,
+    'media.upload': true,
+    'media.edit': true,
+    'media.delete': true,
   },
   admin: {
     'settings.update': true,
@@ -18,6 +21,9 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
     'pages.edit': true,
     'pages.publish': true,
     'pages.unlock': true,
+    'media.upload': true,
+    'media.edit': true,
+    'media.delete': true,
   },
   editor: {
     'settings.update': false,
@@ -25,6 +31,9 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
     'pages.edit': true,
     'pages.publish': false,
     'pages.unlock': false,
+    'media.upload': true,
+    'media.edit': true,
+    'media.delete': false,
   },
 }
 
@@ -38,7 +47,7 @@ describe('roleCan', () => {
   }
 
   it('denies an unknown permission', () => {
-    expect(roleCan('owner', 'media.delete' as CmsPermission)).toBe(false)
+    expect(roleCan('owner', 'media.purge' as CmsPermission)).toBe(false)
   })
 
   it('denies an unknown role', () => {

@@ -10,7 +10,8 @@
       "mark": "CMS",
       "caption": "Content Management System",
       "emailPlaceholder": "name@company.com",
-      "logout": "Log out"
+      "logout": "Log out",
+      "close": "Close"
     },
     "roles": {
       "owner": "Owner",
@@ -61,7 +62,18 @@
       "maintenanceHint": "The public site does not use this flag yet. Saving only stores the value.",
       "save": "Save",
       "readOnly": "You can view these settings, but you cannot change them.",
-      "saved": "Settings saved."
+      "saved": "Settings saved.",
+      "brand": {
+        "title": "Brand",
+        "logo": "Logo",
+        "favicon": "Favicon",
+        "choose": "Choose",
+        "change": "Change",
+        "remove": "Remove",
+        "none": "Not set",
+        "hint": "The site shows these where its code uses them.",
+        "saved": "Brand saved."
+      }
     },
     "validation": {
       "required": "Fill in this field.",
@@ -164,9 +176,8 @@
         "decorative": "Decorative image (no alt text)",
         "focal": "Focal point",
         "focalHint": "Click the thumbnail to set the focal point ({x}%, {y}%)",
-        "notSaved": "Preview only: image changes are not saved until Media arrives.",
-        "libraryTitle": "Media",
-        "wrongType": "Choose a JPG, PNG, WebP or SVG image."
+        "chooseFirst": "Choose an image from Media to set its alt text and focal point. Until then the site shows the image from its code.",
+        "notCropped": "Here the image is shown whole, so a focal point has no effect. It matters where the page crops the image."
       },
       "collection": {
         "add": "Add item",
@@ -243,6 +254,68 @@
         "required": "{name}: required",
         "maxLength": "{name}: too long"
       }
+    },
+    "media": {
+      "title": "Media",
+      "pickerTitle": "Choose an image",
+      "pickerGrid": "Images to choose from",
+      "search": "Search files",
+      "searchPlaceholder": "Search files…",
+      "typeLabel": "File type",
+      "types": {
+        "all": "All",
+        "image": "Images",
+        "svg": "SVG"
+      },
+      "sortLabel": "Sort",
+      "sorts": {
+        "newest": "Newest",
+        "oldest": "Oldest",
+        "name": "Name",
+        "size": "Size"
+      },
+      "upload": "Upload",
+      "uploading": "Uploading…",
+      "dismiss": "Dismiss",
+      "loading": "Loading…",
+      "count": "Files: {count}",
+      "retry": "Try again",
+      "empty": "No files yet.",
+      "emptyFiltered": "No files match the search or the filter.",
+      "dropHint": "Upload JPG, PNG, WebP or SVG up to 5 MB, or drop files here.",
+      "drop": "Drop files to upload",
+      "usedIn": "Used in:",
+      "unused": "Unused",
+      "unusedLong": "Not used anywhere on the site.",
+      "usage": {
+        "logo": "Brand · Logo",
+        "favicon": "Brand · Favicon",
+        "draft": "{page} (draft)"
+      },
+      "problem": {
+        "type": "Choose a JPG, PNG, WebP or SVG image.",
+        "size": "The file is larger than 5 MB.",
+        "svg": "This SVG could not be read. Export it again, or use PNG or WebP."
+      },
+      "type": "Type",
+      "size": "Size",
+      "dimensions": "Dimensions",
+      "name": "Name",
+      "defaultAlt": "Default alt text",
+      "defaultAltHint": "Used wherever this image has no alt text of its own.",
+      "defaultFocal": "Default focal point",
+      "focalHint": "Drag the point or click the image to set the focal point ({x}%, {y}%). Arrow keys move it.",
+      "save": "Save",
+      "saved": "Changes saved.",
+      "replace": "Replace file",
+      "replaced": "File replaced. Every place that uses it shows the new file.",
+      "delete": "Delete",
+      "deleteUsed": "Places that use this file: {count}. After deleting, they show the default image from the site code.",
+      "deleteUnused": "Delete this file from the library?",
+      "deleteConfirm": "Delete file",
+      "cancel": "Cancel",
+      "choose": "Choose",
+      "frameHint": "The bright frame is what the page shows at this screen width."
     }
   }
 }

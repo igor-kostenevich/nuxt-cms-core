@@ -62,6 +62,8 @@ const ERROR_CODES: Record<string, CmsDataErrorCode> = {
   PGRST301: 'permission_denied',
   '23514': 'validation',
   '23502': 'validation',
+  // Foreign key: e.g. a Brand media id that does not exist.
+  '23503': 'validation',
   CMSCF: 'conflict',
   CMSLK: 'locked',
   CMSLL: 'lock_lost',

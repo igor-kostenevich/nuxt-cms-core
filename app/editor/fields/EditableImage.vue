@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useAdminI18n } from '../../admin/useAdminI18n'
-import { focalPosition } from '../../primitives/media'
+import { resolveImage } from '../../primitives/media'
+import type { CmsImageValue } from '../../types/media'
 import { useEditorField } from '../field'
 
-// Editable branch of CmsImage. Until Media (009) a replacement lives only in
-// this session (Engine.media): it previews, but Save does not store it.
+// Editable branch of CmsImage. The value is a media id in the document
+// (C-74); the Engine knows the media of the reads and of the Picker, so a
+// freshly chosen image renders before Save.
 const props = defineProps<{
+  value?: CmsImageValue | null
   fieldKey: string
   src?: string
   alt?: string
@@ -16,7 +19,7 @@ const props = defineProps<{
 
 const { t } = useAdminI18n()
 const el = ref<HTMLElement | null>(null)
-const { view, key } = useEditorField({
+const { engine } = useEditorField({
   kind: 'image',
   fieldKey: () => props.fieldKey,
   el,
@@ -28,25 +31,18 @@ const { view, key } = useEditorField({
   },
 })
 
-const override = computed(() => view.media.get(key.value))
-const src = computed(() => override.value?.src ?? props.src)
-const alt = computed(() => {
-  if (props.decorative || override.value?.decorative) {
-    return ''
-  }
-
-  return override.value?.alt ?? props.alt ?? ''
-})
-const objectPosition = computed(() => focalPosition(override.value?.focal))
+const image = computed(() => resolveImage(props.value, engine.media.value, props))
 </script>
 
 <template>
   <img
-    v-if="src"
+    v-if="image.src"
     ref="el"
-    :src="src"
-    :alt="alt"
-    :style="objectPosition ? { objectPosition } : undefined"
+    :src="image.src"
+    :alt="image.alt"
+    :width="image.width"
+    :height="image.height"
+    :style="image.objectPosition ? { objectPosition: image.objectPosition } : undefined"
   >
   <span
     v-else

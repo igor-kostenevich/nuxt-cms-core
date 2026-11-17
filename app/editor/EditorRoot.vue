@@ -67,7 +67,13 @@ function bindPage(key: string): CmsEditorPageBinding | null {
   }
 
   const page = computed<CmsPage | null>(() => engine.status.value === 'ready'
-    ? { key, locale, content: engine.document.value, publishedAt: engine.publishedAt.value ?? '' }
+    ? {
+        key,
+        locale,
+        content: engine.document.value,
+        publishedAt: engine.publishedAt.value ?? '',
+        media: engine.media.value,
+      }
     : null)
   const pending = computed(() => engine.status.value === 'loading' || engine.status.value === 'idle')
   const error = computed(() => (engine.loadError.value as Error | null) ?? null)

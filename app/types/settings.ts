@@ -1,3 +1,5 @@
+import type { CmsMedia } from './media'
+
 /**
  * Global site settings a CMS admin can change without a deployment.
  *
@@ -10,4 +12,20 @@ export interface SiteSettings {
   contactEmail: string | null
   contactPhone: string | null
   maintenanceMode: boolean
+  /** Settings → Brand (009). Null when not set or its media was deleted. */
+  logo: CmsMedia | null
+  favicon: CmsMedia | null
+}
+
+/** What Settings → General writes. */
+export type SiteSettingsForm = Omit<SiteSettings, 'logo' | 'favicon'>
+
+/**
+ * What Settings → Brand writes: only the slots that changed, a media id or
+ * null to clear. A slot left out keeps its stored value, so changing the logo
+ * never overwrites a favicon someone else just set.
+ */
+export interface SiteBrandForm {
+  logoMediaId?: string | null
+  faviconMediaId?: string | null
 }
