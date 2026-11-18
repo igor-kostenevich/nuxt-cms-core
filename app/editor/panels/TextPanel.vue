@@ -5,6 +5,7 @@ import { useEditor } from '../inject'
 import type { FieldRegistration } from '../kinds'
 import FieldCounter from './FieldCounter.vue'
 import ResetButton from './ResetButton.vue'
+import TranslationNote from './TranslationNote.vue'
 
 // Mini toolbar under a plain text field: character count, «required», Reset.
 const props = defineProps<{
@@ -24,6 +25,10 @@ const issue = computed(() => engine.issues.value.find(item => item.fieldId === p
 
 <template>
   <div class="ed-mini">
+    <TranslationNote
+      :field="field"
+      compact
+    />
     <FieldCounter
       v-if="field.maxLength"
       :length="length"

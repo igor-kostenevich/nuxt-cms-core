@@ -5,8 +5,9 @@
 export interface CmsConfig {
   debug?: boolean
   /**
-   * Locale the public site reads content in, e.g. `uk` or `en-GB`.
-   * Until localization (010) there is one locale per site.
+   * Bootstrap locale, e.g. `uk` or `en-GB`: the locale the site reads content
+   * in while no language exists in Settings → Languages. Once a language is
+   * added, the default language of the database decides (C-83).
    */
   defaultLocale?: string
   /** Edit Mode settings. */
@@ -152,3 +153,6 @@ function mergeLevel(
 
   return target
 }
+
+// Site texts (C-85) are declared next to the config, in cms.texts.ts.
+export { defineCmsTexts, type CmsTextDefinition, type CmsTextsInput } from './texts'

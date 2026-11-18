@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cms_languages: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          is_default: boolean
+          name: string
+          native_name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          is_default?: boolean
+          name: string
+          native_name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          is_default?: boolean
+          name?: string
+          native_name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       cms_media: {
         Row: {
           created_at: string
@@ -89,6 +119,53 @@ export type Database = {
           },
         ]
       }
+      cms_page_fields: {
+        Row: {
+          address: string
+          default_text: string | null
+          item: number | null
+          kind: string
+          label: string | null
+          page_id: string
+          position: number | null
+          section: string | null
+          seen_at: string
+          tag: string | null
+        }
+        Insert: {
+          address: string
+          default_text?: string | null
+          item?: number | null
+          kind: string
+          label?: string | null
+          page_id: string
+          position?: number | null
+          section?: string | null
+          seen_at?: string
+          tag?: string | null
+        }
+        Update: {
+          address?: string
+          default_text?: string | null
+          item?: number | null
+          kind?: string
+          label?: string | null
+          page_id?: string
+          position?: number | null
+          section?: string | null
+          seen_at?: string
+          tag?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_page_fields_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "cms_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cms_page_locks: {
         Row: {
           acquired_at: string
@@ -152,6 +229,7 @@ export type Database = {
       }
       cms_page_revisions: {
         Row: {
+          base: boolean
           content: Json
           created_at: string
           created_by: string | null
@@ -160,6 +238,7 @@ export type Database = {
           page_id: string
         }
         Insert: {
+          base?: boolean
           content: Json
           created_at?: string
           created_by?: string | null
@@ -168,6 +247,7 @@ export type Database = {
           page_id: string
         }
         Update: {
+          base?: boolean
           content?: Json
           created_at?: string
           created_by?: string | null
@@ -188,16 +268,19 @@ export type Database = {
       cms_pages: {
         Row: {
           created_at: string
+          edit_path: string | null
           id: string
           key: string
         }
         Insert: {
           created_at?: string
+          edit_path?: string | null
           id?: string
           key: string
         }
         Update: {
           created_at?: string
+          edit_path?: string | null
           id?: string
           key?: string
         }
@@ -251,6 +334,64 @@ export type Database = {
           },
         ]
       }
+      cms_site_settings_translations: {
+        Row: {
+          locale: string
+          site_name: string
+          updated_at: string
+        }
+        Insert: {
+          locale: string
+          site_name?: string
+          updated_at?: string
+        }
+        Update: {
+          locale?: string
+          site_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_site_settings_translations_locale_fkey"
+            columns: ["locale"]
+            isOneToOne: true
+            referencedRelation: "cms_languages"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      cms_site_texts: {
+        Row: {
+          key: string
+          locale: string
+          updated_at: string
+          updated_by: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          locale: string
+          updated_at?: string
+          updated_by?: string | null
+          value: string
+        }
+        Update: {
+          key?: string
+          locale?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_site_texts_locale_fkey"
+            columns: ["locale"]
+            isOneToOne: false
+            referencedRelation: "cms_languages"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       cms_users: {
         Row: {
           created_at: string
@@ -281,7 +422,51 @@ export type Database = {
     }
     Functions: {
       cms_can: { Args: { requested: string }; Returns: boolean }
+      cms_content_get: { Args: { address: string; doc: Json }; Returns: Json }
+      cms_content_remove: {
+        Args: { doc: Json; segments: string[] }
+        Returns: Json
+      }
+      cms_content_set: {
+        Args: { doc: Json; segments: string[]; value: Json }
+        Returns: Json
+      }
+      cms_default_locale: {
+        Args: { bootstrap_locale: string }
+        Returns: string
+      }
       cms_is_focal: { Args: { value: Json }; Returns: boolean }
+      cms_language_add: {
+        Args: {
+          code: string
+          make_default?: boolean
+          name: string
+          native_name: string
+        }
+        Returns: undefined
+      }
+      cms_language_delete: { Args: { code: string }; Returns: undefined }
+      cms_language_publish: {
+        Args: { page_locale: string; pages: Json }
+        Returns: {
+          published: number
+          skipped: number
+          skipped_keys: string[]
+        }[]
+      }
+      cms_language_reorder: { Args: { codes: string[] }; Returns: undefined }
+      cms_language_set_active: {
+        Args: { active: boolean; code: string }
+        Returns: undefined
+      }
+      cms_language_update: {
+        Args: { code: string; name: string; native_name: string }
+        Returns: undefined
+      }
+      cms_locale_is_active: {
+        Args: { bootstrap_locale: string; target_locale: string }
+        Returns: boolean
+      }
       cms_media_create: {
         Args: {
           display_name: string
@@ -329,27 +514,53 @@ export type Database = {
           source: string
         }[]
       }
-      cms_page_get_draft: {
-        Args: { page_key: string; page_locale: string }
+      cms_page_check_draft_shape: {
+        Args: { next_content: Json; target_locale: string }
+        Returns: undefined
+      }
+      cms_page_get_editable: {
+        Args: {
+          bootstrap_locale: string
+          page_key: string
+          page_locale: string
+        }
         Returns: {
-          content: Json
-          locale: string
+          base: Json
+          default_locale: string
+          draft: Json
+          draft_updated_at: string
           media: Json
-          updated_at: string
+          published: Json
+          published_at: string
         }[]
       }
-      cms_page_get_published: {
-        Args: { page_key: string; page_locale: string }
+      cms_page_get_localized: {
+        Args: {
+          bootstrap_locale: string
+          page_key: string
+          page_locale: string
+        }
         Returns: {
-          content: Json
-          locale: string
+          base: Json
+          base_published_at: string
+          default_locale: string
+          locales: string[]
           media: Json
-          published_at: string
+          translation: Json
+          translation_published_at: string
         }[]
       }
       cms_page_held_lock: {
         Args: { lock_token: string; page_key: string }
         Returns: string
+      }
+      cms_page_locale_states: {
+        Args: { page_key: string }
+        Returns: {
+          has_draft: boolean
+          locale: string
+          published_at: string
+        }[]
       }
       cms_page_lock_acquire: { Args: { page_key: string }; Returns: string }
       cms_page_lock_force_unlock: {
@@ -375,9 +586,26 @@ export type Database = {
         }[]
       }
       cms_page_lock_ttl: { Args: never; Returns: string }
+      cms_page_open_in_editor: {
+        Args: { target_page: string }
+        Returns: boolean
+      }
+      cms_page_promote_draft: {
+        Args: { target_locale: string; target_page: string }
+        Returns: string
+      }
       cms_page_publish: {
         Args: { lock_token: string; page_key: string; page_locale: string }
         Returns: string
+      }
+      cms_page_register_fields: {
+        Args: {
+          edit_path: string
+          fields: Json
+          hidden_prefixes?: string[]
+          page_key: string
+        }
+        Returns: undefined
       }
       cms_page_restore: {
         Args: {
@@ -398,6 +626,14 @@ export type Database = {
         }
         Returns: string
       }
+      cms_page_set_texts: {
+        Args: { entries: Json; page_key: string; page_locale: string }
+        Returns: string
+      }
+      cms_page_text_target: {
+        Args: { address: string; doc: Json }
+        Returns: boolean
+      }
       cms_page_write_draft: {
         Args: {
           next_content: Json
@@ -409,6 +645,10 @@ export type Database = {
       cms_require_permission: {
         Args: { requested: string }
         Returns: undefined
+      }
+      cms_site_texts_for: {
+        Args: { bootstrap_locale: string; page_locale: string }
+        Returns: Json
       }
     }
     Enums: {

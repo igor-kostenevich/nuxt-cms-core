@@ -311,6 +311,66 @@
   margin-top: 2px;
 }
 
+.cms-editor-ui .ed-check:has(input:disabled) {
+  color: var(--cms-text-disabled);
+  cursor: not-allowed;
+}
+
+/* Translation of the edited locale (010, C-78). */
+.cms-editor-ui .ed-tr {
+  display: grid;
+  gap: var(--cms-space-2);
+}
+
+.cms-editor-ui .ed-tr__status {
+  display: flex;
+  align-items: center;
+  gap: var(--cms-space-2);
+  margin: 0;
+  color: var(--cms-success-text);
+  font-size: var(--cms-type-helper-size);
+  line-height: var(--cms-type-helper-line);
+}
+
+.cms-editor-ui .ed-tr__status--missing {
+  color: var(--cms-info-text);
+}
+
+.cms-editor-ui .ed-tr__original {
+  margin: 0;
+  padding: var(--cms-space-2) var(--cms-space-3);
+  border-radius: var(--cms-radius-md);
+  background: var(--cms-surface-secondary);
+  color: var(--cms-foreground);
+  font-size: var(--cms-type-body-small-size);
+  line-height: var(--cms-type-body-small-line);
+  overflow-wrap: anywhere;
+}
+
+.cms-editor-ui .ed-tr__original-label {
+  display: block;
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-helper-size);
+}
+
+.cms-editor-ui .ed-tr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cms-space-1);
+  padding: 0 var(--cms-space-2);
+  border-radius: var(--cms-radius-full);
+  background: var(--cms-success-subtle);
+  color: var(--cms-success-text);
+  font-size: var(--cms-type-helper-size);
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.cms-editor-ui .ed-tr-chip--missing {
+  background: var(--cms-info-subtle);
+  color: var(--cms-info-text);
+}
+
 .cms-editor-ui .ed-actions {
   display: flex;
   flex-wrap: wrap;
@@ -366,6 +426,14 @@
 .cms-editor-ui .ed-mini__issue {
   color: var(--cms-destructive-text);
   font-weight: var(--cms-type-label-small-weight);
+}
+
+.cms-editor-ui .ed-mini__locked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cms-space-1);
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-helper-size);
 }
 
 .cms-editor-ui .ed-mini__divider {

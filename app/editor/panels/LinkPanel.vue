@@ -8,6 +8,7 @@ import type { FieldRegistration } from '../kinds'
 import { linkKind } from '../link-kind'
 import { useEditorSession } from '../session'
 import ResetButton from './ResetButton.vue'
+import TranslationNote from './TranslationNote.vue'
 
 // Link and button editor: label, address, new tab, and a way to follow the
 // link, since a click on it in Edit Mode selects instead of navigating.
@@ -59,6 +60,10 @@ function done() {
     class="ed-card ed-card--narrow"
     @submit.prevent="done"
   >
+    <TranslationNote
+      :field="field"
+      :structure="t('cms.editor.locale.structureLink', { code: engine.defaultLocaleLabel.value })"
+    />
     <AdminInput
       :model-value="label"
       :label="t('cms.editor.link.label')"
@@ -81,6 +86,7 @@ function done() {
       inputmode="url"
       autocomplete="off"
       spellcheck="false"
+      :disabled="engine.translating.value"
       @focus="engine.beginEdit(field.key)"
       @blur="engine.endEdit()"
       @update:model-value="update({ href: $event })"
@@ -90,6 +96,7 @@ function done() {
       <input
         type="checkbox"
         :checked="newTab"
+        :disabled="engine.translating.value"
         @change="update({ newTab: ($event.target as HTMLInputElement).checked })"
       >
       {{ t('cms.editor.link.newTab') }}

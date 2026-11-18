@@ -2,19 +2,21 @@
 import '../assets/admin/admin.css'
 import './editor.css'
 import { computed, onBeforeUnmount, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
-import { until, useEventListener, useIntervalFn, useResizeObserver } from '@vueuse/core'
+import { until, useDebounceFn, useEventListener, useIntervalFn, useResizeObserver } from '@vueuse/core'
 import { cmsConfig } from '#cms/config'
 import { useAdminI18n } from '../admin/useAdminI18n'
 import { createPagesRepository } from '../data/repositories/pages.repository'
+import { useCmsLocaleState } from '../primitives/locale'
 import type { CmsPage } from '../types/pages'
 import { CMS_EDITOR_UI, type CmsEditorContext, type CmsEditorPageBinding } from './context'
-import { createEditorEngine } from './engine'
+import { createEditorEngine, registryEntries } from './engine'
 import { createEditorView } from './view'
 import { createEditorUi, EDITOR_UI } from './ui'
-import { createEditorSession, EDITOR_SESSION } from './session'
+import { createEditorSession, EDITOR_LOCALE, EDITOR_SESSION } from './session'
 import EditorToolbar from './EditorToolbar.vue'
 import OverlayLayer from './OverlayLayer.vue'
 import LockBanner from './LockBanner.vue'
+import LocaleBanner from './LocaleBanner.vue'
 import EditorToasts from './EditorToasts.vue'
 import EditorDialog from './EditorDialog.vue'
 import HistoryPanel from './HistoryPanel.vue'
@@ -22,7 +24,8 @@ import HistoryPanel from './HistoryPanel.vue'
 // a second round trip (their own import() resolves to this chunk).
 import './fields/EditableText.vue'
 
-defineProps<{
+
+const props = defineProps<{
   /** Path of the edited page on the public site, e.g. `/about`. */
   path: string
   title: string
@@ -31,9 +34,21 @@ defineProps<{
 const HEARTBEAT_MS = 30_000
 
 const { t, locale: adminLocale } = useAdminI18n()
-const locale = cmsConfig.defaultLocale
-const repository = createPagesRepository()
-const engine = createEditorEngine({ repository, locale, historyLimit: cmsConfig.editor.historyLimit })
+const route = useRoute()
+const router = useRouter()
+
+/** The edited locale is in the URL (`?locale=en`); none: the default locale. */
+function queryLocale(): string | null {
+  const value = route.query.locale
+  return typeof value === 'string' && value ? value : null
+}
+
+const repository = createPagesRepository(undefined, { bootstrapLocale: cmsConfig.defaultLocale })
+const engine = createEditorEngine({
+  repository,
+  locale: queryLocale(),
+  historyLimit: cmsConfig.editor.historyLimit,
+})
 const view = createEditorView(engine)
 const ui = createEditorUi()
 const session = createEditorSession({
@@ -69,10 +84,14 @@ function bindPage(key: string): CmsEditorPageBinding | null {
   const page = computed<CmsPage | null>(() => engine.status.value === 'ready'
     ? {
         key,
-        locale,
+        locale: engine.locale.value ?? '',
         content: engine.document.value,
         publishedAt: engine.publishedAt.value ?? '',
         media: engine.media.value,
+        defaultLocale: engine.defaultLocale.value ?? '',
+        // The editor shows the locale being edited, translated or not.
+        translated: true,
+        locales: [],
       }
     : null)
   const pending = computed(() => engine.status.value === 'loading' || engine.status.value === 'idle')
@@ -93,6 +112,93 @@ const context: CmsEditorContext = { engine, view, bindPage }
 provide(CMS_EDITOR_UI, context)
 provide(EDITOR_UI, ui)
 provide(EDITOR_SESSION, session)
+
+// ── Locale ────────────────────────────────────────────────────────────
+
+// The Client's own UI reads the locale through useCmsLocale(): in Edit Mode it
+// is the edited one. Client route middleware does not run here (C-59).
+const cmsLocale = useCmsLocaleState()
+const localeBefore = cmsLocale.value
+
+watch(engine.locale, (next) => {
+  cmsLocale.value = next
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  cmsLocale.value = localeBefore
+})
+
+// The language switcher changes `?locale=`; Back / Forward too. The route
+// guard below has asked about unsaved changes by then.
+watch(() => route.query.locale, () => {
+  const next = queryLocale() ?? engine.defaultLocale.value
+
+  if (next && next !== engine.locale.value) {
+    void engine.setLocale(next)
+  }
+})
+
+/** Opens the page in another locale; the default locale has no `?locale=`. */
+function switchLocale(code: string) {
+  const query = { ...route.query }
+
+  if (code === engine.defaultLocale.value) {
+    delete query.locale
+  } else {
+    query.locale = code
+  }
+
+  return router.push({ query, hash: route.hash })
+}
+
+provide(EDITOR_LOCALE, { switchLocale })
+
+// ── Field registry (C-84) ─────────────────────────────────────────────
+
+// Once the page settles, its translatable fields and their texts from code are
+// recorded, so the Texts screen knows texts nobody has stored yet. Best effort:
+// a failure only leaves the registry as it was.
+
+const registerFields = useDebounceFn(() => {
+  const key = engine.entity.value?.key
+
+  // In a translation the fields show translated texts: only the default
+  // language records what the page says.
+  if (!key || engine.status.value !== 'ready' || engine.translating.value) {
+    return
+  }
+
+  const { fields, hiddenPrefixes } = registryEntries(engine.fields.values())
+  void repository.registerFields(key, props.path, fields, hiddenPrefixes).catch(() => undefined)
+}, 2000)
+
+watch(() => [engine.status.value, engine.fields.size], () => {
+  if (engine.status.value === 'ready') {
+    void registerFields()
+  }
+})
+
+// ── Opening a field from the Texts screen ─────────────────────────────
+
+// `?field=hero.title`: once the page is ready, that field is selected and
+// scrolled to. Done once per load; the query stays for a reload.
+let fieldOpened = false
+
+watch(() => [engine.status.value, engine.fields.size] as const, async ([status]) => {
+  const target = route.query.field
+
+  if (fieldOpened || status !== 'ready' || typeof target !== 'string') {
+    return
+  }
+
+  const field = [...engine.fields.values()].find(item => item.key === target)
+
+  if (field) {
+    fieldOpened = true
+    await new Promise(resolve => setTimeout(resolve, 300))
+    session.focusIssue(field.id)
+  }
+})
 
 // The page renders before it is bound: it calls useCmsPage during setup.
 // A page without useCmsPage has no CMS content and stays read-only.
@@ -136,7 +242,8 @@ useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
 // Back / forward buttons and links outside the toolbar. Navigation through
 // goTo() asked already, so the Engine is clean by then and this passes.
 onBeforeRouteLeave(() => session.confirmLeave())
-onBeforeRouteUpdate((to, from) => to.path === from.path || session.confirmLeave())
+onBeforeRouteUpdate((to, from) => (to.path === from.path && to.query.locale === from.query.locale)
+  || session.confirmLeave())
 
 onBeforeUnmount(() => {
   ui.dispose()
@@ -167,7 +274,9 @@ useEventListener(document, 'click', (event: MouseEvent) => {
 // ── Shortcuts ─────────────────────────────────────────────────────────
 
 const peek = ref(false)
-const highlightOn = computed(() => view.highlight.value || peek.value)
+// The "only untranslated" filter of a translation works through the dimming.
+const highlightOn = computed(() => view.highlight.value || peek.value
+  || (view.onlyUntranslated.value && engine.translating.value))
 
 /** Inputs keep their own Undo; a modal dialog owns the keyboard. */
 function ownsKeyboard(target: EventTarget | null) {
@@ -273,6 +382,7 @@ function retryLoad() {
         :unbound="unbound"
       />
       <LockBanner />
+      <LocaleBanner />
     </div>
 
     <div class="cms-edit__viewport">

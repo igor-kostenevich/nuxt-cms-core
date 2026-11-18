@@ -4,6 +4,7 @@ import { injectCmsEditor } from '../../editor/context'
 import type { CmsButtonValue } from '../../types/primitives'
 import { warnInvalidFieldKey } from '../../primitives/field-key'
 import { resolveCmsLink, warnUnsafeHref } from '../../primitives/link'
+import { useCmsLinkLocalizer } from '../../primitives/locale'
 
 // Same value as CmsLink. Without a safe href it is a `<button>`: the Client
 // Project's own `@click` reaches it as a fallthrough attribute.
@@ -28,7 +29,9 @@ const EditableLink = defineAsyncComponent(() => import('../../editor/fields/Edit
 const editor = injectCmsEditor()
 
 const rawHref = computed(() => props.value?.href ?? props.href)
-const link = computed(() => resolveCmsLink(rawHref.value, props.value?.newTab ?? false))
+// A site path becomes the URL of the current locale (C-79).
+const localize = useCmsLinkLocalizer()
+const link = computed(() => resolveCmsLink(rawHref.value, props.value?.newTab ?? false, localize))
 const label = computed(() => props.value?.label)
 
 if (import.meta.dev) {

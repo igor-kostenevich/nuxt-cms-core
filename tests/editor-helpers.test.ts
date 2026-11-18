@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { pageTitle } from '../app/editor/page-title'
 import { dropIndex } from '../app/editor/geometry'
 import { linkKind } from '../app/editor/link-kind'
 import { normalizeRichText } from '../app/editor/rich-text'
@@ -129,5 +130,20 @@ describe('linkKind', () => {
     ['www.example.com', 'invalid'],
   ])('%s → %s', (href, kind) => {
     expect(linkKind(href)).toBe(kind)
+  })
+})
+
+describe('pageTitle', () => {
+  it('names a page by its route, without an optional locale segment', () => {
+    expect(pageTitle({ path: '/about-us', name: 'about-us', meta: {} }, 'Home')).toBe('About us')
+    expect(pageTitle({ path: '/:locale?', name: 'locale', meta: {} }, 'Home')).toBe('Home')
+    expect(pageTitle({ path: '/:locale?/about', name: 'locale-about', meta: {} }, 'Home')).toBe('About')
+    expect(pageTitle({
+      path: '/en/about',
+      name: 'locale-about',
+      meta: {},
+      matched: [{ path: '/:locale?/about' }],
+    }, 'Home')).toBe('About')
+    expect(pageTitle({ path: '/x', meta: { title: 'Custom' } }, 'Home')).toBe('Custom')
   })
 })

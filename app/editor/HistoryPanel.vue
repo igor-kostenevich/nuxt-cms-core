@@ -196,3 +196,6 @@ function close() {
     </aside>
   </Teleport>
 </template>
+
+<style scoped>
+</style>

@@ -36,9 +36,11 @@ interface HomeContent {
   contact?: { title?: string, text?: string, cta?: CmsButtonValue }
 }
 
-useHead({ title: 'Luminary — creative studio' })
+const { t } = useCmsText()
+useHead({ title: () => t('meta.homeTitle') })
 
 const { page } = useCmsPage('home')
+useLocaleHead(page, '/')
 const content = computed(() => (page.value?.content ?? {}) as HomeContent)
 const hero = computed(() => content.value.hero ?? {})
 const services = computed(() => content.value.services ?? {})
@@ -48,23 +50,25 @@ const quote = computed(() => content.value.quote ?? {})
 const faq = computed(() => content.value.faq ?? {})
 const contact = computed(() => content.value.contact ?? {})
 
+// Items from code have stable ids (C-88): translations and text changes stay
+// on the item when the order here changes.
 const defaultServices = [
-  { title: 'Strategy & direction', text: 'Workshops, research and positioning that give every project a clear reason to exist.' },
-  { title: 'Brand identity', text: 'Names, logos and visual systems that stay consistent from a favicon to a billboard.' },
-  { title: 'Websites & products', text: 'Fast, accessible sites and apps, designed and built by the same small team.' },
+  { id: 'strategy', title: 'Strategy & direction', text: 'Workshops, research and positioning that give every project a clear reason to exist.' },
+  { id: 'identity', title: 'Brand identity', text: 'Names, logos and visual systems that stay consistent from a favicon to a billboard.' },
+  { id: 'websites', title: 'Websites & products', text: 'Fast, accessible sites and apps, designed and built by the same small team.' },
 ]
 
 const defaultWork = [
-  { title: 'Solace Health', category: 'Brand · Website', cover: '/media/work-1.svg' },
-  { title: 'Northwind Bank', category: 'Product design', cover: '/media/work-2.svg' },
-  { title: 'Atlas Outdoors', category: 'E-commerce', cover: '/media/work-3.svg' },
-  { title: 'Vela Records', category: 'Identity · Motion', cover: '/media/work-4.svg' },
+  { id: 'solace', title: 'Solace Health', category: 'Brand · Website', cover: '/media/work-1.svg' },
+  { id: 'northwind', title: 'Northwind Bank', category: 'Product design', cover: '/media/work-2.svg' },
+  { id: 'atlas', title: 'Atlas Outdoors', category: 'E-commerce', cover: '/media/work-3.svg' },
+  { id: 'vela', title: 'Vela Records', category: 'Identity · Motion', cover: '/media/work-4.svg' },
 ]
 
 const defaultFaq = [
-  { question: 'How long does a typical project take?', answer: 'Most brand and website projects take eight to twelve weeks from kickoff to launch.' },
-  { question: 'Do you work with early-stage startups?', answer: 'Yes. We have fixed-scope packages for teams that need to move fast on a smaller budget.' },
-  { question: 'Can you maintain the site after launch?', answer: 'We offer monthly care plans with updates, monitoring and small design changes.' },
+  { id: 'timeline', question: 'How long does a typical project take?', answer: 'Most brand and website projects take eight to twelve weeks from kickoff to launch.' },
+  { id: 'startups', question: 'Do you work with early-stage startups?', answer: 'Yes. We have fixed-scope packages for teams that need to move fast on a smaller budget.' },
+  { id: 'support', question: 'Can you maintain the site after launch?', answer: 'We offer monthly care plans with updates, monitoring and small design changes.' },
 ]
 
 // A default item's cover is a file path from code; a chosen one is a media

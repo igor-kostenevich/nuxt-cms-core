@@ -4,6 +4,7 @@ import { injectCmsEditor } from '../../editor/context'
 import type { CmsRichTextValue } from '../../types/primitives'
 import { warnInvalidFieldKey } from '../../primitives/field-key'
 import { isRichTextDoc, renderRichText, warnBlockInPhrasingTag } from '../../primitives/rich-text'
+import { useCmsLinkLocalizer } from '../../primitives/locale'
 
 // Public renderer of a rich text field (MASTER_PLAN C-49). Tiptap is loaded
 // only by the editor in Edit Mode, never here.
@@ -41,7 +42,8 @@ const editor = injectCmsEditor()
 // A stored value that is not a document (null, or a plain string of an older
 // format) falls back to the default from the slot.
 const hasDocument = computed(() => isRichTextDoc(props.value))
-const RichTextContent = () => renderRichText(props.value, { inline: props.inline })
+const localize = useCmsLinkLocalizer()
+const RichTextContent = () => renderRichText(props.value, { inline: props.inline, localize })
 </script>
 
 <template>

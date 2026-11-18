@@ -49,12 +49,29 @@ export interface CmsResolvedLink {
   rel?: string
 }
 
-/** Attributes of a rendered link, or null when there is nothing safe to link to. */
-export function resolveCmsLink(raw: unknown, newTab = false): CmsResolvedLink | null {
-  const href = toSafeHref(raw)
+/** A site path `/…`: the only kind of href a link resolver changes. */
+export function isSitePath(href: string): boolean {
+  return href.startsWith('/') && !href.startsWith('//')
+}
+
+/**
+ * Attributes of a rendered link, or null when there is nothing safe to link to.
+ * `localize` maps a site path to the current locale (the Client's link
+ * resolver, C-79); its result goes through the allow-list again.
+ */
+export function resolveCmsLink(
+  raw: unknown,
+  newTab = false,
+  localize?: (href: string) => string,
+): CmsResolvedLink | null {
+  let href = toSafeHref(raw)
 
   if (!href) {
     return null
+  }
+
+  if (localize && isSitePath(href)) {
+    href = toSafeHref(localize(href)) ?? href
   }
 
   return newTab ? { href, target: '_blank', rel: 'noopener noreferrer' } : { href }

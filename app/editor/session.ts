@@ -181,9 +181,17 @@ export function createEditorSession(options: {
     }
 
     // A link to the admin itself leaves Edit Mode instead of editing it.
-    await navigate(isAdminPath(url.pathname)
-      ? url.pathname + url.search
-      : toEditPath(url.pathname) + url.search + url.hash)
+    if (isAdminPath(url.pathname)) {
+      await navigate(url.pathname + url.search)
+      return
+    }
+
+    // The next page opens in the language being edited.
+    if (engine.translating.value && engine.locale.value && !url.searchParams.has('locale')) {
+      url.searchParams.set('locale', engine.locale.value)
+    }
+
+    await navigate(toEditPath(url.pathname) + url.search + url.hash)
   }
 
   async function exit() {
@@ -198,6 +206,17 @@ export function createEditorSession(options: {
 export type EditorSession = ReturnType<typeof createEditorSession>
 
 export const EDITOR_SESSION: InjectionKey<EditorSession> = Symbol('cms-editor-session')
+
+/** Switching the edited locale goes through the URL (`?locale=`), owned by EditorRoot. */
+export interface EditorLocale {
+  switchLocale: (code: string) => Promise<unknown>
+}
+
+export const EDITOR_LOCALE: InjectionKey<EditorLocale> = Symbol('cms-editor-locale')
+
+export function useEditorLocale(): EditorLocale {
+  return injectRequired(EDITOR_LOCALE, 'useEditorLocale')
+}
 
 export function useEditorSession(): EditorSession {
   return injectRequired(EDITOR_SESSION, 'useEditorSession')

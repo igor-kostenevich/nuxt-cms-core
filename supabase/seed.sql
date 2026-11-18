@@ -79,15 +79,36 @@ values
   ('22222222-2222-4222-8222-222222222222', 'editor', 'active'),
   ('44444444-4444-4444-8444-444444444444', 'editor', 'disabled');
 
+-- Site languages (010, C-87): English is the language of the original — the
+-- texts in the playground code are English — and Ukrainian a translation.
+insert into public.cms_languages (code, name, native_name, is_default, sort_order)
+values
+  ('en', 'English', 'English', true, 0),
+  ('uk', 'Ukrainian', 'Українська', false, 1);
+
+insert into public.cms_site_settings_translations (locale, site_name)
+values ('uk', 'Сайт CMS Core');
+
+-- Site texts in Ukrainian; English comes from cms.texts.ts (C-85).
+insert into public.cms_site_texts (key, locale, value)
+values
+  ('nav.about', 'uk', 'Про нас'),
+  ('nav.services', 'uk', 'Послуги'),
+  ('nav.contact', 'uk', 'Контакти'),
+  ('header.cta', 'uk', 'Написати нам');
+
 -- Playground pages. Core migrations insert no pages: they belong to the Client Project.
 -- `about` is left out on purpose, to show a page without a row rendering its code defaults.
+-- `home` in en is the base document; uk is a translation: translated leaves by address
+-- (C-78). The lead is left untranslated on purpose: Ukrainian shows the English one.
+-- A service from code is translated by its stable id (C-88).
 with home as (
   insert into public.cms_pages (key)
   values ('home')
   returning id
 )
 insert into public.cms_page_published (page_id, locale, content)
-select id, 'uk', $json$
+select id, 'en', $json$
 {
   "hero": {
     "eyebrow": "Creative studio",
@@ -107,9 +128,19 @@ select id, 'uk', $json$
   }
 }
 $json$::jsonb
+from home
+union all
+select id, 'uk', $json$
+{
+  "hero.eyebrow": "Креативна студія",
+  "hero.title": "Створюємо цифровий досвід, який зворушує.",
+  "hero.cta.label": "Почати проєкт",
+  "services.items.strategy.title": "Стратегія й напрям"
+}
+$json$::jsonb
 from home;
 
--- Every publication has a revision (C-51), the seeded one included.
-insert into public.cms_page_revisions (page_id, locale, content, created_at)
-select page_id, locale, content, published_at
+-- Every publication has a revision (C-51), the seeded ones included.
+insert into public.cms_page_revisions (page_id, locale, content, created_at, base)
+select page_id, locale, content, published_at, locale = 'en'
 from public.cms_page_published;

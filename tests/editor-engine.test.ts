@@ -1,17 +1,45 @@
 import { describe, expect, it, vi } from 'vitest'
 import { CmsDataError } from '../app/data/errors'
-import { createEditorEngine, type EditorRepository } from '../app/editor/engine'
-import { getAt, setAt, stableStringify } from '../app/editor/paths'
+import { createEditorEngine, registryEntries, type EditorRepository } from '../app/editor/engine'
+import { canSetAt, getAt, setAt, stableStringify } from '../app/primitives/paths'
 
-function fakeRepository(overrides: Partial<EditorRepository> = {}): EditorRepository {
+interface FakeSources {
+  /** Published content of the edited locale; null: not published. */
+  getByKey?: () => Promise<{ content: Record<string, unknown>, publishedAt: string } | null>
+  /** Saved draft of the edited locale; null: none. */
+  getDraft?: () => Promise<{ content: Record<string, unknown>, updatedAt: string } | null>
+  /** Base of a translation: content of the default locale. */
+  base?: Record<string, unknown> | null
+  defaultLocale?: string
+}
+
+/**
+ * A repository whose `getEditable` is built from what the tests describe:
+ * published content, a draft and, for a translation, its base.
+ */
+function fakeRepository(overrides: Partial<EditorRepository> & FakeSources = {}): EditorRepository {
+  const { getByKey: published, getDraft: draft, base = null, defaultLocale = 'uk', ...rest } = overrides
+  const readPublished = published ?? (async () => ({ content: { hero: { title: 'Live' } }, publishedAt: '2026-11-15T10:00:00Z' }))
+  const readDraft = draft ?? (async () => null)
+
   return {
-    getByKey: vi.fn(async () => ({
-      key: 'home',
-      locale: 'uk',
-      content: { hero: { title: 'Live' } },
-      publishedAt: '2026-11-15T10:00:00Z',
-    })),
-    getDraft: vi.fn(async () => null),
+    getEditable: vi.fn(async (key: string, locale: string | null) => {
+      const [page, saved] = await Promise.all([readPublished(), readDraft()])
+
+      return {
+        key,
+        locale: locale ?? defaultLocale,
+        defaultLocale,
+        base: (locale ?? defaultLocale) === defaultLocale ? null : base,
+        draft: saved?.content ?? null,
+        draftUpdatedAt: saved?.updatedAt ?? null,
+        published: page?.content ?? null,
+        publishedAt: page?.publishedAt ?? null,
+        media: {},
+      }
+    }),
+    getLocaleStates: vi.fn(async () => []),
+    registerFields: vi.fn(async () => undefined),
     saveDraft: vi.fn(async () => '2026-11-15T11:00:00Z'),
     publish: vi.fn(async () => '2026-11-15T12:00:00Z'),
     restore: vi.fn(async () => '2026-11-15T13:00:00Z'),
@@ -23,7 +51,7 @@ function fakeRepository(overrides: Partial<EditorRepository> = {}): EditorReposi
     getLockStatus: vi.fn(async () => null),
     prepareUnloadRelease: vi.fn(async () => undefined),
     releaseLockOnUnload: vi.fn(),
-    ...overrides,
+    ...rest,
   }
 }
 
@@ -42,6 +70,15 @@ describe('paths', () => {
   it('addresses collection items by id, not by index', () => {
     expect(getAt(document, 'services.b2.title')).toBe('Two')
     expect(getAt(document, 'services.1.title')).toBeUndefined()
+  })
+
+  it('tells whether setAt would write, without writing', () => {
+    const paths = ['hero.title', 'cta.label', 'services.b2.title', 'services.zz.title', 'hero.title.deep', 'services']
+
+    for (const path of paths) {
+      const target: Record<string, unknown> = structuredClone(document)
+      expect(canSetAt(document, path), path).toBe(setAt(target, path, 'x'))
+    }
   })
 
   it('creates missing objects but never a missing collection item', () => {
@@ -63,12 +100,10 @@ describe('stableStringify', () => {
 describe('Editor Engine', () => {
   it('starts from the draft when one exists, else from published content', async () => {
     const { engine } = await loadedEngine(fakeRepository({
-      getDraft: vi.fn(async () => ({
-        key: 'home',
-        locale: 'uk',
+      getDraft: async () => ({
         content: { hero: { title: 'Draft' } },
         updatedAt: '2026-11-15T11:00:00Z',
-      })),
+      }),
     }))
 
     expect(engine.get('hero.title')).toBe('Draft')
@@ -230,12 +265,10 @@ describe('Editor Engine', () => {
 
   it('is not dirty when the same content comes back with keys in another order', async () => {
     const { engine } = await loadedEngine(fakeRepository({
-      getByKey: vi.fn(async () => ({
-        key: 'home',
-        locale: 'uk',
+      getByKey: async () => ({
         content: { cta: { href: '/a', label: 'Go' } },
         publishedAt: '2026-11-15T10:00:00Z',
-      })),
+      }),
     }))
 
     engine.set('cta', { label: 'Go', href: '/a' })
@@ -287,6 +320,43 @@ describe('Editor Engine', () => {
       ])
     })
 
+    it('copies code defaults with their own ids (C-88)', async () => {
+      const { engine } = await loadedEngine()
+
+      engine.registerCollectionDefaults('services', () => [
+        { id: 'design', title: 'Design' },
+        { id: 'build', title: 'Build' },
+      ])
+      engine.set('services.build.title', 'Development')
+
+      expect(engine.get('services')).toEqual([
+        { id: 'design', title: 'Design' },
+        { id: 'build', title: 'Development' },
+      ])
+    })
+
+    it('keeps a text the Texts screen stored for a code default item when it copies the list (C-89)', async () => {
+      // The Texts screen writes the original of an item from code as an
+      // override object, without copying the list: { services: { build: { title } } }.
+      const { engine } = await loadedEngine(fakeRepository({
+        getByKey: async () => ({ content: { services: { build: { title: 'Development' } } }, publishedAt: '2026-11-15T10:00:00Z' }),
+      }))
+
+      engine.registerCollectionDefaults('services', () => [
+        { id: 'design', title: 'Design', href: '/design' },
+        { id: 'build', title: 'Build', href: '/build' },
+      ])
+
+      expect(engine.collectionItems('services').map(item => item.title)).toEqual(['Design', 'Development'])
+
+      engine.moveItem('services', 'build', -1)
+
+      expect(engine.get('services')).toEqual([
+        { id: 'build', title: 'Development', href: '/build' },
+        { id: 'design', title: 'Design', href: '/design' },
+      ])
+    })
+
     it('resets a field of a default item to its code default, not to empty', async () => {
       const { engine } = await loadedEngine()
 
@@ -334,7 +404,8 @@ describe('Editor Engine', () => {
 
   describe('Content Lock', () => {
     it('opens read-only when another user holds the lock', async () => {
-      const { engine, repository } = await loadedEngine(fakeRepository({
+      const { engine } = await loadedEngine(fakeRepository({
+        getDraft: async () => ({ content: { hero: { title: 'Their draft' } }, updatedAt: '2026-11-15T11:00:00Z' }),
         acquireLock: vi.fn(async () => {
           throw new CmsDataError('locked', 'locked')
         }),
@@ -350,7 +421,8 @@ describe('Editor Engine', () => {
       expect(engine.status.value).toBe('ready')
       expect(engine.lock.value).toBe('locked')
       expect(engine.lockHolder.value?.holderEmail).toBe('anna@example.test')
-      expect(repository.getDraft).not.toHaveBeenCalled()
+      // A read-only viewer sees Published: the Draft is the lock holder's work.
+      expect(engine.hasDraft.value).toBe(false)
 
       engine.set('hero.title', 'Nope')
       expect(engine.get('hero.title')).toBe('Live')
@@ -375,12 +447,10 @@ describe('Editor Engine', () => {
       let published = 'Live'
       let locked = true
       const { engine } = await loadedEngine(fakeRepository({
-        getByKey: vi.fn(async () => ({
-          key: 'home',
-          locale: 'uk',
+        getByKey: async () => ({
           content: { hero: { title: published } },
           publishedAt: '2026-11-15T10:00:00Z',
-        })),
+        }),
         acquireLock: vi.fn(async () => {
           if (locked) {
             throw new CmsDataError('locked', 'locked')
@@ -407,12 +477,10 @@ describe('Editor Engine', () => {
       let published = 'Live'
       let token = 0
       const { engine } = await loadedEngine(fakeRepository({
-        getByKey: vi.fn(async () => ({
-          key: 'home',
-          locale: 'uk',
+        getByKey: async () => ({
           content: { hero: { title: published, lead: 'L' } },
           publishedAt: '2026-11-15T10:00:00Z',
-        })),
+        }),
         acquireLock: vi.fn(async () => `token-${++token}`),
         heartbeatLock: vi.fn(async () => {
           throw new CmsDataError('lock_lost', 'lost')
@@ -472,5 +540,204 @@ describe('Editor Engine', () => {
       await engine.save()
       expect(repository.saveDraft).toHaveBeenCalledWith('home', 'uk', { hero: { title: 'Mine' } }, 'token-2')
     })
+  })
+})
+
+describe('Editor Engine in a translation (C-78)', () => {
+  const base = {
+    hero: {
+      title: 'Привіт',
+      cta: { label: 'Почати', href: '/about' },
+      image: { mediaId: 'm1', alt: 'Студія' },
+    },
+    services: [{ id: 'a1', title: 'Один' }],
+  }
+
+  async function translationEngine(overrides: Partial<EditorRepository> & FakeSources = {}) {
+    const repository = fakeRepository({
+      base,
+      getByKey: async () => ({ content: { 'hero.title': 'Hello' }, publishedAt: '2026-11-16T10:00:00Z' }),
+      ...overrides,
+    })
+    const engine = createEditorEngine({ repository, locale: 'en', historyLimit: 10 })
+    await engine.load('home')
+
+    const el = {} as HTMLElement
+    engine.registerField({ id: 'title', key: 'hero.title', kind: 'text', el, api: undefined })
+    engine.registerField({ id: 'cta', key: 'hero.cta', kind: 'link', el, api: { defaultLabel: () => '', defaultHref: () => undefined } })
+    engine.registerField({ id: 'image', key: 'hero.image', kind: 'image', el, api: { defaultSrc: () => undefined, defaultAlt: () => '', decorative: () => false } })
+    engine.registerField({ id: 'item', key: 'services.a1.title', kind: 'text', el, api: undefined })
+    engine.registerField({ id: 'default-item', key: 'services.default-1.title', kind: 'text', el, api: undefined })
+
+    return { engine, repository }
+  }
+
+  it('shows the base with the translation applied', async () => {
+    const { engine } = await translationEngine()
+
+    expect(engine.translating.value).toBe(true)
+    expect(engine.defaultLocale.value).toBe('uk')
+    expect(engine.get('hero.title')).toBe('Hello')
+    // Untranslated: the default locale's text.
+    expect(engine.get('hero.cta')).toEqual({ label: 'Почати', href: '/about' })
+    expect(engine.isTranslated('hero.title', 'text')).toBe(true)
+    expect(engine.isTranslated('hero.cta', 'link')).toBe(false)
+    expect(engine.baseValue('hero.title')).toBe('Привіт')
+  })
+
+  it('stores only translated leaves: text, link label, image alt', async () => {
+    const { engine, repository } = await translationEngine()
+
+    engine.set('hero.cta', { label: 'Start', href: '/elsewhere', newTab: true })
+    engine.set('hero.image', { mediaId: 'other', alt: 'Studio', decorative: true })
+    engine.set('services.a1.title', 'One')
+    await engine.save()
+
+    expect(repository.saveDraft).toHaveBeenCalledWith('home', 'en', {
+      'hero.title': 'Hello',
+      'hero.cta.label': 'Start',
+      'hero.image.alt': 'Studio',
+      'services.a1.title': 'One',
+    }, 'token-1')
+    // The structure stays the default locale's.
+    expect(engine.get('hero.cta')).toEqual({ label: 'Start', href: '/about' })
+    expect(engine.get('hero.image')).toEqual({ mediaId: 'm1', alt: 'Studio' })
+  })
+
+  it('lists the fields still to translate, without the ones it cannot translate', async () => {
+    const { engine } = await translationEngine()
+
+    // Translated: hero.title. A code default item cannot be translated yet.
+    expect([...engine.untranslated.value].sort()).toEqual(['hero.cta', 'hero.image', 'services.a1.title'])
+
+    engine.set('hero.cta', { label: 'Start' })
+    expect(engine.untranslated.value.has('hero.cta')).toBe(false)
+  })
+
+  it('does not translate an item that exists only as a code default', async () => {
+    const { engine } = await translationEngine()
+
+    expect(engine.canTranslate('services.default-1.title')).toBe(false)
+    engine.set('services.default-1.title', 'Ghost')
+    expect(engine.dirty.value).toBe(false)
+  })
+
+  it('translates an item that is still a code default, over the defaults', async () => {
+    const { engine, repository } = await translationEngine()
+    engine.registerCollectionDefaults('work.items', () => [{ id: 'default-0', title: 'Atlas', tag: 'Shop' }])
+    engine.registerField({ id: 'work', key: 'work.items.default-0.title', kind: 'text', el: {} as HTMLElement, api: undefined })
+
+    expect(engine.canTranslate('work.items.default-0.title')).toBe(true)
+    engine.set('work.items.default-0.title', 'Атлас')
+
+    expect(engine.isTranslated('work.items.default-0.title', 'text')).toBe(true)
+    // The collection shows the code defaults with the translation laid over them.
+    expect(engine.collectionItems('work.items')).toEqual([{ id: 'default-0', title: 'Атлас', tag: 'Shop' }])
+
+    await engine.save()
+    expect(repository.saveDraft).toHaveBeenLastCalledWith('home', 'en', expect.objectContaining({
+      'work.items.default-0.title': 'Атлас',
+    }), 'token-1')
+  })
+
+  it('writes a translated leaf in place: typing does not rebuild the page', async () => {
+    const { engine } = await translationEngine()
+    const shown = engine.document.value
+    const cta = engine.get('hero.cta')
+
+    engine.set('hero.title', 'Hi')
+
+    expect(engine.document.value).toBe(shown)
+    expect(engine.get('hero.cta')).toBe(cta)
+    expect(engine.get('hero.title')).toBe('Hi')
+
+    // Back to the default locale's text when the translation goes.
+    engine.set('hero.cta', { label: 'Start' })
+    engine.reset('hero.cta')
+    expect(engine.get('hero.cta')).toEqual({ label: 'Почати', href: '/about' })
+  })
+
+  it('locks the structure: collections cannot change', async () => {
+    const { engine } = await translationEngine()
+
+    expect(engine.addItem('services')).toBeNull()
+    engine.removeItem('services', 'a1')
+    expect(engine.collectionItems('services').map(item => item.id)).toEqual(['a1'])
+  })
+
+  it('tracks dirty state, Undo and Reset on the translation', async () => {
+    const { engine } = await translationEngine()
+
+    engine.set('hero.title', 'Hi')
+    expect(engine.dirty.value).toBe(true)
+    expect(engine.changed('hero.title')).toBe(true)
+
+    engine.undo()
+    expect(engine.get('hero.title')).toBe('Hello')
+    expect(engine.dirty.value).toBe(false)
+
+    engine.set('hero.cta', { label: 'Start' })
+    engine.reset('hero.cta')
+    // Not published in this language: back to the default locale's label.
+    expect(engine.get('hero.cta')).toEqual({ label: 'Почати', href: '/about' })
+    expect(engine.isTranslated('hero.cta', 'link')).toBe(false)
+  })
+
+  it('switches locale without losing the lock, and edits the base again in the default locale', async () => {
+    const { engine, repository } = await translationEngine()
+
+    await engine.setLocale('uk')
+
+    expect(engine.translating.value).toBe(false)
+    expect(engine.lock.value).toBe('held')
+    expect(repository.acquireLock).toHaveBeenCalledOnce()
+    expect(repository.getEditable).toHaveBeenLastCalledWith('home', 'uk')
+  })
+})
+
+describe('field registry (C-84)', () => {
+  it('records the number of the collection item a field is in, whatever its id', () => {
+    const list = { children: [] as unknown[] }
+    const item = (id: string) => ({ hasAttribute: (name: string) => name === 'data-cms-item', id, parentElement: list })
+    const first = item('design')
+    const second = item('build')
+    list.children = [first, { hasAttribute: () => false }, second]
+    const inItem = (owner: unknown) => ({
+      tagName: 'H3',
+      closest: (selector: string) => (selector === '[data-cms-item]' ? owner : null),
+    }) as unknown as HTMLElement
+
+    const { fields } = registryEntries([
+      { id: '1', key: 'services.design.title', kind: 'text', el: inItem(first), api: undefined },
+      { id: '2', key: 'services.build.title', kind: 'text', el: inItem(second), api: undefined },
+      { id: '3', key: 'hero.title', kind: 'text', el: inItem(null), api: undefined },
+    ])
+
+    expect(fields.map(field => [field.address, field.item])).toEqual([
+      ['services.design.title', 1],
+      ['services.build.title', 2],
+      ['hero.title', undefined],
+    ])
+  })
+
+  it('records translatable fields with their texts from code, and hidden optional blocks', () => {
+    const el = {} as HTMLElement
+    const { fields, hiddenPrefixes } = registryEntries([
+      { id: '1', key: 'hero.title', kind: 'text', el, label: 'Title', defaultText: () => ' From code ', api: undefined },
+      { id: '2', key: 'hero.title', kind: 'text', el, defaultText: () => 'Twice', api: undefined },
+      { id: '3', key: 'hero.cta', kind: 'button', el, api: { defaultLabel: () => 'Start', defaultHref: () => '/' } },
+      { id: '4', key: 'hero.image', kind: 'image', el, api: { defaultSrc: () => undefined, defaultAlt: () => 'Studio', decorative: () => false } },
+      { id: '5', key: 'hero.decor', kind: 'image', el, api: { defaultSrc: () => undefined, defaultAlt: () => '', decorative: () => true } },
+      { id: '6', key: 'hero.bg', kind: 'background', el, api: { defaultSrc: () => undefined, defaultAlt: () => '', decorative: () => true } },
+      { id: '7', key: 'quote', kind: 'optional', el, api: { hidden: () => true, toggle: () => undefined } },
+      { id: '8', key: 'services', kind: 'collection', el, api: {} as never },
+    ])
+
+    expect(fields).toEqual([
+      { address: 'hero.title', kind: 'text', label: 'Title', defaultText: 'From code', section: undefined, position: 0, tag: undefined },
+      { address: 'hero.cta', kind: 'button', label: undefined, defaultText: 'Start', section: undefined, position: 1, tag: undefined },
+      { address: 'hero.image', kind: 'image', label: undefined, defaultText: 'Studio', section: undefined, position: 2, tag: undefined },
+    ])
+    expect(hiddenPrefixes).toEqual(['quote'])
   })
 })

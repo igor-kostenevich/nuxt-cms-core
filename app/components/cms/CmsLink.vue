@@ -4,6 +4,7 @@ import { injectCmsEditor } from '../../editor/context'
 import type { CmsLinkValue } from '../../types/primitives'
 import { warnInvalidFieldKey } from '../../primitives/field-key'
 import { resolveCmsLink, warnUnsafeHref } from '../../primitives/link'
+import { useCmsLinkLocalizer } from '../../primitives/locale'
 
 // Each part of the stored value wins over its code default on its own:
 // `label` over the slot, `href` over the `href` prop.
@@ -28,7 +29,9 @@ const EditableLink = defineAsyncComponent(() => import('../../editor/fields/Edit
 const editor = injectCmsEditor()
 
 const rawHref = computed(() => props.value?.href ?? props.href)
-const link = computed(() => resolveCmsLink(rawHref.value, props.value?.newTab ?? false))
+// A site path becomes the URL of the current locale (C-79).
+const localize = useCmsLinkLocalizer()
+const link = computed(() => resolveCmsLink(rawHref.value, props.value?.newTab ?? false, localize))
 const label = computed(() => props.value?.label)
 
 if (import.meta.dev) {

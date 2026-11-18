@@ -3,6 +3,7 @@ import { join, resolve, sep } from 'node:path'
 import { addTemplate, addTypeTemplate, createResolver, defineNuxtModule, useLogger } from '@nuxt/kit'
 import { loadConfig } from 'c12'
 import { resolveCmsConfig, type CmsConfig, type CmsRuntimeConfig } from './config'
+import { resolveCmsTexts } from './texts'
 
 export default defineNuxtModule({
   meta: {
@@ -33,9 +34,31 @@ export default defineNuxtModule({
       }
     }
 
-    // Restart the dev server when the project changes its CMS config.
-    if (configFile) {
-      nuxt.options.watch.push(configFile)
+    // Site texts (C-85): cms.texts.ts next to cms.config.ts. Optional.
+    const { config: textsInput, configFile: textsFile } = await loadConfig<Record<string, unknown>>({
+      configFile: 'cms.texts',
+      cwd: nuxt.options.rootDir,
+      rcFile: false,
+      globalRc: false,
+      dotenv: false,
+    })
+    const { texts: cmsTexts, ignored: ignoredTexts } = resolveCmsTexts(textsInput)
+
+    if (ignoredTexts.length > 0) {
+      const logger = useLogger('nuxt-cms-core')
+
+      for (const { key, reason } of ignoredTexts) {
+        logger.warn(reason === 'key'
+          ? `cms.texts: key "${key}" is not a dotted key of letters, digits, "_" or "-"; ignored.`
+          : `cms.texts: "${key}" has no text (or one over 2000 characters); ignored.`)
+      }
+    }
+
+    // Restart the dev server when the project changes its CMS config or texts.
+    for (const file of [configFile, textsFile]) {
+      if (file) {
+        nuxt.options.watch.push(file)
+      }
     }
 
     // Values from `.env` are only defaults baked in at build time. At runtime Nuxt
@@ -71,6 +94,22 @@ export default defineNuxtModule({
     })
 
     nuxt.options.alias['#cms/config'] = template.dst
+
+    const textsTemplate = addTemplate({
+      filename: 'cms/texts.mjs',
+      getContents: () => `export const cmsTexts = ${JSON.stringify(cmsTexts, null, 2)}`,
+    })
+
+    addTypeTemplate({
+      filename: 'cms/texts.d.ts',
+      getContents: () => [
+        `declare module '#cms/texts' {`,
+        `  export const cmsTexts: { key: string, text: string, context?: string }[]`,
+        `}`,
+      ].join('\n'),
+    })
+
+    nuxt.options.alias['#cms/texts'] = textsTemplate.dst
 
     // Vite emits <link rel="prefetch"> for every dynamic import of the app
     // entry, so a public page would download admin pages, the auth chunk and

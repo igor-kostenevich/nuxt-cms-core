@@ -83,3 +83,18 @@ describe('renderRichText', () => {
     expect(await render(value, { inline: true })).toBe('<div>One<br><strong>Two</strong></div>')
   })
 })
+
+describe('renderRichText with a link resolver (C-79)', () => {
+  it('maps site paths of links to the current locale', async () => {
+    const value = {
+      type: 'doc',
+      content: [{
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'About', marks: [{ type: 'link', attrs: { href: '/about' } }] }],
+      }],
+    }
+
+    const html = await renderToString(h('div', renderRichText(value, { localize: href => `/en${href}` })))
+    expect(html).toContain('href="/en/about"')
+  })
+})

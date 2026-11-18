@@ -12,7 +12,7 @@ import { useAdminI18n } from '../admin/useAdminI18n'
 import { CMS_FIELD_SCOPE } from './context'
 import { useEditor } from './inject'
 import { KIND_TRAITS, type FieldApis, type FieldKind, type FieldRegistration } from './kinds'
-import { joinPath } from './paths'
+import { joinPath } from '../primitives/paths'
 
 export interface EditorFieldOptions<K extends FieldKind> {
   kind: K
@@ -21,6 +21,8 @@ export interface EditorFieldOptions<K extends FieldKind> {
   label?: () => string | undefined
   required?: () => boolean | undefined
   maxLength?: () => number | undefined
+  /** Text from the page code (slot, default label or alt), for the field registry (C-84). */
+  defaultText?: () => string
   /** Kind-specific handle the Overlay and panels use (see kinds.ts). */
   api: FieldApis[K]
   /** `fieldKey` is already a full address (collection items build their own). */
@@ -101,6 +103,7 @@ export function useEditorField<K extends FieldKind>(options: EditorFieldOptions<
       el,
       kind: options.kind,
       api: options.api,
+      defaultText: options.defaultText,
       ...meta(),
     } as FieldRegistration)
   })

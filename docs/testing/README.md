@@ -47,3 +47,5 @@
 | [public-site.md](./public-site.md) | Публічні сторінки: дефолти, Draft не видно, безпечний рендер, бандл |
 | [edit-mode.md](./edit-mode.md) | Edit Mode (008): редагування, Save / Publish, Undo, колекції, Preview, навігація, Content Lock, клавіатура |
 | [media.md](./media.md) | Медіа (009): медіатека, upload / replace / delete, Media Picker в Edit Mode, пріоритет alt, Settings → Brand, SVG |
+| [languages.md](./languages.md) | Мови (010, 010d): Settings → Мови, мова оригіналу незмінна, переклад в Edit Mode, елементи колекцій за id, fallback і hreflang |
+| [texts.md](./texts.md) | Тексти (010b, 010d): реєстр полів, тексти сайту з `cms.texts.ts`, оригінал і переклад на екрані «Тексти», публікація вибраних сторінок, гонки з редактором |

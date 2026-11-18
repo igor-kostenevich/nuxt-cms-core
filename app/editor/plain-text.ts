@@ -28,3 +28,21 @@ export function plainTextOf(root: Node): string {
   walk(root)
   return text.replace(/\n$/, '')
 }
+
+/** Plain text of a rich text document (C-49), for counts and hints. */
+export function richTextPlain(node: unknown): string {
+  if (typeof node !== 'object' || node === null) {
+    return ''
+  }
+
+  const { text, content } = node as { text?: unknown, content?: unknown }
+  const own = typeof text === 'string' ? text : ''
+  const children = Array.isArray(content) ? content.map(richTextPlain).join('') : ''
+  return own + children
+}
+
+/** Readable text of a rich text document: paragraphs on their own lines. */
+export function richTextParagraphs(doc: unknown): string {
+  const content = (doc as { content?: unknown } | null)?.content
+  return Array.isArray(content) ? content.map(richTextPlain).join('\n').trim() : ''
+}

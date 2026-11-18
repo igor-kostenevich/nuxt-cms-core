@@ -103,6 +103,39 @@ export function setAt(document: DocumentNode, path: string, value: unknown): boo
 }
 
 /**
+ * Whether `setAt(document, path, …)` would write, without writing or copying
+ * anything: the same walk. Missing objects would be created; a missing
+ * collection item or a non-object on the way stops it.
+ */
+export function canSetAt(document: unknown, path: string): boolean {
+  const segments = splitPath(path)
+  const last = segments.pop()
+
+  if (!last) {
+    return false
+  }
+
+  let node: unknown = document
+
+  for (const segment of segments) {
+    const next = child(node, segment)
+
+    if (next === undefined) {
+      // setAt creates an object here and below it: the write succeeds.
+      return isObject(node)
+    }
+
+    if (!isObject(next) && !Array.isArray(next)) {
+      return false
+    }
+
+    node = next
+  }
+
+  return isObject(node)
+}
+
+/**
  * JSON with object keys sorted at every level. Postgres jsonb returns keys in
  * its own order and the editor builds objects in insertion order; comparing
  * stable strings keeps an untouched or restored value from looking changed.

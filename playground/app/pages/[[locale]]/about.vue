@@ -7,7 +7,8 @@ interface AboutContent {
   back?: CmsLinkValue
 }
 
-useHead({ title: 'About — Luminary' })
+const { t } = useCmsText()
+useHead({ title: () => t('meta.aboutTitle') })
 
 // No `about` row is seeded: every primitive renders its default from the slot.
 const { page, error } = useCmsPage('about')

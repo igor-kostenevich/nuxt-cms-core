@@ -5,13 +5,13 @@ import { withDefaultIds } from '../../primitives/collection'
 import type { CmsCollectionItem } from '../../types/primitives'
 import { useEditorField } from '../field'
 import { scrollBehavior } from '../motion'
-import { cloneDocument } from '../paths'
+import { cloneDocument } from '../../primitives/paths'
 import EditableCollectionItem from './EditableCollectionItem.vue'
 
 // Editable branch of CmsCollection: the list is a field (Add item), each item
 // is a field (reorder, duplicate, delete) and a scope for the fields inside it.
 const props = defineProps<{
-  value?: CmsCollectionItem[] | null
+  value?: CmsCollectionItem[] | Record<string, unknown> | null
   fieldKey: string
   defaults: Record<string, unknown>[]
   items: CmsCollectionItem[]
@@ -108,7 +108,7 @@ function add(afterId?: string): string | null {
     >
       <span>{{ t('cms.editor.collection.empty') }}</span>
       <button
-        v-if="view.editable.value"
+        v-if="view.editable.value && !engine.translating.value"
         type="button"
         class="cms-collection-empty__add"
         @click="add()"

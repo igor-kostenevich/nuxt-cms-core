@@ -4,9 +4,10 @@ import { onClickOutside } from '@vueuse/core'
 import { useAdminI18n } from '../admin/useAdminI18n'
 import { isAdminPath } from '../auth/paths'
 import { useEditor } from './inject'
-import { pageTitle } from './page-title'
+import { pagePath, pageTitle } from './page-title'
 import { useEditorSession } from './session'
 import { useEditorUi } from './ui'
+import LocaleSwitcher from './LocaleSwitcher.vue'
 
 const props = defineProps<{
   title: string
@@ -99,8 +100,11 @@ onClickOutside(pagesBox, () => {
 
 /** Static routes of the Client Project; Edit Mode cannot guess dynamic params. */
 const pages = computed(() => router.getRoutes()
-  .filter(route => !isAdminPath(route.path) && !route.path.includes(':') && route.components?.default)
-  .map(route => ({ path: route.path, title: pageTitle(route, t('cms.editor.pages.home')) }))
+  // An optional segment (`[[locale]]`) is left out: `/:locale?/about` opens as `/about`.
+  .map(route => ({ route, path: pagePath(route.path) }))
+  .filter(({ route, path }) => !isAdminPath(path) && !path.includes(':') && route.components?.default)
+  .map(({ route, path }) => ({ path, title: pageTitle(route, t('cms.editor.pages.home')) }))
+  .filter((page, index, list) => list.findIndex(other => other.path === page.path) === index)
   .sort((a, b) => a.path.localeCompare(b.path)))
 
 async function togglePages() {
@@ -278,6 +282,8 @@ async function discard() {
           </li>
         </ul>
       </div>
+
+      <LocaleSwitcher v-if="!unbound" />
 
       <span
         class="tb-status"

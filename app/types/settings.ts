@@ -29,3 +29,12 @@ export interface SiteBrandForm {
   logoMediaId?: string | null
   faviconMediaId?: string | null
 }
+
+/**
+ * Texts of the site settings in a language other than the default (C-82).
+ * Contacts are shared by all languages. An empty value shows the default.
+ */
+export interface SiteSettingsTranslation {
+  locale: string
+  siteName: string
+}

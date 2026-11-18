@@ -174,6 +174,10 @@ const fieldsWithBoxes = computed(() => {
 })
 
 const outlined = computed(() => fieldsWithBoxes.value.filter(({ field }) => KIND_TRAITS[field.kind].outlined))
+// The filter of a translation dims everything but the fields still to translate.
+const holes = computed(() => view.onlyUntranslated.value && engine.translating.value
+  ? fieldsWithBoxes.value.filter(({ field }) => engine.untranslated.value.has(field.key))
+  : outlined.value)
 
 function fieldFromTarget(target: EventTarget | null): HTMLElement | null {
   return target instanceof Element ? target.closest<HTMLElement>('[data-cms-field]') : null
@@ -448,7 +452,7 @@ function boxStyle(box: Box, pad = PAD) {
                 fill="white"
               />
               <rect
-                v-for="{ field, box } in outlined"
+                v-for="{ field, box } in holes"
                 :key="field.id"
                 :x="box.x - PAD"
                 :y="box.y - PAD"
@@ -471,7 +475,10 @@ function boxStyle(box: Box, pad = PAD) {
           v-for="{ field, box } in outlined"
           :key="field.id"
           class="overlay__outline"
-          :class="{ 'overlay__outline--changed': engine.changed(field.key) }"
+          :class="{
+            'overlay__outline--changed': engine.changed(field.key),
+            'overlay__outline--untranslated': engine.untranslated.value.has(field.key),
+          }"
           :style="boxStyle(box)"
         />
 
@@ -497,7 +504,7 @@ function boxStyle(box: Box, pad = PAD) {
       </div>
 
       <ItemControls
-        v-if="activeItem?.field.kind === 'item' && view.editable.value"
+        v-if="activeItem?.field.kind === 'item' && view.editable.value && !engine.translating.value"
         :key="activeItem.field.id"
         :item="activeItem.field"
         :box="activeItem.box"
@@ -553,6 +560,12 @@ function boxStyle(box: Box, pad = PAD) {
 
 .overlay__outline--changed {
   outline-color: var(--cms-warning-solid);
+}
+
+/* In a translation: still shows the default language (C-78). */
+.overlay__outline--untranslated {
+  outline: 2px dashed var(--cms-info-text);
+  background: color-mix(in srgb, var(--cms-info-subtle) 35%, transparent);
 }
 
 .overlay__hover {

@@ -29,8 +29,14 @@ const { engine, view, key, id } = useEditorField({
   label: () => props.fieldLabel,
   required: () => props.required,
   maxLength: () => props.maxLength,
+  // What the field shows: the stored value, or the default from the slot (C-84).
+  defaultText: () => (typeof props.value === 'string' ? props.value : defaultText),
   api: undefined,
 })
+
+// In a translation, a field the base cannot hold yet (an item that is still a
+// code default) takes no input (C-78).
+const editable = computed(() => view.editable.value && engine.canTranslate(key.value))
 
 const seeded = ref(false)
 const editing = ref(false)
@@ -62,7 +68,7 @@ watch(() => props.value, () => {
 })
 
 function onFocus() {
-  if (!view.editable.value) {
+  if (!editable.value) {
     return
   }
 
@@ -96,7 +102,7 @@ function onKeydown(event: KeyboardEvent) {
   <component
     :is="tag"
     ref="el"
-    :contenteditable="view.editable.value ? 'plaintext-only' : 'false'"
+    :contenteditable="editable ? 'plaintext-only' : 'false'"
     :data-cms-empty="empty || undefined"
     :data-cms-placeholder="t('cms.editor.field.placeholder')"
     spellcheck="true"

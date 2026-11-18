@@ -19,6 +19,7 @@ const groups = [
     items: [
       { label: 'cms.shell.nav.pages', icon: 'lucide:file' },
       { label: 'cms.shell.nav.media', icon: 'lucide:image', to: '/admin/media' },
+      { label: 'cms.shell.nav.texts', icon: 'lucide:languages', to: '/admin/texts' },
       { label: 'cms.shell.nav.forms', icon: 'lucide:clipboard-list' },
     ],
   },
@@ -197,6 +198,7 @@ async function onLogout() {
         <slot />
       </div>
     </div>
+    <AdminToasts />
   </AdminRoot>
 </template>
 

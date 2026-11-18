@@ -8,6 +8,7 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
   owner: {
     'settings.update': true,
     'users.manage': true,
+    'languages.manage': true,
     'pages.edit': true,
     'pages.publish': true,
     'pages.unlock': true,
@@ -18,6 +19,7 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
   admin: {
     'settings.update': true,
     'users.manage': false,
+    'languages.manage': false,
     'pages.edit': true,
     'pages.publish': true,
     'pages.unlock': true,
@@ -28,6 +30,7 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
   editor: {
     'settings.update': false,
     'users.manage': false,
+    'languages.manage': false,
     'pages.edit': true,
     'pages.publish': false,
     'pages.unlock': false,

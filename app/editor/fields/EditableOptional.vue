@@ -45,7 +45,7 @@ const name = computed(() => props.fieldLabel ?? props.fieldKey)
       {{ t('cms.editor.field.hidden', { name }) }}
     </span>
     <button
-      v-if="view.editable.value"
+      v-if="view.editable.value && !engine.translating.value"
       type="button"
       class="cms-hidden-block__show"
       @click.stop="toggle"

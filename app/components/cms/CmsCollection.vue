@@ -2,7 +2,7 @@
 import { defineAsyncComponent } from 'vue'
 import { injectCmsEditor } from '../../editor/context'
 import { warnInvalidFieldKey } from '../../primitives/field-key'
-import { collectionItems } from '../../primitives/collection'
+import { collectionItems, warnDefaultIds } from '../../primitives/collection'
 import type { CmsCollectionItem } from '../../types/primitives'
 
 // Local repeatable content of a page: FAQ, service cards, benefits
@@ -10,10 +10,17 @@ import type { CmsCollectionItem } from '../../types/primitives'
 // element per item to select, reorder and delete. Inside the slot, fields use
 // keys relative to the item: `field-key="title"` → `services.<id>.title`.
 const props = withDefaults(defineProps<{
-  value?: CmsCollectionItem[] | null
+  /**
+   * Stored items. An object instead: a translation (or a text change) of
+   * items that are still code defaults, keyed by item id (C-78, C-88).
+   */
+  value?: CmsCollectionItem[] | Record<string, unknown> | null
   /** Field address in the entity, e.g. `services` (C-48). */
   fieldKey: string
-  /** Items from the page code, shown until the collection is edited. */
+  /**
+   * Items from the page code, shown until the collection is edited. Give each
+   * a stable `id` (C-88): translations are kept by it.
+   */
   defaults?: Record<string, unknown>[]
   tag?: string
   itemTag?: string
@@ -42,6 +49,7 @@ defineSlots<{
 }>()
 
 warnInvalidFieldKey('CmsCollection', props.fieldKey)
+warnDefaultIds(props.fieldKey, props.defaults)
 
 // Edit Mode only; the public site never runs this import (MASTER_PLAN C-21).
 const EditableCollection = defineAsyncComponent(() => import('../../editor/fields/EditableCollection.vue'))

@@ -1,17 +1,22 @@
 import { computed, markRaw, ref, shallowReactive, shallowRef } from 'vue'
 import { CmsDataError } from '../data/errors'
 import { isRichTextDoc } from '../primitives/rich-text'
+import { richTextPlain } from './plain-text'
 import type {
-  CmsPage,
   CmsPageContent,
-  CmsPageDraft,
+  CmsPageEditable,
+  CmsPageLocaleState,
   CmsPageLockStatus,
   CmsPageRevision,
 } from '../types/pages'
-import type { CmsMedia, CmsMediaMap } from '../types/media'
+import type { CmsImageValue, CmsMedia, CmsMediaMap } from '../types/media'
 import type { CmsCollectionItem } from '../types/primitives'
-import type { FieldRegistration } from './kinds'
+import { withOverrides } from '../primitives/collection'
+import { applyTranslation, pruneTranslation, translationLeaf, type CmsTranslation } from '../primitives/translation'
+import type { CmsPageFieldRegistration } from '../data/repositories/pages.repository'
+import type { FieldKind, FieldRegistration } from './kinds'
 import {
+  canSetAt,
   cloneDocument,
   createItemId,
   getAt,
@@ -21,7 +26,7 @@ import {
   splitPath,
   stableStringify,
   type DocumentNode,
-} from './paths'
+} from '../primitives/paths'
 
 /**
  * What the editor needs from an entity's repository: the minimal Draftable
@@ -29,8 +34,11 @@ import {
  * with a template page can implement the same methods later.
  */
 export interface EditorRepository {
-  getByKey(key: string, locale: string): Promise<CmsPage | null>
-  getDraft(key: string, locale: string): Promise<CmsPageDraft | null>
+  /** Draft and Published of a locale, and for a translation its base (C-78). */
+  getEditable(key: string, locale: string | null): Promise<CmsPageEditable>
+  getLocaleStates(key: string): Promise<CmsPageLocaleState[]>
+  /** Records the translatable fields of the page for the Texts screen (C-84). */
+  registerFields(key: string, editPath: string, fields: CmsPageFieldRegistration[], hiddenPrefixes: string[]): Promise<void>
   saveDraft(key: string, locale: string, content: CmsPageContent, lockToken: string): Promise<string | null>
   publish(key: string, locale: string, lockToken: string): Promise<string>
   restore(
@@ -64,7 +72,8 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 export interface EditorEngineOptions {
   repository: EditorRepository
-  locale: string
+  /** Locale to edit; null: the default locale of the site. */
+  locale: string | null
   /** Size of the Undo stack: `editor.historyLimit` in cms.config (MASTER_PLAN C-12). */
   historyLimit: number
 }
@@ -79,6 +88,111 @@ function toDocument(content: CmsPageContent | null | undefined): DocumentNode {
   return cloneDocument(content ?? {}) as DocumentNode
 }
 
+/** Blocks a field can sit in; `data-cms-section` names one explicitly. */
+const SECTION_SELECTOR = '[data-cms-section], section, header, footer, article, aside, nav'
+
+function squeeze(text: string | null | undefined, max = 80): string | undefined {
+  const line = text?.replace(/\s+/g, ' ').trim()
+  return line ? (line.length > max ? `${line.slice(0, max - 1)}…` : line) : undefined
+}
+
+/**
+ * Name of the block of the page a field is in, as a person sees it: a name
+ * given with `data-cms-section` or `aria-label`, else the block's first
+ * heading, else its id.
+ */
+function sectionOf(el: HTMLElement): string | undefined {
+  const block = typeof el.closest === 'function' ? el.closest<HTMLElement>(SECTION_SELECTOR) : null
+
+  if (!block) {
+    return undefined
+  }
+
+  const named = block.dataset.cmsSection || block.getAttribute('aria-label')
+
+  if (named) {
+    return squeeze(named)
+  }
+
+  const heading = block.querySelector('h1, h2, h3, h4')
+  return squeeze(heading?.textContent) ?? squeeze(block.id?.replace(/[-_]+/g, ' '))
+}
+
+/**
+ * Number of the collection item the element is in (1-based), as the page
+ * shows it, so the Texts screen can say "Heading · item 2" whatever the id.
+ */
+function itemOf(el: HTMLElement): number | undefined {
+  const item = typeof el.closest === 'function' ? el.closest<HTMLElement>('[data-cms-item]') : null
+  const list = item?.parentElement
+
+  if (!item || !list) {
+    return undefined
+  }
+
+  const index = [...list.children].filter(child => child.hasAttribute('data-cms-item')).indexOf(item)
+  return index >= 0 ? index + 1 : undefined
+}
+
+/** Document order of two elements; fake elements in tests keep their order. */
+function byDocumentOrder(a: HTMLElement, b: HTMLElement): number {
+  if (typeof a.compareDocumentPosition !== 'function' || a === b) {
+    return 0
+  }
+
+  return a.compareDocumentPosition(b) & 4 /* FOLLOWING */ ? -1 : 1
+}
+
+/**
+ * What the field registry (C-84) records of the mounted fields: the
+ * translatable ones with their texts from code, where they are on the page
+ * (block and order), and the hidden optional blocks whose fields are not
+ * mounted but still exist.
+ */
+export function registryEntries(fields: Iterable<FieldRegistration>) {
+  const entries = new Map<string, CmsPageFieldRegistration>()
+  const hiddenPrefixes: string[] = []
+  const ordered = [...fields].sort((a, b) => byDocumentOrder(a.el, b.el))
+
+  for (const field of ordered) {
+    if (field.kind === 'optional' && field.api.hidden()) {
+      hiddenPrefixes.push(field.key)
+      continue
+    }
+
+    if (field.kind === 'image' && field.api.decorative()) {
+      continue
+    }
+
+    if (field.kind !== 'text' && field.kind !== 'richText' && field.kind !== 'link' && field.kind !== 'button' && field.kind !== 'image') {
+      continue
+    }
+
+    if (entries.has(field.key)) {
+      continue
+    }
+
+    const item = itemOf(field.el)
+    const fromCode = field.defaultText?.()
+      ?? (field.kind === 'link' || field.kind === 'button' ? field.api.defaultLabel() : undefined)
+      ?? (field.kind === 'image' ? field.api.defaultAlt() : undefined)
+    const tag = typeof field.el.tagName === 'string' ? field.el.tagName.toLowerCase() : undefined
+
+    entries.set(field.key, {
+      address: field.key,
+      kind: field.kind,
+      label: field.label || undefined,
+      defaultText: fromCode?.trim() || undefined,
+      section: sectionOf(field.el),
+      position: entries.size,
+      tag: tag && /^[a-z][a-z0-9]{0,9}$/.test(tag) ? tag : undefined,
+      item,
+    })
+  }
+
+  return { fields: [...entries.values()], hiddenPrefixes }
+}
+
 /**
  * Editor Engine (architecture §11): the single owner of the edited document.
  * Primitives never write to the backend; they call `set` and the collection
@@ -87,9 +201,24 @@ function toDocument(content: CmsPageContent | null | undefined): DocumentNode {
  * Preview) lives in the view (`view.ts`).
  */
 export function createEditorEngine(options: EditorEngineOptions) {
-  const { repository, locale, historyLimit } = options
+  const { repository, historyLimit } = options
 
   const entity = shallowRef<{ key: string, locale: string } | null>(null)
+  /** Edited locale; null until the first load tells the default. */
+  const locale = ref<string | null>(options.locale)
+  const defaultLocale = ref<string | null>(null)
+  /** The default locale as shown in notes and chips (`UK`). */
+  const defaultLocaleLabel = computed(() => (defaultLocale.value ?? '').toUpperCase())
+  /**
+   * The edited locale is not the default: the Engine edits its translation,
+   * and the structure (collections, media, hrefs, switches) is read-only (C-78).
+   */
+  const translating = computed(() => Boolean(locale.value && defaultLocale.value && locale.value !== defaultLocale.value))
+  /** Content of the default locale a translation applies to (Draft ?? Published). */
+  const base = shallowRef<DocumentNode>({})
+  /** The edited translation: translated leaves by address. */
+  const translation = ref<CmsTranslation>({})
+  /** What the page shows: the document, or the base with the translation applied. */
   const document = ref<DocumentNode>({})
   const status = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const loadError = shallowRef<unknown>(null)
@@ -125,8 +254,12 @@ export function createEditorEngine(options: EditorEngineOptions) {
   const fields = shallowReactive(new Map<string, FieldRegistration>())
   const collectionDefaults = new Map<string, () => CmsCollectionItem[]>()
 
-  const current = computed(() => stableStringify(document.value))
-  const publishedDocument = computed(() => parseDocument(publishedSnapshot.value))
+  // Snapshots, dirty state and Undo track what is stored: the document, or
+  // the translation. The document of a translation follows from it.
+  const current = computed(() => stableStringify(translating.value ? translation.value : document.value))
+  const publishedDocument = computed(() => translating.value
+    ? applyTranslation(base.value, parseDocument(publishedSnapshot.value))
+    : parseDocument(publishedSnapshot.value))
   const dirty = computed(() => current.value !== savedSnapshot.value)
   const readOnly = computed(() => lock.value !== 'held')
   const canUndo = computed(() => undoStack.length > 0 && !readOnly.value)
@@ -166,7 +299,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
    * then shown read-only.
    */
   async function load(key: string) {
-    entity.value = { key, locale }
+    entity.value = { key, locale: locale.value ?? '' }
     status.value = 'loading'
     loadError.value = null
 
@@ -196,26 +329,75 @@ export function createEditorEngine(options: EditorEngineOptions) {
    */
   async function loadContent(options: { keepLocal: boolean }) {
     const key = requireEntity()
-    const [draft, page] = await Promise.all([
-      lock.value === 'held' ? repository.getDraft(key, locale) : Promise.resolve(null),
-      repository.getByKey(key, locale),
-    ])
+    const editable = await repository.getEditable(key, locale.value)
+    const draft = lock.value === 'held' ? editable.draft : null
 
-    const published = toDocument(page?.content)
-    const start = draft ? toDocument(draft.content) : published
+    defaultLocale.value = editable.defaultLocale
+    locale.value = editable.locale
+    entity.value = { key, locale: editable.locale }
 
-    addMedia(page?.media, draft?.media)
+    const published = toDocument(editable.published)
+    const start = draft ? toDocument(draft) : published
+
+    base.value = toDocument(editable.base)
+    addMedia(editable.media)
     publishedSnapshot.value = stableStringify(published)
-    publishedAt.value = page?.publishedAt ?? null
+    publishedAt.value = editable.publishedAt
     hasDraft.value = Boolean(draft)
-    draftSavedAt.value = draft?.updatedAt ?? null
+    draftSavedAt.value = draft ? editable.draftUpdatedAt : null
     savedSnapshot.value = stableStringify(start)
 
     if (!options.keepLocal) {
-      document.value = start
+      setState(start)
       undoStack.splice(0)
       redoStack.splice(0)
+    } else if (translating.value) {
+      // The base may have changed meanwhile: show the kept translation on it.
+      refreshDocument()
     }
+  }
+
+  /** Replaces what is stored (document or translation) with a snapshot. */
+  function setState(state: DocumentNode) {
+    if (translating.value) {
+      translation.value = state
+      refreshDocument()
+    } else {
+      document.value = state
+    }
+  }
+
+  function refreshDocument() {
+    document.value = applyTranslation(base.value, translation.value)
+  }
+
+  /**
+   * Switches the edited locale. The lock stays: it is one per page. Unsaved
+   * changes are dropped; the caller asks first (session.confirmLeave).
+   */
+  async function setLocale(next: string) {
+    if (next === locale.value || status.value !== 'ready') {
+      return
+    }
+
+    await saving
+    endEdit()
+    const previous = locale.value
+    locale.value = next
+    status.value = 'loading'
+
+    try {
+      await loadContent({ keepLocal: false })
+      status.value = 'ready'
+    } catch (error) {
+      locale.value = previous
+      loadError.value = error
+      status.value = 'error'
+    }
+  }
+
+  function listLocaleStates() {
+    return repository.getLocaleStates(requireEntity())
   }
 
   async function acquire() {
@@ -351,12 +533,19 @@ export function createEditorEngine(options: EditorEngineOptions) {
     }
 
     endEdit()
-    const content = cloneDocument(document.value)
+
+    // A translation keeps only leaves its base can still hold (deleted items go).
+    if (translating.value) {
+      translation.value = pruneTranslation(base.value, translation.value)
+      refreshDocument()
+    }
+
+    const content = cloneDocument(translating.value ? translation.value : document.value)
     saveStatus.value = 'saving'
     saveError.value = null
 
     try {
-      const savedAt = await repository.saveDraft(requireEntity(), locale, content, lockToken)
+      const savedAt = await repository.saveDraft(requireEntity(), requireLocale(), content, lockToken)
       savedSnapshot.value = stableStringify(content)
       hasDraft.value = savedAt !== null
       draftSavedAt.value = savedAt
@@ -392,7 +581,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
         return true
       }
 
-      publishedAt.value = await repository.publish(requireEntity(), locale, lockToken)
+      publishedAt.value = await repository.publish(requireEntity(), requireLocale(), lockToken)
       publishedSnapshot.value = savedSnapshot.value
       hasDraft.value = false
       draftSavedAt.value = null
@@ -410,7 +599,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
   }
 
   async function listRevisions() {
-    return repository.listRevisions(requireEntity(), locale)
+    return repository.listRevisions(requireEntity(), requireLocale())
   }
 
   /**
@@ -427,19 +616,20 @@ export function createEditorEngine(options: EditorEngineOptions) {
     const key = requireEntity()
 
     try {
-      const savedAt = await repository.restore(key, locale, revisionId, lockToken, { replaceDraft: true })
-      const draft = savedAt ? await repository.getDraft(key, locale) : null
-      const start = draft ? toDocument(draft.content) : cloneDocument(publishedDocument.value)
+      const savedAt = await repository.restore(key, requireLocale(), revisionId, lockToken, { replaceDraft: true })
+      const editable = await repository.getEditable(key, requireLocale())
+      const draft = savedAt ? editable.draft : null
+      const start = draft ? toDocument(draft) : parseDocument(publishedSnapshot.value)
 
-      addMedia(draft?.media)
+      addMedia(editable.media)
 
       endEdit()
       record(() => {
-        document.value = start
+        setState(start)
       })
       savedSnapshot.value = stableStringify(start)
       hasDraft.value = Boolean(draft)
-      draftSavedAt.value = draft?.updatedAt ?? null
+      draftSavedAt.value = draft ? editable.draftUpdatedAt : null
       return true
     } catch (error) {
       handleLockError(error)
@@ -472,6 +662,11 @@ export function createEditorEngine(options: EditorEngineOptions) {
       return
     }
 
+    if (translating.value) {
+      setTranslated(key, value)
+      return
+    }
+
     const write = () => {
       materialize(key)
       setAt(document.value, key, cloneDocument(value))
@@ -483,6 +678,125 @@ export function createEditorEngine(options: EditorEngineOptions) {
     }
 
     record(write)
+  }
+
+  /**
+   * In a translation, a field writes only its translated leaves (text, label,
+   * alt), and only where the base can hold them. Other changes are ignored:
+   * the structure belongs to the default locale.
+   */
+  function setTranslated(key: string, value: unknown) {
+    const kind = fieldKind(key)
+
+    if (!kind || !canTranslate(key)) {
+      return
+    }
+
+    // What a translation stores of the field (C-78): the text itself, the
+    // label of a link or button, the alt of an image. The rest of the value
+    // belongs to the default locale.
+    const address = translationLeaf(kind, key)
+
+    if (!address) {
+      return
+    }
+
+    const leaf = address === key
+      ? value
+      : (value as Record<string, unknown> | null | undefined)?.[address.slice(key.length + 1)]
+    // Only the changed leaf is written into the shown document, as in the
+    // default locale: rebuilding it from the base on every keystroke
+    // re-rendered the whole page and made typing lag.
+    const write = () => {
+      const next = { ...translation.value }
+
+      if (leaf === undefined || leaf === null) {
+        Reflect.deleteProperty(next, address)
+        // Back to what the default locale says, or to the code default.
+        setAt(document.value, address, cloneDocument(getAt(base.value, address)))
+      } else {
+        next[address] = cloneDocument(leaf)
+        setAt(document.value, address, cloneDocument(leaf))
+      }
+
+      translation.value = next
+    }
+
+    if (editSession) {
+      write()
+      return
+    }
+
+    record(write)
+  }
+
+  /** Kind of a mounted field at this address. */
+  function fieldKind(key: string): FieldKind | null {
+    for (const field of fields.values()) {
+      if (field.key === key) {
+        return field.kind
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * The field can be translated: the base holds its address. An item that
+   * exists only as a code default cannot be: its id is not stored yet.
+   */
+  function canTranslate(key: string): boolean {
+    if (!translating.value) {
+      return true
+    }
+
+    // A collection the base does not hold is still the code defaults: its
+    // items are translated by their id from code (C-88), which CmsCollection
+    // lays over the defaults (withOverrides). A stored list without the item means
+    // the item was deleted: canSetAt refuses that.
+    return canSetAt(base.value, key)
+  }
+
+  /** The field has its own text in the edited translation. */
+  function isTranslated(key: string, kind: FieldKind): boolean {
+    const address = translationLeaf(kind, key)
+    return address !== null && Object.hasOwn(translation.value, address)
+  }
+
+  /**
+   * In a translation: the field has text to translate and no translation yet.
+   * Backgrounds and decorative images have no alt to translate; an item that
+   * exists only as a code default cannot be translated (canTranslate).
+   */
+  function isUntranslated(field: FieldRegistration): boolean {
+    if (!translating.value || field.kind === 'background' || translationLeaf(field.kind, field.key) === null) {
+      return false
+    }
+
+    if (field.kind === 'image'
+      && (field.api.decorative() || (getAt(document.value, field.key) as CmsImageValue | undefined)?.decorative)) {
+      return false
+    }
+
+    return canTranslate(field.key) && !isTranslated(field.key, field.kind)
+  }
+
+  /** Addresses of the mounted fields still to translate; one address can render twice. */
+  const untranslated = computed(() => {
+    const keys = new Set<string>()
+
+    for (const field of fields.values()) {
+      if (isUntranslated(field)) {
+        keys.add(field.key)
+      }
+    }
+
+    return keys
+  })
+
+  /** Value of a field in the default locale, for "Original" hints in a translation. */
+  function baseValue(key: string): unknown {
+    return getAt(base.value, key)
   }
 
   /** Starts typing in a field: everything until `endEdit` is one Undo step. Idempotent. */
@@ -510,7 +824,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
   /**
    * Value of a field in the published version. Inside a collection that is
-   * not published yet, the item's code default (`default-N`) stands in for
+   * not published yet, the item's code default (by its id) stands in for
    * it, so Reset does not empty a default item. Undefined: the slot default.
    */
   function publishedValue(key: string): unknown {
@@ -541,7 +855,34 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
   /** Back to the published value of one field. */
   function reset(key: string) {
-    set(key, publishedValue(key))
+    if (!translating.value) {
+      set(key, publishedValue(key))
+      return
+    }
+
+    // A translation goes back to its published leaves, or to none.
+    const kind = fieldKind(key)
+
+    if (readOnly.value || !kind) {
+      return
+    }
+
+    const published = parseDocument(publishedSnapshot.value)
+    endEdit()
+    record(() => {
+      const next = { ...translation.value }
+
+      const address = translationLeaf(kind, key)
+
+      if (address && Object.hasOwn(published, address)) {
+        next[address] = published[address]
+      } else if (address) {
+        Reflect.deleteProperty(next, address)
+      }
+
+      translation.value = next
+      refreshDocument()
+    })
   }
 
   /** The whole page back to the published version (a new local change; Save keeps it). */
@@ -552,7 +893,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
     endEdit()
     record(() => {
-      document.value = cloneDocument(publishedDocument.value)
+      setState(parseDocument(publishedSnapshot.value))
     })
   }
 
@@ -560,7 +901,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
   function discard() {
     endEdit()
     record(() => {
-      document.value = parseDocument(savedSnapshot.value)
+      setState(parseDocument(savedSnapshot.value))
     })
   }
 
@@ -578,7 +919,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     }
 
     redoStack.push({ id: step.id, snapshot: current.value })
-    document.value = parseDocument(step.snapshot)
+    setState(parseDocument(step.snapshot))
   }
 
   function redo() {
@@ -595,7 +936,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     }
 
     undoStack.push({ id: step.id, snapshot: current.value })
-    document.value = parseDocument(step.snapshot)
+    setState(parseDocument(step.snapshot))
   }
 
   function record(change: () => void) {
@@ -639,8 +980,11 @@ export function createEditorEngine(options: EditorEngineOptions) {
       const prefix = segments.slice(0, index).join('.')
       const defaults = collectionDefaults.get(prefix)
 
-      if (defaults && getAt(document.value, prefix) == null) {
-        setAt(document.value, prefix, cloneDocument(defaults()))
+      const stored = getAt(document.value, prefix)
+
+      // Not stored yet; an object is a translation of the code defaults.
+      if (defaults && !Array.isArray(stored)) {
+        setAt(document.value, prefix, cloneDocument(withOverrides(defaults(), stored)))
       }
     }
   }
@@ -664,12 +1008,12 @@ export function createEditorEngine(options: EditorEngineOptions) {
       return value.filter(isCollectionItem)
     }
 
-    return collectionDefaults.get(key)?.() ?? []
+    return withOverrides(collectionDefaults.get(key)?.() ?? [], value)
   }
 
   /** Adds an item after `afterId`, or at the end. Returns the new id. */
   function addItem(key: string, template: Record<string, unknown> = {}, afterId?: string): string | null {
-    if (readOnly.value) {
+    if (readOnly.value || translating.value) {
       return null
     }
 
@@ -698,7 +1042,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
   function removeItem(key: string, id: string) {
     // A stale or missing item is not a change: no Undo step, no copied defaults.
-    if (readOnly.value || !collectionItems(key).some(item => item.id === id)) {
+    if (readOnly.value || translating.value || !collectionItems(key).some(item => item.id === id)) {
       return
     }
 
@@ -715,7 +1059,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     const target = Math.max(0, Math.min(items.length - 1, toIndex))
 
     // Up on the first item, down on the last: nothing to record.
-    if (readOnly.value || from < 0 || from === target) {
+    if (readOnly.value || translating.value || from < 0 || from === target) {
       return
     }
 
@@ -745,6 +1089,14 @@ export function createEditorEngine(options: EditorEngineOptions) {
     }
   }
 
+  function requireLocale(): string {
+    if (!locale.value) {
+      throw new CmsDataError('unknown', 'The editor has no locale yet.')
+    }
+
+    return locale.value
+  }
+
   function requireEntity(): string {
     if (!entity.value) {
       throw new CmsDataError('unknown', 'The editor is not bound to an entity.')
@@ -756,6 +1108,10 @@ export function createEditorEngine(options: EditorEngineOptions) {
   return {
     // state
     entity,
+    locale,
+    defaultLocale,
+    defaultLocaleLabel,
+    translating,
     document,
     status,
     loadError,
@@ -779,6 +1135,8 @@ export function createEditorEngine(options: EditorEngineOptions) {
     media,
     // lifecycle
     load,
+    setLocale,
+    listLocaleStates,
     reload,
     heartbeat,
     takeOver,
@@ -795,6 +1153,11 @@ export function createEditorEngine(options: EditorEngineOptions) {
     // editing
     get,
     set,
+    canTranslate,
+    isTranslated,
+    isUntranslated,
+    untranslated,
+    baseValue,
     publishedValue,
     changed,
     beginEdit,
@@ -838,15 +1201,4 @@ function textOf(value: unknown): string | null {
   }
 
   return null
-}
-
-function richTextPlain(node: unknown): string {
-  if (typeof node !== 'object' || node === null) {
-    return ''
-  }
-
-  const { text, content } = node as { text?: unknown, content?: unknown }
-  const own = typeof text === 'string' ? text : ''
-  const children = Array.isArray(content) ? content.map(richTextPlain).join('') : ''
-  return own + children
 }

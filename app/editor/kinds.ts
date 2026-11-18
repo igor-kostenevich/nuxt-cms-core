@@ -80,6 +80,8 @@ interface FieldOf<K extends FieldKind> {
   label?: string
   required?: boolean
   maxLength?: number
+  /** Text the field shows from the page code, for the field registry (C-84). */
+  defaultText?: () => string
   api: FieldApis[K]
 }
 

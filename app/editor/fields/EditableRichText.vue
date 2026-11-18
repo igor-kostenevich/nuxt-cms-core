@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { richTextParagraphs } from '../plain-text'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { Editor } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import type { CmsRichTextValue } from '../../types/primitives'
@@ -7,7 +8,7 @@ import { isRichTextDoc } from '../../primitives/rich-text'
 import { toSafeHref } from '../../primitives/link'
 import { useEditorField } from '../field'
 import { normalizeRichText } from '../rich-text'
-import { stableStringify } from '../paths'
+import { stableStringify } from '../../primitives/paths'
 
 // Editable branch of CmsRichText. Tiptap mounts into the same tag the public
 // render uses, so the text keeps the page's own styles. Only the formatting
@@ -35,12 +36,26 @@ const { engine, view, key, id } = useEditorField({
   label: () => props.fieldLabel,
   required: () => props.required,
   maxLength: () => props.maxLength,
+  // What the field shows as plain text: the stored document, or the slot
+  // default, for the field registry (C-84).
+  defaultText: () => (isRichTextDoc(props.value)
+    ? richTextParagraphs(props.value)
+    : defaultHtml
+      ? [...new DOMParser().parseFromString(defaultHtml, 'text/html').body.children]
+          .map(node => node.textContent?.trim() ?? '').filter(Boolean).join('\n')
+        || new DOMParser().parseFromString(defaultHtml, 'text/html').body.textContent?.trim()
+        || ''
+      : ''),
   api: {
     get editor() {
       return editor.value
     },
   },
 })
+
+// In a translation, a field the base cannot hold yet (an item that is still a
+// code default) takes no input (C-78).
+const editable = computed(() => view.editable.value && engine.canTranslate(key.value))
 
 let defaultHtml = ''
 let lastWritten = ''
@@ -61,7 +76,7 @@ onMounted(async () => {
   editor.value = new Editor({
     element: { mount: el.value },
     content: contentFor(props.value),
-    editable: view.editable.value,
+    editable: editable.value,
     extensions: [
       StarterKit.configure({
         blockquote: false,
@@ -135,7 +150,7 @@ watch(() => props.value, (value) => {
 }, { deep: true })
 
 // Read-only page (lock) or Preview: the text shows, but takes no input.
-watch(() => view.editable.value, (editable) => {
+watch(() => editable.value, (editable) => {
   editor.value?.setEditable(editable)
 })
 

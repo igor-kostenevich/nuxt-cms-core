@@ -5,7 +5,7 @@ export { CMS_PERMISSIONS } from '../types/auth'
 /**
  * Static role → permission map for V1.
  *
- * The same matrix is duplicated in `cms_can()` in the cms_users migration.
+ * The same matrix is duplicated in `cms_can()` (newest definition: the localization migration).
  * UI checks are not a security boundary: RLS calls the SQL function.
  * Keep the two copies identical; tests/permissions-sync.test.ts fails when they drift.
  */
@@ -13,6 +13,7 @@ const GRANTED: Record<CmsRole, readonly CmsPermission[]> = {
   owner: [
     'settings.update',
     'users.manage',
+    'languages.manage',
     'pages.edit',
     'pages.publish',
     'pages.unlock',

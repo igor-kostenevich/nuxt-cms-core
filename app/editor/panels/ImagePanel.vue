@@ -9,6 +9,7 @@ import type { CmsFocalPoint, CmsImageValue, CmsMedia } from '../../types/media'
 import { useEditor } from '../inject'
 import type { FieldRegistration } from '../kinds'
 import ResetButton from './ResetButton.vue'
+import TranslationNote from './TranslationNote.vue'
 
 // Image and background editor. The field stores { mediaId, alt?, decorative?,
 // focal? } (C-74): choosing an image writes the id, the overrides below apply
@@ -36,6 +37,9 @@ const media = computed(() => resolved.value.media)
 const decorativeByCode = computed(() => props.field.api.decorative())
 const decorative = computed(() => decorativeByCode.value || value.value?.decorative === true)
 const altPlaceholder = computed(() => media.value?.defaultAlt || props.field.api.defaultAlt())
+// In a translation only the alt is this language's; the image, focal point and
+// "decorative" belong to the default language (C-78).
+const structureLocked = computed(() => engine.translating.value)
 // The <img> on the page: the field itself, or the image behind a background.
 // Re-found after a new choice renders, since a background may get its <img> only then.
 const frame = useImageCrop(
@@ -109,6 +113,10 @@ async function onFile(event: Event) {
 
 <template>
   <div class="ed-card ed-card--image">
+    <TranslationNote
+      :field="field"
+      :structure="t('cms.editor.locale.structureImage', { code: engine.defaultLocaleLabel.value })"
+    />
     <p class="ed-section-title">
       {{ t('cms.editor.image.replace') }}
     </p>
@@ -118,6 +126,7 @@ async function onFile(event: Event) {
         size="sm"
         class="ed-block"
         aria-haspopup="dialog"
+        :disabled="structureLocked"
         @click="pickerOpen = true"
       >
         <template #leading>
@@ -134,6 +143,7 @@ async function onFile(event: Event) {
         size="sm"
         class="ed-block"
         :loading="uploading"
+        :disabled="structureLocked"
         @click="fileInput?.click()"
       >
         <template #leading>
@@ -179,6 +189,7 @@ async function onFile(event: Event) {
           <input
             type="checkbox"
             :checked="decorative"
+            :disabled="structureLocked"
             @change="patch({ decorative: ($event.target as HTMLInputElement).checked })"
           >
           {{ t('cms.editor.image.decorative') }}
@@ -192,6 +203,7 @@ async function onFile(event: Event) {
         :src="media.url"
         :label="t('cms.editor.image.focal')"
         :frame="frame"
+        :disabled="structureLocked"
         @start="engine.beginEdit(field.key)"
         @end="engine.endEdit()"
       />

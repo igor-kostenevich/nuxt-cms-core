@@ -176,6 +176,11 @@ select id, 'en', jsonb_build_object(
 )
 from public.cms_pages where key = 'media-fixture';
 
+-- One language, the bootstrap one: the fixture locale is the default (010).
+delete from public.cms_site_settings_translations;
+delete from public.cms_site_texts;
+delete from public.cms_languages;
+
 update public.cms_site_settings set logo_media_id = current_setting('cms_test.media')::uuid;
 
 set local role anon;
@@ -183,14 +188,14 @@ set local role anon;
 select results_eq(
   $$
     select jsonb_array_length(media), media -> 0 ->> 'storage_path'
-    from public.cms_page_get_published('media-fixture', 'en')
+    from public.cms_page_get_localized('media-fixture', 'en', 'en')
   $$,
   $$ values (1, 'a0000000-0000-4000-8000-000000000004.webp') $$,
   'the published read returns the media its content references, ignoring non-ids'
 );
 
 select throws_ok(
-  $$ select * from public.cms_page_get_draft('media-fixture', 'en') $$,
+  $$ select * from public.cms_page_get_editable('media-fixture', 'en', 'en') $$,
   '42501', null, 'anon cannot read a draft with its media'
 );
 
@@ -199,7 +204,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-8000-0000000009e1", "role": "authenticated"}', true);
 
 select results_eq(
-  $$ select jsonb_array_length(media) from public.cms_page_get_draft('media-fixture', 'en') $$,
+  $$ select jsonb_array_length(media) from public.cms_page_get_editable('media-fixture', 'en', 'en') $$,
   $$ values (1) $$,
   'the draft read returns its media'
 );
@@ -250,7 +255,7 @@ select is_empty(
 );
 
 select results_eq(
-  $$ select jsonb_array_length(media) from public.cms_page_get_published('media-fixture', 'en') $$,
+  $$ select jsonb_array_length(media) from public.cms_page_get_localized('media-fixture', 'en', 'en') $$,
   $$ values (0) $$,
   'content that uses deleted media resolves to nothing: the site renders the code default'
 );

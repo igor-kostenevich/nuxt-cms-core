@@ -67,3 +67,22 @@ describe('resolveCmsLink', () => {
     })
   })
 })
+
+describe('resolveCmsLink with a link resolver (C-79)', () => {
+  const localize = (href: string) => `/en${href}`
+
+  it('maps site paths to the current locale', () => {
+    expect(resolveCmsLink('/about', false, localize)).toEqual({ href: '/en/about' })
+  })
+
+  it('leaves anchors, other hosts and schemes alone', () => {
+    expect(resolveCmsLink('#contact', false, localize)?.href).toBe('#contact')
+    expect(resolveCmsLink('//cdn.example.com/a', false, localize)?.href).toBe('//cdn.example.com/a')
+    expect(resolveCmsLink('https://example.com', false, localize)?.href).toBe('https://example.com')
+    expect(resolveCmsLink('mailto:a@b.c', false, localize)?.href).toBe('mailto:a@b.c')
+  })
+
+  it('checks what the resolver returns against the allow-list again', () => {
+    expect(resolveCmsLink('/about', false, () => 'javascript:alert(1)')?.href).toBe('/about')
+  })
+})

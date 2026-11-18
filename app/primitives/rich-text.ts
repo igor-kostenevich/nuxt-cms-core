@@ -8,6 +8,8 @@ import { resolveCmsLink } from './link'
 export interface RenderRichTextOptions {
   /** Render paragraphs as inline content separated by `<br>`, e.g. inside a heading. */
   inline?: boolean
+  /** Maps a site path to the current locale (the Client's link resolver). */
+  localize?: (href: string) => string
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -20,7 +22,7 @@ function childrenOf(node: UnknownRecord): unknown[] {
   return Array.isArray(node.content) ? node.content : []
 }
 
-function applyMark(child: VNodeChild, mark: UnknownRecord): VNodeChild {
+function applyMark(child: VNodeChild, mark: UnknownRecord, options: RenderRichTextOptions): VNodeChild {
   switch (mark.type) {
     case 'bold':
       return h('strong', [child])
@@ -28,7 +30,7 @@ function applyMark(child: VNodeChild, mark: UnknownRecord): VNodeChild {
       return h('em', [child])
     case 'link': {
       const attrs = isRecord(mark.attrs) ? mark.attrs : {}
-      const link = resolveCmsLink(attrs.href, attrs.target === '_blank')
+      const link = resolveCmsLink(attrs.href, attrs.target === '_blank', options.localize)
 
       return link ? h('a', link, [child]) : child
     }
@@ -37,7 +39,7 @@ function applyMark(child: VNodeChild, mark: UnknownRecord): VNodeChild {
   }
 }
 
-function renderText(node: UnknownRecord): VNodeChild | null {
+function renderText(node: UnknownRecord, options: RenderRichTextOptions): VNodeChild | null {
   if (typeof node.text !== 'string' || !node.text) {
     return null
   }
@@ -47,10 +49,10 @@ function renderText(node: UnknownRecord): VNodeChild | null {
   const unique = marks.filter((mark, index) => marks.findIndex(other => other.type === mark.type) === index)
 
   // Wrap from the last mark outwards, so the first mark ends up outermost.
-  return unique.reduceRight<VNodeChild>((child, mark) => applyMark(child, mark), node.text)
+  return unique.reduceRight<VNodeChild>((child, mark) => applyMark(child, mark, options), node.text)
 }
 
-function renderInline(paragraph: UnknownRecord): VNodeChild[] {
+function renderInline(paragraph: UnknownRecord, options: RenderRichTextOptions): VNodeChild[] {
   const children: VNodeChild[] = []
 
   for (const node of childrenOf(paragraph)) {
@@ -62,7 +64,7 @@ function renderInline(paragraph: UnknownRecord): VNodeChild[] {
       children.push(h('br'))
     }
     else if (node.type === 'text') {
-      const text = renderText(node)
+      const text = renderText(node, options)
 
       if (text !== null) {
         children.push(text)
@@ -100,8 +102,8 @@ export function renderRichText(value: unknown, options: RenderRichTextOptions = 
 
   if (options.inline) {
     return paragraphs.flatMap((paragraph, index) =>
-      index === 0 ? renderInline(paragraph) : [h('br'), ...renderInline(paragraph)])
+      index === 0 ? renderInline(paragraph, options) : [h('br'), ...renderInline(paragraph, options)])
   }
 
-  return paragraphs.map(paragraph => h('p', renderInline(paragraph)))
+  return paragraphs.map(paragraph => h('p', renderInline(paragraph, options)))
 }

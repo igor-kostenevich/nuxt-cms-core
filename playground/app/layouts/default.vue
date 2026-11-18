@@ -2,15 +2,44 @@
 // Site frame of the playground: header and footer are plain code (global
 // content is read-only in Edit Mode, MASTER_PLAN D-19). Its links navigate
 // normally, inside Edit Mode too.
+// Labels are site texts (cms.texts.ts): changed and translated in the admin.
+const { t } = useCmsText()
 const nav = [
-  { label: 'Home', to: '/' },
-  { label: 'About', to: '/about' },
-  { label: 'Services', to: '/#services' },
-  { label: 'Work', to: '/#work' },
-  { label: 'Contact', to: '/#contact' },
+  { label: 'nav.home', to: '/' },
+  { label: 'nav.about', to: '/about' },
+  { label: 'nav.services', to: '/#services' },
+  { label: 'nav.work', to: '/#work' },
+  { label: 'nav.contact', to: '/#contact' },
 ]
 
 const year = new Date().getFullYear()
+
+// Languages (010): the routing is this site's own (prefix except default).
+const route = useRoute()
+const locale = useCmsLocale()
+const to = useLocalePath()
+const { languages, defaultLocale, multilingual, ready } = useCmsLanguages()
+
+await ready
+
+// `/de/...` for a language the site does not serve, or `/uk/...` for the
+// default one (it lives without a prefix): not a page of this site. Edit Mode
+// renders the layout under /admin, where the route has no locale.
+const prefix = route.params.locale
+
+if (typeof prefix === 'string' && prefix
+  && (prefix === defaultLocale.value || !languages.value.some(language => language.code === prefix))) {
+  throw createError({ statusCode: 404, statusMessage: 'Page not found', fatal: true })
+}
+
+/** The current page in another language. */
+function switchTo(code: string) {
+  const neutral = route.path.replace(/^\/[a-z]{2,3}(-[A-Za-z0-9]+)?(?=\/|$)/, (match) =>
+    languages.value.some(language => `/${language.code}` === match) ? '' : match) || '/'
+  return localePath(neutral, code === defaultLocale.value ? null : code)
+}
+
+const current = computed(() => locale.value ?? defaultLocale.value)
 
 // Settings → Brand (009): the logo and favicon are media the CMS manages.
 // Without them the site keeps its own wordmark and the default favicon.
@@ -29,11 +58,11 @@ useHead({
     <a
       href="#main"
       class="skip-link"
-    >Skip to content</a>
+    >{{ t('header.skip') }}</a>
     <header class="site-header">
       <div class="container site-header__inner">
         <NuxtLink
-          to="/"
+          :to="to('/')"
           class="logo"
         >
           <img
@@ -53,16 +82,33 @@ useHead({
           <NuxtLink
             v-for="item in nav"
             :key="item.to"
-            :to="item.to"
+            :to="to(item.to)"
           >
-            {{ item.label }}
+            {{ t(item.label) }}
+          </NuxtLink>
+        </nav>
+        <nav
+          v-if="multilingual"
+          class="lang-switch"
+          aria-label="Language"
+        >
+          <NuxtLink
+            v-for="language in languages"
+            :key="language.code"
+            :to="switchTo(language.code)"
+            :hreflang="language.code"
+            :lang="language.code"
+            :aria-current="language.code === current ? 'true' : undefined"
+            :title="language.nativeName"
+          >
+            {{ language.code.toUpperCase() }}
           </NuxtLink>
         </nav>
         <NuxtLink
-          to="/#contact"
+          :to="to('/#contact')"
           class="btn btn--dark"
         >
-          Get in touch
+          {{ t('header.cta') }}
         </NuxtLink>
       </div>
     </header>
@@ -71,10 +117,10 @@ useHead({
 
     <footer class="site-footer">
       <div class="container site-footer__inner">
-        <span>© {{ year }} Luminary Studio</span>
+        <span>{{ t('footer.copyright', { year }) }}</span>
         <nav aria-label="Footer">
-          <NuxtLink to="/about">
-            About
+          <NuxtLink :to="to('/about')">
+            {{ t('footer.about') }}
           </NuxtLink>
           <NuxtLink to="/dev">
             Diagnostics
@@ -92,6 +138,26 @@ useHead({
 </template>
 
 <style>
+.lang-switch {
+  display: flex;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lang-switch a {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.6;
+}
+
+.lang-switch a[aria-current="true"] {
+  background: rgb(0 0 0 / 8%);
+  opacity: 1;
+}
+
 :root {
   --ink: #0c0c0f;
   --ink-soft: #4a4a55;

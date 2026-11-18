@@ -15,6 +15,8 @@ export function createEditorView(engine: EditorEngine) {
   const hover = ref<string | null>(null)
   const preview = ref(false)
   const highlight = ref(true)
+  /** In a translation: dim everything but the fields still to translate. */
+  const onlyUntranslated = ref(false)
 
   /** Fields take input: the lock is held and Preview is off. */
   const editable = computed(() => !engine.readOnly.value && !preview.value)
@@ -58,6 +60,7 @@ export function createEditorView(engine: EditorEngine) {
     hover,
     preview,
     highlight,
+    onlyUntranslated,
     editable,
     select,
     forget,

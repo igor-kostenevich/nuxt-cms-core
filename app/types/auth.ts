@@ -7,6 +7,7 @@ export const CMS_ROLES = ['owner', 'admin', 'editor'] as const
 export const CMS_PERMISSIONS = [
   'settings.update',
   'users.manage',
+  'languages.manage',
   'pages.edit',
   'pages.publish',
   'pages.unlock',

@@ -6,6 +6,7 @@ import { useEditor } from '../inject'
 import type { FieldRegistration } from '../kinds'
 import FieldCounter from './FieldCounter.vue'
 import ResetButton from './ResetButton.vue'
+import TranslationNote from './TranslationNote.vue'
 
 // Formatting toolbar above a rich text field: only what the stored format
 // supports (bold, italic, link; MASTER_PLAN C-49). Format buttons keep the
@@ -157,6 +158,10 @@ function applyLink() {
       <span
         class="ed-mini__divider"
         aria-hidden="true"
+      />
+      <TranslationNote
+        :field="field"
+        compact
       />
       <FieldCounter
         v-if="field.maxLength"

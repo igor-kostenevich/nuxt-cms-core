@@ -1,0 +1,73 @@
+{
+  "base": {
+    "hero": {
+      "title": "Привіт",
+      "cta": {
+        "label": "Почати",
+        "href": "/about"
+      },
+      "image": {
+        "mediaId": "00000000-0000-4000-8000-000000000001",
+        "alt": "Студія"
+      }
+    },
+    "services": {
+      "items": [
+        {
+          "id": "a1",
+          "title": "Один"
+        },
+        {
+          "id": "b2",
+          "title": "Два"
+        }
+      ]
+    }
+  },
+  "translation": {
+    "hero.title": "Hello",
+    "hero.cta.label": "Start",
+    "hero.image.alt": "Studio",
+    "services.items.b2.title": "Two",
+    "services.items.zz.title": "Gone",
+    "about.lead": "Created",
+    "hero.title.deep": "Not writable",
+    "__proto__.polluted": "no",
+    "bad key": "no"
+  },
+  "applied": {
+    "hero": {
+      "title": "Hello",
+      "cta": {
+        "label": "Start",
+        "href": "/about"
+      },
+      "image": {
+        "mediaId": "00000000-0000-4000-8000-000000000001",
+        "alt": "Studio"
+      }
+    },
+    "services": {
+      "items": [
+        {
+          "id": "a1",
+          "title": "Один"
+        },
+        {
+          "id": "b2",
+          "title": "Two"
+        }
+      ]
+    },
+    "about": {
+      "lead": "Created"
+    }
+  },
+  "pruned": {
+    "about.lead": "Created",
+    "hero.cta.label": "Start",
+    "hero.image.alt": "Studio",
+    "hero.title": "Hello",
+    "services.items.b2.title": "Two"
+  }
+}

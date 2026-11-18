@@ -172,3 +172,27 @@
 body:has(.cms-admin) {
   margin: 0;
 }
+
+/* Cards of Settings groups (AdminSettingsLayout). */
+.cms-admin .settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cms-space-5);
+  padding: var(--cms-space-6);
+  border: var(--cms-border-width) solid var(--cms-border);
+  border-radius: var(--cms-radius-lg);
+  background: var(--cms-card);
+}
+
+.cms-admin .settings-card__title {
+  margin: 0;
+  font-size: var(--cms-type-h3-size);
+  font-weight: var(--cms-type-h3-weight);
+  line-height: var(--cms-type-h3-line);
+}
+
+.cms-admin .settings-card__hint {
+  margin: 0;
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-body-small-size);
+}

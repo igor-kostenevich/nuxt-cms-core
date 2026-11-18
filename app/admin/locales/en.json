@@ -11,7 +11,8 @@
       "caption": "Content Management System",
       "emailPlaceholder": "name@company.com",
       "logout": "Log out",
-      "close": "Close"
+      "close": "Close",
+      "cancel": "Cancel"
     },
     "roles": {
       "owner": "Owner",
@@ -48,13 +49,13 @@
         "users": "Users",
         "secrets": "Secrets",
         "settings": "Settings",
-        "editSite": "Edit site"
+        "editSite": "Edit site",
+        "texts": "Texts"
       },
       "soon": "Coming soon",
       "logoutFailed": "Could not log out. Try again."
     },
     "settings": {
-      "general": "General",
       "siteName": "Site name",
       "contactEmail": "Contact email",
       "contactPhone": "Contact phone",
@@ -73,7 +74,52 @@
         "none": "Not set",
         "hint": "The site shows these where its code uses them.",
         "saved": "Brand saved."
-      }
+      },
+      "nav": {
+        "label": "Settings sections",
+        "general": "General",
+        "brand": "Brand",
+        "languages": "Languages"
+      },
+      "siteNameTranslationHint": "Leave empty to show the name in the default language.",
+      "languages": {
+        "monolingual": "The site has one language. Add another one to translate content.",
+        "ownerOnly": "Only the owner can manage languages.",
+        "defaultBadge": "Default",
+        "defaultCannotDisable": "The default language cannot be disabled.",
+        "useCode": "Use code {code}",
+        "codeFormat": "Use a code like de, en-GB or zh-Hant.",
+        "add": "Add language",
+        "added": "{name} added, hidden from the site. Translate the pages in the editor, then turn on \"On the site\".",
+        "enabled": "{name} is now on the site.",
+        "disabled": "{name} is hidden from the site. Its translations are kept.",
+        "reordered": "Order saved.",
+        "exists": "This language has already been added.",
+        "pageOpen": "A page is open in Edit Mode. Try again when nobody is editing.",
+        "moveUpShort": "Move up",
+        "moveDownShort": "Move down",
+        "dragHandle": "Drag to reorder {name}, or use the arrow keys",
+        "defaultTooltip": "The language of the original: the texts in the code and on the pages are written in it, and visitors see it where a translation is missing. It cannot be changed.",
+        "offBadge": "In progress",
+        "offTooltip": "Hidden from visitors. Editors translate it in the editor. Turn on \"On the site\" when the translation is ready.",
+        "disableTooltip": "Hide from the site: visitors no longer see it, its translations are kept.",
+        "enableTooltip": "Show on the site: visitors get this language, with what is translated so far.",
+        "activeFor": "{name} on the site",
+        "actions": "Actions for {name}",
+        "searchLabel": "Find a language",
+        "searchPlaceholder": "Language name or code",
+        "noResults": "No such language. Type a code such as de-AT to add one that is not listed.",
+        "translate": "Translate in the editor",
+        "delete": "Delete language",
+        "deleteTitle": "Delete {name}?",
+        "deleteBody": "All of its translations are deleted for good: page texts, drafts, publication history and the site name in this language. This cannot be undone.",
+        "deleteHint": "To only take it off the site and keep the translations, turn off \"On the site\" instead.",
+        "deleteConfirm": "Delete for good",
+        "deleted": "{name} deleted with its translations."
+      },
+      "siteNameDefaultHint": "In {language}, the main language of the site.",
+      "siteNameOther": "Site name in other languages",
+      "siteNameFilled": "{filled} of {total} filled in"
     },
     "validation": {
       "required": "Fill in this field.",
@@ -253,6 +299,29 @@
       "issues": {
         "required": "{name}: required",
         "maxLength": "{name}: too long"
+      },
+      "locale": {
+        "switcher": "Language of the content",
+        "switcherCurrent": "Content language: {code}",
+        "default": "default",
+        "stateDraft": "Draft",
+        "statePublished": "Published",
+        "stateEmpty": "Not published",
+        "stateUntranslated": "Not translated",
+        "translated": "Translated",
+        "untranslated": "Not translated · shows {code}",
+        "original": "Original ({code}): {text}",
+        "originalLabel": "Original · {code}",
+        "saveBaseFirst": "This item is no longer on the page in {code}.",
+        "saveBaseFirstShort": "Removed in {code}",
+        "structureLink": "The address and \"new tab\" are set in {code} for every language.",
+        "structureImage": "The image, focal point and \"decorative\" are set in {code} for every language. Here you translate the alt text.",
+        "structureShort": "Changed in {code}",
+        "bannerTitle": "Translation {code}",
+        "bannerBody": "Texts, link labels and alt texts are translated here. Structure, images and links are changed in {code}.",
+        "onlyUntranslated": "Only untranslated ({count})",
+        "allTranslated": "All translated",
+        "hiddenOnSite": "hidden on the site"
       }
     },
     "media": {
@@ -316,6 +385,58 @@
       "cancel": "Cancel",
       "choose": "Choose",
       "frameHint": "The bright frame is what the page shows at this screen width."
+    },
+    "texts": {
+      "language": "Language",
+      "defaultLanguage": "{name} · default",
+      "hiddenLanguage": "{name} · hidden on the site",
+      "onlyMissing": "Only untranslated",
+      "publish": "Publish translation ({count})",
+      "nothingToPublish": "No changes to publish",
+      "published": "{published} pages published in {name}.",
+      "publishedSkipped": "Pages published: {published}. Skipped (the draft changed or the page was opened in the editor): {skipped}.",
+      "translatingHint": "Page texts are saved as a draft of this language and go live with \"Publish translation\". Site texts are live at once. The original is in {name}.",
+      "groups": "Groups of texts",
+      "pages": "Pages",
+      "siteTexts": "Site texts",
+      "siteGroup": "{group}",
+      "noPages": "Open pages in the editor and their texts show up here.",
+      "noSiteTexts": "No site texts in cms.texts.ts yet.",
+      "missingCount": "{count} not translated",
+      "empty": "Nothing here.",
+      "allTranslated": "Everything here is translated.",
+      "pageOpen": "This page is open in the editor right now. Try again when it is closed.",
+      "saveBaseFirst": "This item is no longer on the page in {name}.",
+      "richInEditor": "Formatted text is translated in the editor.",
+      "valueFor": "Text of {name}",
+      "saving": "Saving",
+      "openInEditor": "Open in the editor",
+      "openInEditorFor": "Open {name} in the editor",
+      "resetToCode": "Back to the text from code",
+      "kinds": {
+        "heading": "Heading",
+        "text": "Text",
+        "richText": "Paragraph",
+        "link": "Link",
+        "button": "Button",
+        "image": "Image description (alt)"
+      },
+      "inItem": "{name} · item {number}",
+      "publishChanges": "Publish changes ({count})",
+      "publishTitle": "Publish translation · {name}",
+      "publishChangesTitle": "Publish changes",
+      "publishChosen": "Publish ({count})",
+      "unsaved": "Some texts were not saved. Fix the marked fields and try again.",
+      "originalHint": "Page texts are saved into the same draft as in the editor and appear on the site after “Publish changes”. Site texts are live at once.",
+      "savedDraft": "Saved in the draft",
+      "savedLive": "Saved on the site",
+      "notSaved": "Not saved: leave the field again to retry",
+      "summaryTexts": "Texts: {count}",
+      "summaryTextsAndOther": "Texts: {count} + other changes",
+      "summaryOther": "Other changes from the editor",
+      "summaryOtherHint": "The draft has changes from the editor: images, links, order or blocks. Tick the page if they should go live too.",
+      "openInEditorNow": "Open in the editor",
+      "openInEditorHint": "Someone is editing this page: it is published from the editor or later."
     }
   }
 }
