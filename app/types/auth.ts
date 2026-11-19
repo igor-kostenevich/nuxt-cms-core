@@ -14,6 +14,8 @@ export const CMS_PERMISSIONS = [
   'media.upload',
   'media.edit',
   'media.delete',
+  'forms.view',
+  'forms.manage',
 ] as const
 export const CMS_USER_STATUSES = ['active', 'disabled'] as const
 

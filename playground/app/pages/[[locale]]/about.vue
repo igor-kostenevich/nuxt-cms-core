@@ -48,6 +48,7 @@ const about = computed(() => (page.value?.content ?? {}) as AboutContent)
         Home
       </CmsLink>
     </p>
+    <ContactForm />
   </main>
 </template>
 

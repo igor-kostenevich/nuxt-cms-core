@@ -156,3 +156,12 @@ function mergeLevel(
 
 // Site texts (C-85) are declared next to the config, in cms.texts.ts.
 export { defineCmsTexts, type CmsTextDefinition, type CmsTextsInput } from './texts'
+// Forms (011) are declared next to the config, in cms.forms.ts.
+export {
+  defineCmsForms,
+  type CmsFormDefinition,
+  type CmsFormFieldDefinition,
+  type CmsFormFieldRole,
+  type CmsFormFieldType,
+  type CmsFormsInput,
+} from './forms'

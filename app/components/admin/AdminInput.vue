@@ -14,6 +14,8 @@ const props = withDefaults(defineProps<{
   /** Several lines of text. */
   multiline?: boolean
   rows?: number
+  /** Keeps the label for screen readers only, e.g. a search field with a placeholder. */
+  hideLabel?: boolean
 }>(), {
   error: undefined,
   hint: undefined,
@@ -36,7 +38,7 @@ const describedBy = computed(() => [props.error ? errorId : null, props.hint ? h
   <div class="admin-input">
     <label
       class="admin-input__label"
-      :class="{ 'admin-input__label--sm': size === 'sm' }"
+      :class="{ 'admin-input__label--sm': size === 'sm', 'admin-input__label--hidden': hideLabel }"
       :for="id"
     >
       {{ label }}
@@ -198,5 +200,13 @@ const describedBy = computed(() => [props.error ? errorId : null, props.hint ? h
   background: var(--cms-surface-disabled);
   color: var(--cms-text-disabled);
   cursor: not-allowed;
+}
+.admin-input__label--hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 </style>

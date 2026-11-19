@@ -14,7 +14,7 @@ src/config.ts                        cms.config contract + runtime config contra
 src/module.ts                        Nuxt Module: loads cms.config.ts, exposes #cms/config, reads env
 app/types/settings.ts                SiteSettings domain type
 app/data/supabase.ts                 Anonymous backend client for public reads
-app/data/supabase-auth.ts            Session client. These two files are the only Supabase SDK imports
+app/data/supabase-auth.ts            Session client. These two files are the only Supabase SDK imports in app/
 app/data/errors.ts                   CmsDataError, the only error type the Data Layer exposes
 app/data/repositories/               Core repositories
 app/auth/                            Permission map and post-login redirect check
@@ -23,6 +23,8 @@ app/composables/useSiteSettings.ts   Reactive site settings
 app/composables/useCmsAuth.ts        CMS session: identity plus active cms_users row
 app/middleware/cms-auth.ts           Named gate for /admin pages
 app/pages/admin/                     Login and a proof page. Not the admin shell
+server/api/cms/forms/[key].post.ts   Form submit route (the only server route so far)
+server/cms/supabase.ts               Server-only client with the secret key. Never imported by app/
 supabase/migrations/                 Core migrations, shipped with the package
 supabase/seed.sql                    Local fixtures only. Not part of the published package
 playground/                          Consumer Nuxt app used for verification
@@ -114,6 +116,54 @@ NUXT_PUBLIC_CMS_SUPABASE_KEY=
 ```
 
 Otherwise the deployed app keeps the connection of the machine that built it.
+
+### Secret key (forms)
+
+Form submissions are written by a server route of Core with the backend's secret key. Set it **at
+runtime, on the server only**:
+
+```bash
+NUXT_CMS_SUPABASE_SECRET=   # or SUPABASE_SECRET
+```
+
+Locally it is the `SECRET_KEY` from `supabase status`; in a hosted project, Project Settings → API keys.
+It is never read at build time and never reaches the browser. Without it, forms answer "unavailable".
+
+### Visitor address (form limits)
+
+Each form has a ceiling for all visitors together (50 attempts per 10 minutes) and, when the server
+knows the visitor address, limits per visitor (5 per form, 10 across forms). A client can write any
+header, so Core trusts none by default. Set the source at runtime with `NUXT_CMS_CLIENT_ADDRESS`:
+
+| Value | When |
+|---|---|
+| `auto` (default) | `vercel` on Vercel, `socket` in `nuxi dev`, otherwise `none` |
+| `none` | No trusted address: only the ceiling of the form counts |
+| `socket` | The Node server takes connections from visitors directly, with no proxy in front |
+| `vercel` | Vercel: it overwrites `X-Forwarded-For` with the visitor address |
+| `cloudflare` | `CF-Connecting-IP`, **only** when the origin accepts nothing but Cloudflare (firewall or Authenticated Origin Pulls) |
+| `proxy` / `proxy:N` | N reverse proxies you run (nginx with `$proxy_add_x_forwarded_for`): the N-th `X-Forwarded-For` entry from the right, believed only when the connection comes from a loopback or private address |
+
+Behind a proxy, do not use `socket`: every visitor would have the proxy's address and share one limit.
+With `proxy`, the app port must be reachable only by the proxy (bind to 127.0.0.1 or an internal network;
+do not publish it with `docker -p` or a Kubernetes NodePort): a request that skips the proxy from a private
+address would be believed. With `vercel`, do not put another proxy in front (Cloudflare with proxied DNS):
+visitors would share the address of that proxy.
+
+**The ceiling can be used up on purpose.** With `none` (the default outside Vercel) one sender can make 50
+attempts in 10 minutes and the form refuses everyone until the window ends; with a trusted source, a sender
+who controls many addresses (an IPv6 prefix larger than /64) can do the same. The server logs a warning the
+first time a form reaches its ceiling in a window. Set a trusted source, and put bot protection at the edge
+(the platform's firewall or WAF) for a site that draws spam. The limits are fixed in this version.
+IPv6 addresses count by their /64 network. A request without a trusted address never shares a
+visitor bucket with others; it counts only against the ceiling of the form. The server logs a warning
+once when no source is set. Other platforms (Netlify and the like): use `none` until their header is
+confirmed.
+
+Submissions are personal data and Core keeps them until someone deletes them: there is no automatic
+retention. Decide how long the site keeps them (archive and spam included) and delete them by hand or
+with a scheduled job. The address is never stored; rate-limit buckets hold only an HMAC pseudonym, not linked
+to a submission, and are removed by later submissions once older than a day.
 
 ## Reading content
 

@@ -9,6 +9,87 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cms_form_rate_limits: {
+        Row: {
+          bucket: string
+          count: number
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          count?: number
+          window_start: string
+        }
+        Update: {
+          bucket?: string
+          count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
+      cms_form_submissions: {
+        Row: {
+          client_token: string
+          created_at: string
+          form_key: string
+          id: string
+          locale: string | null
+          location: string
+          page_path: string | null
+          payload: Json
+          payload_fingerprint: string
+          read_at: string | null
+          search_text: string
+        }
+        Insert: {
+          client_token: string
+          created_at?: string
+          form_key: string
+          id?: string
+          locale?: string | null
+          location?: string
+          page_path?: string | null
+          payload: Json
+          payload_fingerprint: string
+          read_at?: string | null
+          search_text?: string
+        }
+        Update: {
+          client_token?: string
+          created_at?: string
+          form_key?: string
+          id?: string
+          locale?: string | null
+          location?: string
+          page_path?: string | null
+          payload?: Json
+          payload_fingerprint?: string
+          read_at?: string | null
+          search_text?: string
+        }
+        Relationships: []
+      }
+      cms_forms: {
+        Row: {
+          enabled: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       cms_languages: {
         Row: {
           active: boolean
@@ -434,6 +515,39 @@ export type Database = {
       cms_default_locale: {
         Args: { bootstrap_locale: string }
         Returns: string
+      }
+      cms_form_set_enabled: {
+        Args: { form_enabled: boolean; form_key: string }
+        Returns: undefined
+      }
+      cms_form_stats: {
+        Args: never
+        Returns: {
+          form_key: string
+          last_at: string
+          sources: string[]
+          total: number
+          unread: number
+        }[]
+      }
+      cms_form_submit: {
+        Args: {
+          client_hash: string
+          client_limit?: number
+          client_token: string
+          form_key: string
+          form_limit?: number
+          page_locale: string
+          page_path: string
+          payload: Json
+          search_text: string
+          total_limit?: number
+          window_seconds?: number
+        }
+        Returns: {
+          status: string
+          submission_id: string
+        }[]
       }
       cms_is_focal: { Args: { value: Json }; Returns: boolean }
       cms_language_add: {

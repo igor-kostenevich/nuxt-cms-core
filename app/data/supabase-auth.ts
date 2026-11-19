@@ -174,6 +174,21 @@ export async function signOut(request?: H3Event): Promise<void> {
   }
 }
 
+/**
+ * Calls `callback` when the browser session ends: here or in another tab of
+ * the same site (supabase-js relays auth events between tabs). Browser only;
+ * returns the unsubscribe function.
+ */
+export function onSignedOut(callback: () => void): () => void {
+  const { data } = getSupabaseAuthClient().auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      callback()
+    }
+  })
+
+  return () => data.subscription.unsubscribe()
+}
+
 function isInvalidCredentials(error: { code?: string, name?: string }): boolean {
   return error.code === 'invalid_credentials' || error.name === 'AuthInvalidCredentialsError'
 }

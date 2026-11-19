@@ -47,6 +47,8 @@ e2e) → `/epic-review <id>` → правки → `/epic-review <id> recheck` �
 ```
 nuxt.config.ts        Layer entry, реєструє src/module і @nuxt/icon
 src/                  Nuxt Module і контракт cms.config (defineCmsConfig, #cms/config)
+server/               Nitro-частина Core (лише сервер): api/cms/forms — відправка форм (011); cms/ — server-only
+                      клієнт із secret-ключем (єдиний імпорт SDK поза app/data, app/ його не імпортує) і хелпери
 bin/                  Заготовка CLI nuxt-cms (сам CLI — 016)
 app/data/             Supabase-клієнти (єдині імпорти SDK), CmsDataError, repositories, storage/ (Storage Adapter)
 app/auth/             Матриця прав can() — має збігатися з SQL cms_can()
@@ -90,7 +92,8 @@ supabase start    # локальний Supabase (Docker); ключі — supabas
 
 - UI → Composable → Repository → Backend Adapter. Компоненти не звертаються до Supabase.
 - Repository має лише методи своєї сутності; без BaseRepository «про запас».
-- RLS на кожну mutation; `can()` в UI — не захист; secret key лише server-side.
+- RLS на кожну mutation; `can()` в UI — не захист; secret key лише server-side (`server/cms/supabase.ts`,
+  `NUXT_CMS_SUPABASE_SECRET` під час виконання).
 - Anon-клієнт — singleton; клієнт із сесією — лише на request event; SSR-дані через `useAsyncData`.
 - Public Runtime не тягне Admin / Editor / Tiptap / admin CSS — `npm run check:bundle` в DoD.
 - Значення з БД — недовірений вхід: rich text рендериться без `v-html`, `href` — через allow-list

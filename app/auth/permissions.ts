@@ -20,6 +20,8 @@ const GRANTED: Record<CmsRole, readonly CmsPermission[]> = {
     'media.upload',
     'media.edit',
     'media.delete',
+    'forms.view',
+    'forms.manage',
   ],
   admin: [
     'settings.update',
@@ -29,6 +31,8 @@ const GRANTED: Record<CmsRole, readonly CmsPermission[]> = {
     'media.upload',
     'media.edit',
     'media.delete',
+    'forms.view',
+    'forms.manage',
   ],
   editor: ['pages.edit', 'media.upload', 'media.edit'],
 }

@@ -44,7 +44,12 @@ export function useCmsText() {
       : value
   }
 
+  /** Whether the text exists (stored or in cms.texts.ts), without a dev warning: for optional texts. */
+  function has(key: string): boolean {
+    return query.data.value?.[key] !== undefined || codeTexts.has(key)
+  }
+
   const ready: Promise<void> = Promise.resolve(query).then(() => undefined)
 
-  return { t, ready }
+  return { t, has, ready }
 }

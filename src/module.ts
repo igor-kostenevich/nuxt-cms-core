@@ -3,7 +3,23 @@ import { join, resolve, sep } from 'node:path'
 import { addTemplate, addTypeTemplate, createResolver, defineNuxtModule, useLogger } from '@nuxt/kit'
 import { loadConfig } from 'c12'
 import { resolveCmsConfig, type CmsConfig, type CmsRuntimeConfig } from './config'
+import { MAX_FIELDS, MAX_FORMS, MAX_TEXT_LENGTH, resolveCmsForms, type CmsFormsIgnoredReason } from './forms'
 import { resolveCmsTexts } from './texts'
+
+const FORM_WARNINGS: Record<CmsFormsIgnoredReason, string> = {
+  'form-key': 'the form key must start with a letter and use letters, digits, "_" or "-"',
+  'form-shape': 'a form is `{ fields: [...] }`',
+  'too-many-forms': `more than ${MAX_FORMS} forms`,
+  'no-fields': 'the form has no valid fields',
+  'field-key': 'the field key must start with a letter and use letters, digits, "_" or "-"',
+  'field-duplicate': 'the field key is used twice',
+  'field-type': 'unknown field type (text, email, tel, textarea, select, checkbox)',
+  'field-length': `maxLength must be a whole number from 1 to ${MAX_TEXT_LENGTH}`,
+  'field-options': 'a select needs unique options of letters, digits, "_" or "-"',
+  'field-role': 'unknown role, or a role that does not fit the type (name: text, email: email, phone: tel, message: textarea / text)',
+  'role-duplicate': 'the role is already taken by another field; the role is dropped',
+  'too-many-fields': `more than ${MAX_FIELDS} fields`,
+}
 
 export default defineNuxtModule({
   meta: {
@@ -54,8 +70,27 @@ export default defineNuxtModule({
       }
     }
 
-    // Restart the dev server when the project changes its CMS config or texts.
-    for (const file of [configFile, textsFile]) {
+    // Forms (011): cms.forms.ts next to cms.config.ts. Optional.
+    const { config: formsInput, configFile: formsFile } = await loadConfig<Record<string, unknown>>({
+      configFile: 'cms.forms',
+      cwd: nuxt.options.rootDir,
+      rcFile: false,
+      globalRc: false,
+      dotenv: false,
+    })
+    const { forms: cmsForms, ignored: ignoredForms } = resolveCmsForms(formsInput)
+
+    if (ignoredForms.length > 0) {
+      const logger = useLogger('nuxt-cms-core')
+
+      for (const { form, field, reason } of ignoredForms) {
+        const where = field === undefined ? `form "${form}"` : `field "${form}.${field}"`
+        logger.warn(`cms.forms: ${where}: ${FORM_WARNINGS[reason]}; ignored.`)
+      }
+    }
+
+    // Restart the dev server when the project changes its CMS config, texts or forms.
+    for (const file of [configFile, textsFile, formsFile]) {
       if (file) {
         nuxt.options.watch.push(file)
       }
@@ -72,6 +107,20 @@ export default defineNuxtModule({
       supabaseUrl: process.env.SUPABASE_URL ?? '',
       supabaseKey: process.env.SUPABASE_KEY ?? '',
       ...publicRuntimeConfig.cms,
+    }
+
+    // The secret key of the backend (011: the form submit route). Server-only:
+    // never in `public`, never read from the environment at build time. At
+    // runtime Nuxt fills it from NUXT_CMS_SUPABASE_SECRET; the server falls
+    // back to SUPABASE_SECRET itself (server/cms/supabase.ts).
+    // `clientAddress` (NUXT_CMS_CLIENT_ADDRESS): where the visitor address for
+    // the form limits comes from, `auto` by default (server/cms/client-address.ts).
+    const privateRuntimeConfig = nuxt.options.runtimeConfig as { cms?: { supabaseSecret?: string, clientAddress?: string } }
+
+    privateRuntimeConfig.cms = {
+      supabaseSecret: '',
+      clientAddress: 'auto',
+      ...privateRuntimeConfig.cms,
     }
 
     const template = addTemplate({
@@ -110,6 +159,39 @@ export default defineNuxtModule({
     })
 
     nuxt.options.alias['#cms/texts'] = textsTemplate.dst
+
+    // Written to disk: the Nitro server (the submit route) imports it too.
+    const formsTemplate = addTemplate({
+      filename: 'cms/forms.mjs',
+      write: true,
+      getContents: () => `export const cmsForms = ${JSON.stringify(cmsForms, null, 2)}`,
+    })
+
+    addTypeTemplate({
+      filename: 'cms/forms.d.ts',
+      getContents: () => [
+        `declare module '#cms/forms' {`,
+        `  import type { CmsForm } from 'nuxt-cms-core/types'`,
+        `  export const cmsForms: CmsForm[]`,
+        `}`,
+      ].join('\n'),
+    }, { nuxt: true, nitro: true })
+
+    nuxt.options.alias['#cms/forms'] = formsTemplate.dst
+
+    // The runtime hook a site uses for its own rules (server plugin).
+    addTypeTemplate({
+      filename: 'cms/forms-hooks.d.ts',
+      getContents: () => [
+        `import type { CmsFormValidateContext } from 'nuxt-cms-core/types'`,
+        `declare module 'nitropack/types' {`,
+        `  interface NitroRuntimeHooks {`,
+        `    'cms:forms:validate': (context: CmsFormValidateContext) => void | Promise<void>`,
+        `  }`,
+        `}`,
+        `export {}`,
+      ].join('\n'),
+    }, { nitro: true, nuxt: true })
 
     // Vite emits <link rel="prefetch"> for every dynamic import of the app
     // entry, so a public page would download admin pages, the auth chunk and
