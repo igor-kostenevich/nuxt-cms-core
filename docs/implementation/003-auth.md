@@ -129,6 +129,37 @@ CLI. Пароль `local-dev-password` — фікстура локального
   - у коментарі таблиці виправлено `/edit` → `/admin/edit`.
 - Заборона self-escalation з `with check` і тестом — вимога до 015.2.
 
+## Після аудиту 001–005
+
+Незалежний аудит (2026-11-22) перевірив гіпотези зовнішнього ревʼю на коді. Відхилено:
+- read-after-write у cookie-адаптері: `@supabase/ssr` 0.12 сам тримає зміни сесії на запит;
+- `Cache-Control` при refresh: на `/admin/**` обидва значення мають `no-store`, а кешований handler
+  Nitro не пересилає cookie в рендер.
+
+Підтверджено й закрито:
+
+- **Гейт адмінки можна було мовчки обійти через layer (C-98).** Сторінка Client Project з тим самим
+  шляхом перекриває сторінку Core, а `app/middleware/cms-auth.ts` проєкту — сам гейт. RLS це не
+  обходило, але інтерфейс адмінки можна було підмінити. Тепер модуль перевіряє маршрути після
+  резолву (`src/admin-routes.ts`, хуки `pages:resolved` і `app:resolve`):
+  - маршрут не з Core під `/admin/*` (включно з `alias`, `definePageMeta({ path })`, регістром і
+    `/:locale?/admin/...`) — помилка;
+  - сторінка Core під `/admin` без `cms-auth` (сама чи через батька), крім `/admin/login`, — помилка;
+  - `cms-auth` не з Core — помилка.
+
+  `build` падає, dev-сервер лише показує помилку: `throw` під час HMR лишав його без відповіді до
+  перезапуску (перевірено). Тест — `admin-routes`. Сценарії — AUTH-NS-01…03.
+- **`cms_can()` не мала тесту поведінки в самій БД.** Фактичний стан був правильний, але регресію (grant
+  `update` на `cms_users`, `execute` для anon) ніщо б не зловило. Додано
+  `supabase/tests/database/cms_permissions.test.sql`, 14 перевірок під ролями й identity:
+  - anon не викликає `cms_can()`;
+  - disabled і користувач без `cms_users` не отримують прав;
+  - editor не змінює собі роль, disabled не активує себе, auth-користувач не дає собі доступ;
+  - RLS settings відсікає editor і пропускає owner.
+
+  Тест чутливий: з тимчасовим `grant update` на `cms_users` і `execute` для anon падають три
+  перевірки. Повну матрицю прав, як і раніше, звіряє `permissions-sync`.
+
 ## Що свідомо не робили
 
 Invite, Settings → Users, admin layout, запис settings, `profiles`, public `/register`,

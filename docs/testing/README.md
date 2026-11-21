@@ -42,7 +42,7 @@
 
 | Файл | Що покриває |
 | --- | --- |
-| [auth.md](./auth.md) | Вхід, вихід, redirect, ролі й вимкнені користувачі |
+| [auth.md](./auth.md) | Вхід, вихід, redirect, ролі й вимкнені користувачі, `/admin/*` лише для Core (C-98) |
 | [admin.md](./admin.md) | Settings → General, права editor, мова адмінки |
 | [public-site.md](./public-site.md) | Публічні сторінки: дефолти, Draft не видно, безпечний рендер, бандл |
 | [edit-mode.md](./edit-mode.md) | Edit Mode (008): редагування, Save / Publish, Undo, колекції, Preview, навігація, Content Lock, клавіатура |

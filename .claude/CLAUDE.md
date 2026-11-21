@@ -99,6 +99,9 @@ supabase start    # локальний Supabase (Docker); ключі — supabas
 - Значення з БД — недовірений вхід: rich text рендериться без `v-html`, `href` — через allow-list
   (`app/primitives/link.ts`). Формати значень primitives — стабільний контракт, змінювати адитивно.
 - Edit Mode — `/admin/edit/...`, та сама клієнтська сторінка, Draft замість Published.
+- `/admin/*` — лише Core (C-98): кожна сторінка Core під `/admin`, крім `/admin/login`, оголошує
+  `middleware: ['cms-auth']`. Маршрут Client під `/admin` або чужий `cms-auth` валить build
+  (`src/admin-routes.ts`).
 - `cms.config.ts` — лише серіалізовані значення (потрапляє в client bundle).
 - Переклади адмінки — `useAdminI18n()`, не vue-i18n / `@nuxtjs/i18n`; ізольовані від i18n Client Project.
 - Тести — лише критична логіка (permissions, Publish, Lock, repositories, міграції). Без E2E.

@@ -1,8 +1,9 @@
 <script setup lang="ts">
+// Playground only: the admin UI kit outside /admin, which is reserved for
+// Core (C-98). It shows components and reads no data, like /dev.
 definePageMeta({
   // The Client Project's layouts frame the site, not the admin.
   layout: false,
-  middleware: ['cms-auth'],
 })
 
 const dismissed = ref(false)

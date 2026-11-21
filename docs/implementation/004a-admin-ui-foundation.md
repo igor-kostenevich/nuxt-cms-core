@@ -16,8 +16,9 @@
   нативні атрибути поля. З 004b він використовується і на Settings.
 - `/admin/login` зібраний з цих компонентів. Перемикач мови на логіні прибраний; на `/admin`
   він лишається. Логіка `ensure` / `login` / `safeRedirect` / `adminErrorKey` не змінювалась.
-- Playground-сторінка `/admin/ui-kit` під `cms-auth`. У пакет вона не входить: `files` не містить
-  `playground`.
+- Playground-сторінка `/dev/ui-kit` (спершу була `/admin/ui-kit` під `cms-auth`; перенесено після
+  аудиту 001–005, бо `/admin/*` належить лише Core, C-98). Даних вона не читає, тож гейту не має, як і
+  `/dev`. У пакет не входить: `files` не містить `playground`.
 - Іконки: `@nuxt/icon` і `@iconify-json/lucide` у `dependencies`.
 
 ## Ключові рішення
@@ -56,7 +57,7 @@ Focus кнопки — кільце 3px / 30% primary. Focus поля — бор
 - Логін: картка 448px, кнопка 36px, колір primary `#2271B1`, іконки inline `<svg>` по 16px.
   Focus поля дає бордер `#2271B1` і тінь 2px на 20%. Під час submit поля disabled, кнопка
   `aria-busy`. Хибний пароль показує danger-алерт.
-- `/admin/ui-kit`: п'ять варіантів, icon-only 36×36, висоти 32 / 36 / 40, disabled з opacity 0.5,
+- `/dev/ui-kit` (тоді `/admin/ui-kit`): п'ять варіантів, icon-only 36×36, висоти 32 / 36 / 40, disabled з opacity 0.5,
   loading, п'ять алертів з правильними ролями і тонами.
 - Owner входить і бачить `pages.publish = true`. Editor входить і бачить `pages.publish = false`.
   Customer лишається на логіні з тим самим повідомленням, що й хибний пароль.

@@ -1,7 +1,8 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { addTemplate, addTypeTemplate, createResolver, defineNuxtModule, useLogger } from '@nuxt/kit'
 import { loadConfig } from 'c12'
+import { ADMIN_GATE, findAdminRouteViolations, formatAdminRouteViolations } from './admin-routes'
 import { resolveCmsConfig, type CmsConfig, type CmsRuntimeConfig } from './config'
 import { MAX_FIELDS, MAX_FORMS, MAX_TEXT_LENGTH, resolveCmsForms, type CmsFormsIgnoredReason } from './forms'
 import { resolveCmsTexts } from './texts'
@@ -195,6 +196,50 @@ export default defineNuxtModule({
       ].join('\n'),
     }, { nitro: true, nuxt: true })
 
+    // /admin/* is reserved for Core (C-98). In a layer the project's page with
+    // the same path and the project's middleware with the same name silently
+    // win, so both are checked after Nuxt has resolved them. Build time only:
+    // nothing here reaches any runtime.
+    const coreAppDir = realPath(resolver.resolve('../app'))
+    const isCoreFile = (file: string) => realPath(file).startsWith(coreAppDir + sep)
+
+    // The route check reads middleware, path and alias that Nuxt extracts from
+    // definePageMeta. Without extraction it would pass every route unread.
+    if (nuxt.options.experimental.scanPageMeta === false && !nuxt.options.experimental.typedPages) {
+      throw new Error('nuxt-cms-core: experimental.scanPageMeta must stay enabled; the admin route check reads page meta.')
+    }
+
+    // A build fails. The dev server only reports: a throw from these hooks during
+    // a page rebuild is an unhandled rejection that leaves the dev server
+    // answering nothing until restart. The error repeats on every rebuild.
+    const reportAdminViolation = (message: string) => {
+      if (!nuxt.options.dev) {
+        throw new Error(message)
+      }
+
+      useLogger('nuxt-cms-core').error(`${message}\nA production build fails with this error.`)
+    }
+
+    nuxt.hook('pages:resolved', (pages) => {
+      const violations = findAdminRouteViolations(pages, isCoreFile)
+
+      if (violations.length > 0) {
+        reportAdminViolation(formatAdminRouteViolations(violations, nuxt.options.rootDir))
+      }
+    })
+
+    nuxt.hook('app:resolve', (app) => {
+      const gate = app.middleware.find(middleware => middleware.name === ADMIN_GATE)
+
+      if (!gate || !isCoreFile(gate.path)) {
+        reportAdminViolation(
+          `nuxt-cms-core: the route middleware "${ADMIN_GATE}" is reserved for CMS Core`
+          + (gate ? ` and is overridden by ${gate.path}` : ' and is missing')
+          + '. Rename the project middleware.',
+        )
+      }
+    })
+
     // Vite emits <link rel="prefetch"> for every dynamic import of the app
     // entry, so a public page would download admin pages, the auth chunk and
     // admin CSS. Prefetch stays only for the Client Project's own modules
@@ -225,3 +270,12 @@ export default defineNuxtModule({
     })
   },
 })
+
+/** Symlinks resolved (the playground links Core); a virtual file stays as given. */
+function realPath(file: string): string {
+  try {
+    return realpathSync(file)
+  } catch {
+    return resolve(file)
+  }
+}

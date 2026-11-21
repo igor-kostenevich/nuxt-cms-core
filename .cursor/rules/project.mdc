@@ -108,6 +108,16 @@ CMS primitives (`app/components/cms/`, MASTER_PLAN C-47…C-49):
 
 ---
 
+## Admin Routes
+
+`/admin/*` belongs to CMS Core only (MASTER_PLAN C-98):
+
+- every Core page under `app/pages/admin/` except `/admin/login` declares `definePageMeta({ middleware: ['cms-auth'] })`;
+- the Client Project (and the playground) never adds routes under `/admin`, by file, `path` or `alias`, and never defines a middleware named `cms-auth`;
+- `src/admin-routes.ts` checks this at build time: the build fails, the dev server reports the error.
+
+---
+
 ## Data Access
 
 Always use Repository Pattern.
