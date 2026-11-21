@@ -165,6 +165,37 @@ retention. Decide how long the site keeps them (archive and spam included) and d
 with a scheduled job. The address is never stored; rate-limit buckets hold only an HMAC pseudonym, not linked
 to a submission, and are removed by later submissions once older than a day.
 
+### Form events (notifications)
+
+Core stores submissions and shows them in the admin inbox; it sends no notifications. A site sends its own
+(email, Telegram, a CRM…) from a Nitro server plugin on `cms:forms:submitted`:
+
+```ts
+// server/plugins/form-notifications.ts
+export default defineNitroPlugin((nitroApp) => {
+  nitroApp.hooks.hook('cms:forms:submitted', async ({ form, submissionId, values, locale, pagePath }) => {
+    const { leadsApiKey } = useRuntimeConfig() // server-only, from the site's env
+    await $fetch('https://api.example-mail.com/send', { method: 'POST', headers: { authorization: `Bearer ${leadsApiKey}` }, body: { … } })
+  })
+})
+```
+
+- **When.** Once per new submission, after it is stored. Not for a retry of the same sending, the honeypot,
+  limits, a disabled form or values that were refused.
+- **At most once, best effort.** The answer to the visitor waits for the handlers **at most 3 seconds** and
+  is `ok` whatever they do. After that a handler is not cancelled: on a Node server it finishes in the
+  background, on serverless hosting (Vercel) it may be stopped. There is no retry; the inbox is the source of
+  truth. Keep handlers short (one API call); a slow handler delays the form's answer up to the limit.
+- **Not for guaranteed delivery.** When a lead must reach a system for sure (a CRM, billing), this hook is
+  not enough: use a durable mechanism with retries on the site's side, such as a transactional outbox and
+  a worker. The hook only gives a best-effort signal.
+- **Failures.** A handler that throws does not stop the others; Core logs the form key and the error kind,
+  never the values or the message.
+- **Personal data.** `values` are what the visitor sent: do not log them. Sending them to a provider makes it
+  a processor of personal data (a DPA for sites in the EU / UK). Credentials belong in the site's server-only
+  runtime config, never in `public` or `cms.config.ts`.
+- **Read-only.** Do not change `form` (shared by all requests) or `values`.
+
 ## Reading content
 
 Data access always goes through a repository, so components never talk to the backend directly:

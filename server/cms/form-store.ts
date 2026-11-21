@@ -9,7 +9,13 @@ import { getCmsServiceClient, readCmsSecret } from './supabase'
  * writes the record. The route knows the outcome, not the backend.
  */
 
-export type CmsFormStoreResult = 'ok' | 'token_reused' | 'rate_limited' | 'disabled' | 'unavailable'
+/**
+ * `created` is a new row (the route runs `cms:forms:submitted`); `duplicate` is
+ * a retry of the same sending that is already stored. Both answer `ok`.
+ */
+export type CmsFormStoreResult =
+  | { status: 'created', submissionId: string }
+  | { status: 'duplicate' | 'token_reused' | 'rate_limited' | 'disabled' | 'unavailable' }
 
 /** Window of the limits in SQL (`window_seconds`), for logging once per window. */
 const LIMIT_WINDOW_MS = 600_000
@@ -48,7 +54,7 @@ export async function storeCmsFormSubmission(input: CmsFormStoreInput): Promise<
   const client = getCmsServiceClient()
 
   if (!client) {
-    return 'unavailable'
+    return { status: 'unavailable' }
   }
 
   const { data, error } = await client.rpc('cms_form_submit', {
@@ -65,21 +71,24 @@ export async function storeCmsFormSubmission(input: CmsFormStoreInput): Promise<
 
   if (error || !data?.[0]) {
     console.error('[nuxt-cms-core] forms: the submission was not stored:', error?.message ?? 'no result')
-    return 'unavailable'
+    return { status: 'unavailable' }
   }
 
-  switch (data[0].status) {
+  const { status, submission_id: submissionId } = data[0]
+
+  switch (status) {
     case 'ok':
+      return submissionId ? { status: 'created', submissionId } : { status: 'unavailable' }
     case 'duplicate':
-      return 'ok'
+      return { status: 'duplicate' }
     case 'form_limited':
       logCeiling(input.form.key)
-      return 'rate_limited'
+      return { status: 'rate_limited' }
     case 'token_reused':
     case 'rate_limited':
     case 'disabled':
-      return data[0].status
+      return { status }
     default:
-      return 'unavailable'
+      return { status: 'unavailable' }
   }
 }

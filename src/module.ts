@@ -179,14 +179,16 @@ export default defineNuxtModule({
 
     nuxt.options.alias['#cms/forms'] = formsTemplate.dst
 
-    // The runtime hook a site uses for its own rules (server plugin).
+    // The runtime hooks of a site's server plugins: its own rules, and the
+    // event of a new submission (C-97).
     addTypeTemplate({
       filename: 'cms/forms-hooks.d.ts',
       getContents: () => [
-        `import type { CmsFormValidateContext } from 'nuxt-cms-core/types'`,
+        `import type { CmsFormSubmittedContext, CmsFormValidateContext } from 'nuxt-cms-core/types'`,
         `declare module 'nitropack/types' {`,
         `  interface NitroRuntimeHooks {`,
         `    'cms:forms:validate': (context: CmsFormValidateContext) => void | Promise<void>`,
+        `    'cms:forms:submitted': (context: CmsFormSubmittedContext) => void | Promise<void>`,
         `  }`,
         `}`,
         `export {}`,

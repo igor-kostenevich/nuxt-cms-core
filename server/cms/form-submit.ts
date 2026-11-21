@@ -142,3 +142,73 @@ export function cleanHookErrors(errors: unknown[]): CmsFormError[] {
     .slice(0, 50)
     .map(({ field, code }) => ({ field, code }))
 }
+
+// ── cms:forms:submitted (C-97) ─────────────────────────────────────────
+
+/** How long the answer to the visitor waits for the handlers of a new submission. */
+export const CMS_FORM_SUBMITTED_TIMEOUT_MS = 3000
+
+type Handler = (...args: unknown[]) => unknown
+
+/** A hookable caller: gets the handlers of the hook and its arguments. */
+export type CmsFormSubmittedCaller = (handlers: readonly Handler[], args: readonly unknown[]) => Promise<void>
+
+/** Only the kind of an error goes to the log: its message may quote the values. */
+function errorKind(cause: unknown): string {
+  const name = cause instanceof Error ? cause.name : typeof cause
+  return /^[A-Za-z]{1,40}$/.test(name) ? name : 'Error'
+}
+
+/**
+ * Runs the handlers of `cms:forms:submitted` for a stored submission and
+ * resolves when they all finished or after the time limit, whichever comes
+ * first. Never throws and never rejects: the submission is stored, so nothing
+ * here may change the answer.
+ *
+ * - Each handler is isolated (a synchronous throw too) and its failure is
+ *   logged at once, with the form key and the error kind only, so it reaches
+ *   the log even when another handler hangs past the limit.
+ * - After the limit nothing is cancelled: a handler may still finish (Node),
+ *   or the platform may stop it (serverless). Its failure is logged if it runs.
+ *
+ * `callHookWith` wires the caller to the hook (`nitroApp.hooks.callHookWith`);
+ * building the context inside it keeps any error there in this function too.
+ */
+export async function runFormSubmittedHook(
+  callHookWith: (caller: CmsFormSubmittedCaller) => unknown,
+  formKey: string,
+  timeoutMs: number = CMS_FORM_SUBMITTED_TIMEOUT_MS,
+): Promise<void> {
+  const caller: CmsFormSubmittedCaller = (handlers, args) => Promise.all(handlers.map((handler, index) =>
+    Promise.resolve()
+      .then(() => handler(...args))
+      .then(() => undefined, (cause: unknown) => {
+        console.error(`[nuxt-cms-core] forms: cms:forms:submitted handler ${index + 1} failed for form "${formKey}" (${errorKind(cause)}).`)
+      }),
+  )).then(() => undefined)
+
+  let finished: Promise<'done'>
+
+  try {
+    finished = Promise.resolve(callHookWith(caller)).then(() => 'done' as const, (cause: unknown) => {
+      console.error(`[nuxt-cms-core] forms: cms:forms:submitted could not run for form "${formKey}" (${errorKind(cause)}).`)
+      return 'done' as const
+    })
+  } catch (cause) {
+    console.error(`[nuxt-cms-core] forms: cms:forms:submitted could not run for form "${formKey}" (${errorKind(cause)}).`)
+    return
+  }
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const limit = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), timeoutMs)
+  })
+
+  try {
+    if (await Promise.race([finished, limit]) === 'timeout') {
+      console.warn(`[nuxt-cms-core] forms: cms:forms:submitted handlers for form "${formKey}" did not finish within ${timeoutMs} ms; the answer did not wait for them.`)
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}

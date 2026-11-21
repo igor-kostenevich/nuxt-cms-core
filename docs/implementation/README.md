@@ -44,7 +44,7 @@
 | 010c | Переклад файлом (після 014) | 2 | `todo` | — |
 | 011 | Forms infrastructure | 3 | `done` | [011](./011-forms.md) |
 | 012 | Activity (Admin UI + Restore) | 3 | `done` | [012](./012-activity.md) |
-| 013 | Integrations (перший живий provider) | 3 | `todo` | — |
+| 013 | Analytics (замість Integrations, C-97) | 3 | `todo` | — |
 | 014 | Collections UI (інфраструктура Core) | 4 | `todo` | — |
 | 015 | Решта Admin + Configuration growth | 4 | `todo` | — |
 | 016 | CLI / Updates / Deploy / Publishing | 5 | `todo` | — |
@@ -185,6 +185,8 @@ Playground маршрутизує `/[[locale]]` сам: Core дає лише д�
 - Адмінка «Заявки»: один інбокс для всіх форм, деталі з контактами, архів / спам, CSV, керування формами.
   Лише Owner і Admin (C-93, C-94).
 - Адмінка працює на телефоні: висувне меню (C-95).
+- *Доповнення C-97:* хук `cms:forms:submitted` — подія нової заявки для сповіщень сайту (email,
+  Telegram, CRM) без реєстру й таблиць; не більше 3 с, без повтору.
 
 ### 012 — Activity
 

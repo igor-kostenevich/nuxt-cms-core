@@ -7,6 +7,7 @@ export type {
   CmsFormField,
   CmsFormFieldRole,
   CmsFormFieldType,
+  CmsFormSubmittedContext,
   CmsFormValidateContext,
   CmsFormValues,
 } from './forms'

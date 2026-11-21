@@ -81,14 +81,12 @@ const groups = [
     items: [
       { label: 'cms.shell.nav.analytics', icon: 'lucide:chart-column' },
       { label: 'cms.shell.nav.activity', icon: 'lucide:activity', to: '/admin/activity', permission: 'activity.view' },
-      { label: 'cms.shell.nav.integrations', icon: 'lucide:plug' },
     ],
   },
   {
     label: 'cms.shell.groups.system',
     items: [
       { label: 'cms.shell.nav.users', icon: 'lucide:users' },
-      { label: 'cms.shell.nav.secrets', icon: 'lucide:key-round' },
     ],
   },
 ] as const

@@ -946,6 +946,8 @@ CMS не повинна намагатися через Admin змінювати
 
 ## 29. Integrations
 
+> Довгострокове бачення. У V1 універсального модуля Integrations немає (`docs/MASTER_PLAN.md` C-97): сторонні сервіси — код Client Project, сповіщення форм — через хук `cms:forms:submitted`, Analytics — окремий епік 013.
+
 CMS features не повинні напряму залежати від Telegram, Stripe або іншого SDK.
 
 Використовується Integration Layer.
@@ -1427,6 +1429,8 @@ SEO-індикатор
 Якщо дія відновлювана — кнопка Restore. При кліку — модал з порівнянням: попереднє значення vs поточне, кнопка підтвердження відновлення.
 
 ## 8. Integrations
+> Поза V1 (`docs/MASTER_PLAN.md` C-97): розділу Integrations в адмінці немає. Analytics (§6) — окремий епік 013.
+
 8 інтеграцій у 4 категоріях.
 
 Communication: Telegram, WhatsApp  
@@ -12756,6 +12760,8 @@ Client Project відповідає за поля, дизайн та UX форм
 CMS Core відповідає за безпечний прийом даних, validation pipeline, storage, statuses, notifications та управління submissions через Admin Panel.
 
 # Блок 15. Integrations Architecture
+
+> Довгострокове бачення, не план V1. У V1 (`docs/MASTER_PLAN.md` C-97) немає реєстру провайдерів, UI інтеграцій і owner-managed секретів: сторонні сервіси й сповіщення — код Client Project (хук `cms:forms:submitted`), credentials — його server-only env. Аналітика (§19–20) — епік 013, підхід визначать D-62 і D-63.
 
 ## 1. Загальний опис
 

@@ -7,10 +7,12 @@ import { parseClientAddressSource, resolveClientAddress, type CmsClientAddressSo
 import { cmsFormStoreReady, storeCmsFormSubmission } from '../../../cms/form-store'
 import {
   cleanHookErrors,
+  cleanPagePath,
   CMS_FORM_BODY_LIMIT,
   CmsFormBodyTooLarge,
   parseSubmitBody,
   readLimitedText,
+  runFormSubmittedHook,
 } from '../../../cms/form-submit'
 
 /**
@@ -175,7 +177,24 @@ export default defineEventHandler(async (event) => {
     locale,
   })
 
-  return result === 'token_reused'
-    ? answer(event, 'invalid', [{ field: '_form', code: 'resubmit' }])
-    : answer(event, result)
+  switch (result.status) {
+    case 'created':
+      // The extension point of a site (C-97): notifications are its own code.
+      // At most 3 s; never changes the answer for the stored submission.
+      await runFormSubmittedHook(caller => useNitroApp().hooks.callHookWith(caller, 'cms:forms:submitted', Object.freeze({
+        form,
+        submissionId: result.submissionId,
+        values: Object.freeze({ ...values }),
+        locale,
+        pagePath: cleanPagePath(body.page),
+      })), form.key)
+      return answer(event, 'ok')
+    case 'duplicate':
+      // A retry of a sending already stored: the same answer, no second event.
+      return answer(event, 'ok')
+    case 'token_reused':
+      return answer(event, 'invalid', [{ field: '_form', code: 'resubmit' }])
+    default:
+      return answer(event, result.status)
+  }
 })

@@ -81,7 +81,8 @@ Architecture Summary, `Б N` — блок доки.
   це на `permission_denied` / `not_found`.
 - **C-09. Схема бізнес-зрозуміла.** Окремі таблиці на сутність, без EAV/`entities`.
   JSON — лише для immutable snapshot або справді неструктурованих даних (§12). Навігація,
-  мови, інтеграції — окремі таблиці, не колонки `cms_site_settings` (002).
+  мови, інтеграції — окремі таблиці, не колонки `cms_site_settings` (002). *Змінено в C-97:* таблиці
+  інтеграцій у V1 немає.
 - **C-10. Generated Supabase types** — з 005. Smoke-тест міграцій — з 005.
 
 ### Контент
@@ -114,6 +115,9 @@ Architecture Summary, `Б N` — блок доки.
   — лише `.env` / hosting. Owner-managed (Telegram, SMTP, Stripe) — окремий secure layer,
   не runtime settings і не env через UI. Підключення самого Supabase не може бути сторінкою
   всередині CMS (§28).
+  *Змінено в C-97:* owner-managed секретів у V1 немає. Credentials сторонніх сервісів (сповіщення, CRM,
+  аналітика) налаштовує розробник у server-only env Client Project. Secure layer (Vault + UI) — коли
+  власник мусить керувати ключами сам.
 - **C-18. Setup Wizard — поза V1.** Перший Owner у хмарі — ручний SQL (задокументований),
   потім CLI (016).
 - **C-19. Settings → Users — 015.2:** `SUPABASE_SECRET`, server-only клієнт, Nuxt server
@@ -153,7 +157,8 @@ Architecture Summary, `Б N` — блок доки.
   `@tiptap/starter-kit`, `@tiptap/pm`, `@floating-ui/dom` — лише в Editor Runtime.
 - **C-27. `cms.config.ts` — лише серіалізовані значення** (modules, feature flags, ліміти).
   Він вбудовується в `#cms/config` і потрапляє в client bundle. Реєстрації з функціями чи
-  repositories (колекції, форми, інтеграції) — runtime-код Client Project.
+  repositories (колекції, форми, інтеграції) — runtime-код Client Project. *Змінено в C-97:* реєстру
+  інтеграцій немає; сторонні сервіси — код Client Project.
 - **C-28. Конфігурація — п'ять рівнів:** Core defaults / `cms.config.ts` / DB Runtime Settings /
   env (через runtimeConfig; різні env на одному build — `NUXT_*` override) / Project Manifest.
   `app.config` для site settings не використовується.
@@ -671,6 +676,38 @@ Undo / Redo і Reset з 008b увійшли в першу версію UI. Де�
   - Diff немає. Подія publish / restore веде в History (`?history=`), Restore — наявний (C-57).
   - Строку зберігання журналу немає. Групування масових операцій немає.
 
+### Закрито перед 013
+
+Рішення автора 2026-11-21 (було D-38, D-39, D-40). Аналіз показав, що універсальний модуль змішував
+незалежні речі: сповіщення форм (бізнес-логіка сайту), аналітику (окрема функція продукту) і
+сторонні сервіси (код Client Project). Сайти налаштовує розробник, тож owner-managed конфігурації
+інтеграцій не потрібні.
+
+- **C-97. Універсального модуля Integrations у V1 немає; Analytics — окремий епік 013.**
+  - **Немає:**
+    - реєстру провайдерів і `registerIntegration`;
+    - контрактів `NotificationProvider` / `EmailProvider` / `AnalyticsProvider`;
+    - таблиці конфігурацій інтеграцій, UI інтеграцій, UI owner-managed секретів;
+    - сповіщень у Core, маршрутизації, черги, retry, історії доставки.
+  - **Telegram / Email / CRM / WhatsApp / Maps / Calendly / платежі** — код Client Project. Credentials —
+    його server-only env, налаштовує розробник (C-17).
+  - **Точка розширення Forms** — Nitro-хук `cms:forms:submitted` (`CmsFormSubmittedContext`: `form`,
+    `submissionId`, `values`, `locale`, `pagePath`):
+    - лише для нової заявки — не для повтору, honeypot, лімітів, вимкненої форми чи відхилених значень;
+    - відповідь чекає обробників не довше 3 с і завжди `ok`;
+    - помилка обробника ізольована й логується без значень;
+    - at most once, без повтору, джерело правди — інбокс.
+
+    `waitUntil` не використовується: preset Vercel (Node) у nitropack 2.13 його не передає платформі.
+    Запис — [011, доповнення](./implementation/011-forms.md).
+  - **Analytics — самостійна функція продукту, не частина Integrations:** епік 013, D-62 (джерело даних),
+    D-63 (tracking і consent).
+  - **Сайдбар V1:** без Integrations і System → Secrets. Analytics лишається («Скоро» до 013).
+  - **Історія рішень:**
+    - D-38 → credentials — server-only env, налаштовує розробник; owner-managed секретів немає;
+    - D-39 → таблиці налаштувань інтеграцій немає, конфігурація — код / env Client Project;
+    - D-40 → отримувачі й канали сповіщень — бізнес-логіка Client Project, не Core.
+
 ---
 
 ## 3. Стан проекту
@@ -693,7 +730,7 @@ Undo / Redo і Reset з 008b увійшли в першу версію UI. Де�
 | 010b | Реєстр полів сторінки; «Тексти сайту» (`cms.texts.ts`, `useCmsText`, `cms_site_texts`); екран «Тексти» з перекладом у чернетку, «Опублікувати переклад» і ↗ на поле | [010b](./implementation/010b-texts.md) |
 | 010 | `cms_languages` + Settings → Мови; переклад сторінки як мапа листів над базою (C-78) і читання з fallback одним RPC; перемикач мов і режим перекладу в Edit Mode; link-резолвер Client; `useCmsLocale` / `useCmsLanguages`; hreflang-дані; `site_name` по мовах; право `languages.manage` (зміну мови за замовчуванням прибрано в 010d) | [010](./implementation/010-localization.md) |
 | 010d | Мова оригіналу незмінна (тригери, без конвертації); стабільні id колекцій із коду; «Тексти» пишуть оригінал і переклади в ті самі чернетки одним RPC, публікують вибрані сторінки з перевіркою версії; page-mutex `FOR NO KEY UPDATE`; конкурентні pgTAP через dblink | [010d](./implementation/010d-simplify.md) |
-| 011 | Форми з `cms.forms.ts`, `useCmsForm`, перший server route Core (`/api/cms/forms/[key]`) із secret-ключем; `cms_form_submit` з ідемпотентністю й лімітами; права `forms.*`; адмінка «Заявки» (інбокс, деталі, керування формами, CSV); мобільна адмінка | [011](./implementation/011-forms.md) |
+| 011 | Форми з `cms.forms.ts`, `useCmsForm`, перший server route Core (`/api/cms/forms/[key]`) із secret-ключем; `cms_form_submit` з ідемпотентністю й лімітами; права `forms.*`; адмінка «Заявки» (інбокс, деталі, керування формами, CSV); мобільна адмінка; *доповнення C-97:* хук `cms:forms:submitted` | [011](./implementation/011-forms.md) |
 | 012 | `cms_activity` + запис у RPC і тригерах, право `activity.view`; екран `/admin/activity` (категорії, дні, keyset, SSR без hydration mismatch); перехід у History з підсвіченою або підвантаженою версією; прибрано `revisions.base` | [012](./implementation/012-activity.md) |
 
 ### Drift код ↔ план
@@ -726,7 +763,7 @@ Undo / Redo і Reset з 008b увійшли в першу версію UI. Де�
 | AI-переклад / кнопка «Translate» у полі (зараз панель показує оригінал) | 010 | Anti-scope 010 | Поза V1 |
 | Мова URL без префікса ≠ мова оригіналу | 010d | Немає бізнес-вимоги; маршрутизація — Client (C-87) | За потребою, адитивно |
 | Застарілі переклади: hash оригіналу, «Оригінал змінився — перевірте переклад» | 010d | Нова функція, не спрощення | 010c |
-| Сповіщення про нові заявки (Telegram), статус доставки | 011 | Окремий епік інтеграцій; форма працює без них | 013 |
+| Сповіщення про нові заявки (email, Telegram, CRM) | 011 | Бізнес-логіка сайту, не Core (C-97) | Client Project через `cms:forms:submitted` |
 | Режими адреси відвідувача для інших платформ (Netlify тощо) і перевірка peer за списком адрес Cloudflare | 011 | Зараз для них — `none` або явний `proxy[:N]` / `cloudflare` (C-91) | 016 (deploy) |
 | Ліміти форм, які налаштовує сайт; бакет на IPv6 /48 | 011 | Мінімальний варіант X-11: ризик стелі задокументовано, перша відмова логується | За потребою |
 | Вкладення у формах | 011 | Приватне сховище, перевірка файлів, життєвий цикл | За потребою |
@@ -746,7 +783,8 @@ Undo / Redo і Reset з 008b увійшли в першу версію UI. Де�
 | Попередній перегляд і порівняння версій у History | 012 | Diff не робили (C-96); логічне місце — History, не Activity | За потребою |
 | CSV-експорт заявок в Activity | 012 | Збирає браузер, серверної точки для чесного запису немає | Разом із server-side експортом |
 | Автор публікації в History | 012 | Видно в Activity; History показує лише дату | За потребою |
-| Події Activity від колекцій, інтеграцій, користувачів | 012 | Сутностей ще немає; `entity_type` — текст, формат адитивний | 013, 014, 015.2 |
+| Події Activity від колекцій, користувачів | 012 | Сутностей ще немає; `entity_type` — текст, формат адитивний | 014, 015.2 |
+| Cookie consent / CMP для tracking аналітики | C-97 | Tracking від нього залежить (ЄС / Велика Британія); окрема тема | 013 (D-63) |
 | Прибирання за конкурентними pgTAP-тестами (dblink комітить, у журналі лишаються події «concurrency-fixture») | 012 | Не впливає на тести; прибирати лише власні записи за надійною міткою, не весь журнал | Окрема мала задача |
 | Політика зберігання / видалення / анонімізації `actor_email` в Activity (R-21) | 012 | V1 зберігає знімок безстроково, також після видалення користувача | Перед сайтами з юридичними вимогами до персональних даних |
 | Аудит `EXECUTE` старих внутрішніх SQL-функцій для `service_role` (нові функції 012 його відкликають, старі — ні) | 012 рев'ю | `BYPASSRLS` не робить зайві `EXECUTE` автоматично безпечними; перевизначення старих RPC зараз ризикованіше за користь | Security hardening |
@@ -759,7 +797,7 @@ Undo / Redo і Reset з 008b увійшли в першу версію UI. Де�
 Фаза 0  Foundation        001 → 002 → 003 → 004a → 004b → 004c
 Фаза 1  Content core      005 Pages → 006 Primitives → 007 Draft/Publish → 008 Edit Mode → 009 Media
 Фаза 2  Мультимовність    010 Localization
-Фаза 3  Operations        011 Forms → 012 Activity → 013 Integrations
+Фаза 3  Operations        011 Forms → 012 Activity → 013 Analytics
 Фаза 4  Business + Admin  014 Collections → 015 Admin growth (Pages list, Users, Settings, System, Dashboard)
 Фаза 5  Distribution      016 CLI / Updates / Deploy / Publishing
 ```
@@ -977,9 +1015,9 @@ read → draft → edit → publish до локалізації; Collections п�
   (unread/read/archived/spam), detail, mark read / mark all read, archive, spam, CSV export,
   enable/disable.
   - *Факт 011:* форми — декларація `cms.forms.ts` (C-90), маршрут — `POST /api/cms/forms/[key]`
-    (C-91); адмінка — один інбокс «Заявки» замість списку форм (C-94); сповіщень немає (013).
+    (C-91); адмінка — один інбокс «Заявки» замість списку форм (C-94); сповіщень немає — сайт надсилає їх сам на `cms:forms:submitted` (C-97).
 - **Anti-scope.** Form builder, `form_fields` / EAV, conditional logic, CRM, обов'язкова CAPTCHA,
-  webhooks, auto-reply, Draft/Publish для форм. Нотифікації — 013; форми працюють і без них.
+  webhooks, auto-reply, Draft/Publish для форм. Нотифікації — Client Project через `cms:forms:submitted` (C-97); форми працюють і без них.
 - **Залежності.** 003; Activity-події — 012; attachments (якщо будуть) — 009.
 - **Блокуючі рішення.** Закрито автором 2026-11-19 → C-90…C-95 (було D-31…D-36).
 - **Джерела.** §23; Б14; дизайн-ТЗ §5.
@@ -1000,20 +1038,26 @@ read → draft → edit → publish до локалізації; Collections п�
     лише перехід (`?history=`); фільтри — категорії без «Мої дії».
 - **Джерела.** Б8, Б21; дизайн-ТЗ §7.
 
-### 013 — Integrations (перший живий provider)
+### 013 — Analytics
 
 `todo` · Фаза 3
 
-- **Ціль.** Capability-based integrations із першим реальним споживачем.
-- **Будуємо.** Малі контракти (`NotificationProvider`, далі `EmailProvider`, `AnalyticsProvider`);
-  `registerIntegration({ key, provider })` runtime-кодом; SDK лише server-side; перший provider —
-  Telegram для Forms; стани Connected / Not connected / Needs attention (+ last checked / error);
-  Test connection; GA/GTM-скрипти лише якщо integration enabled + configured.
-- **Anti-scope.** Marketplace, event bus, queues, OAuth framework, Zapier, WhatsApp, платежі в Core,
-  webhooks, hooks `afterPublish` тощо. Картки Soon — лише для найближчого.
-- **Залежності.** 011; secure secrets (D-38).
-- **Блокуючі рішення.** D-38, D-39, D-40.
-- **Джерела.** §28–29; Б15; дизайн-ТЗ §8.
+*Змінено (C-97):* замість універсального «Integrations (перший живий provider)». Integrations у V1 немає,
+сповіщення форм — Client Project через `cms:forms:submitted`.
+
+- **Ціль.** Власник бачить основну статистику сайту в CMS, не відкриваючи зовнішні сервіси.
+- **Будуємо (вимоги; реалізацію визначить аналіз):**
+  - метрики Visitors, Sessions, Page views, Form submissions з порівнянням із попереднім періодом;
+  - періоди 7 / 30 / 90 днів;
+  - графік відвідувачів у часі;
+  - Top pages, Traffic sources, Devices, Countries;
+  - підключення tracking на публічному сайті.
+- **Anti-scope.** Універсальний модуль Integrations (C-97); custom reports і goals (§9); реалізація
+  до закриття D-62 і D-63.
+- **Залежності.** 011 (Form submissions — дані Core).
+- **Передумова.** Окремий архітектурний аналіз: джерело даних, credentials, consent, CSP, public bundle.
+- **Блокуючі рішення.** D-62, D-63.
+- **Джерела.** Б15 §19–20; дизайн-ТЗ §6; R-17.
 
 ### 014 — Collections UI (інфраструктура Core)
 
@@ -1043,10 +1087,10 @@ read → draft → edit → publish до локалізації; Collections п�
    на публічному сайті (C-35; maintenance — server middleware, 503).
 4. System — Owner-only, read-only overview (версії, environment, diagnostics); в ТЗ розділу
    немає — треба додати; багато пунктів лишаються Soon.
-5. Dashboard як агрегатор — коли є Forms + Activity + (опційно) Analytics.
+5. Dashboard як агрегатор — коли є Forms + Activity + Analytics (013, коли буде).
 6. `cms.config.ts` розширюється по факту потреби епіку, не окремим «конфіг-епіком».
 
-- **Anti-scope.** Власний аналітичний рушій (Analytics = інтеграція GA), Sessions / 2FA,
+- **Anti-scope.** Власний аналітичний рушій (якщо його не обере D-62), Sessions / 2FA,
   запуск оновлень з Admin, редагування env через UI.
 - **Блокуючі рішення.** D-45, D-46, D-47, D-48, D-49, D-58.
 - **Джерела.** §27; Б10, Б11; дизайн-ТЗ §1, §6, §9.
@@ -1074,7 +1118,7 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | Тема | Правило |
 | --- | --- |
-| Performance (Б17) | Public не тягне Admin/Editor/Tiptap/admin CSS — перевірка бандла в DoD. Дані на рівні сторінки, без N+1 (`mediaId` резолвляться пакетно). Pagination і server search в Admin. Draft поза public cache. Третьосторонні скрипти — лише через увімкнену integration. |
+| Performance (Б17) | Public не тягне Admin/Editor/Tiptap/admin CSS — перевірка бандла в DoD. Дані на рівні сторінки, без N+1 (`mediaId` резолвляться пакетно). Pagination і server search в Admin. Draft поза public cache. Третьосторонні скрипти — лише через явну конфігурацію (tracking — 013, D-63; C-97). |
 | Testing (Б18) | Vitest + Nuxt Test Utils. Unit: permissions, validation, status transitions, error mapping. Integration на локальному Supabase: Publish → Revision, Content Lock, FormsService. Component: `CmsText` / `CmsImage` / `CmsCollection` (stable ids). Smoke-тест міграцій, bundle regression. Без E2E, snapshots, coverage-цілей. |
 | Security (Б6, Б11) | `can()` в UI ≠ захист; RLS на кожну mutation; secret key лише server-side; заборона self-escalation у `cms_users`; останній Owner захищений у БД. |
 | Configuration (Б10) | П'ять рівнів (C-28) не змішуються; `cms.config.ts` серіалізований (C-27). |
@@ -1097,9 +1141,8 @@ read → draft → edit → publish до локалізації; Collections п�
 
 | ID | Епік | Питання | Варіанти | Рекомендація |
 | --- | --- | --- | --- | --- |
-| D-38 | 013 | Secrets першого provider | Env (найпростіше); Supabase Vault + UI (Owner-only) | Env для першого provider; Vault + UI — коли буде реальна потреба |
-| D-39 | 013 | Де зберігаються несекретні integration settings і статус | Таблиця `integrations`; поля у формі | Таблиця `integrations` |
-| D-40 | 013 | Notifications: глобальні чи per-form; retry | Destination у інтеграції / у формі; `notification_status` на submission | Recipients per form; manual retry — пізніше |
+| D-62 | 013 | Джерело даних Analytics | GA4 + Data API (service account у server-only env); Umami або аналог з API; власний збір подій | Потрібен окремий аналіз; власний збір — лише з обґрунтуванням |
+| D-63 | 013 | Tracking на публічному сайті | ID у конфігурації / env Client Project чи в CMS; завантаження лише на production; залежність від cookie consent (CMP — окрема тема); CSP; public bundle | Потрібен окремий аналіз |
 
 ### Фаза 4–5
 
@@ -1150,9 +1193,9 @@ read → draft → edit → publish до локалізації; Collections п�
 | R-14 | `@nuxtjs/i18n` в Core layer | Злиття locales із Client, vue-i18n у public | Вирішено в 004c (C-36) |
 | R-15 | `cms.config.ts` серіалізується в client bundle | Функції губляться, «приватні» значення стають публічними | C-27 |
 | R-16 | Custom scripts в Admin | Навмисний stored-XSS канал | D-47 |
-| R-17 | GA4 Data API для Analytics/Dashboard потребує OAuth / service account | Сторінка Analytics із ТЗ — окремий проєкт | 015, D-49 |
+| R-17 | GA4 Data API для Analytics/Dashboard потребує OAuth / service account | Сторінка Analytics із ТЗ — окремий проєкт | 013 (D-62), 015 (D-49) |
 | R-18 | `navigator.sendBeacon` не передає `Authorization` | Release lock при закритті вкладки не автентифікується | Вирішено в 008: `fetch keepalive` з кешованим токеном (C-69) |
-| R-19 | SMTP-бібліотеки потребують Node runtime | Не працюють на edge-хостингах | 013 (HTTP-API провайдер) |
+| R-19 | SMTP-бібліотеки потребують Node runtime | Не працюють на edge-хостингах | Неактуально для Core (C-97): провайдера й runtime обирає Client Project (на edge — HTTP-API) |
 | R-20 | Поле, яке мовою за замовчуванням ніколи не редагували (дефолт із коду), перекладене іншою мовою | Після зміни мови за замовчуванням стара мова показує там текст нової, а не дефолт із коду | **Закрито в 010d:** мова оригіналу незмінна, зміни й конвертації немає (C-87) |
 | R-21 | `cms_activity.actor_email` — персональні дані; знімок лишається після видалення користувача, автоматичного очищення в V1 немає (C-96) | Безстрокове зберігання email не завжди допустиме юридично (право на видалення) | Відкладено: політика зберігання / анонімізації — TODO §3, перед сайтами з такими вимогами |
 
@@ -1168,7 +1211,7 @@ read → draft → edit → publish до локалізації; Collections п�
 - Розділ System (Owner-only) — на нього посилаються Diagnostics, schema warning, secrets.
 - UI Content Lock: «Anna is editing», read-only, Force unlock, «сесія більше не активна».
 - Save status Error / Retry.
-- Archive / Spam / Restore у модалі submission; Test connection в Integrations.
+- Archive / Spam / Restore у модалі submission. ~~Test connection в Integrations~~ — Integrations немає (C-97).
 
 **Розходиться з архітектурою**
 
@@ -1183,12 +1226,12 @@ read → draft → edit → publish до локалізації; Collections п�
 | Collections: Active/Hidden; Delete | Draft/Publish; soft delete | D-44, C-34 |
 | Activity: Restore з diff | Restore лише в History, Activity веде туди; diff немає | C-96 |
 | Media: Replace «з медіатеки» | Змішує Replace Media і Change Image | 009: Replace — лише новий файл; інше зображення вибирають у полі |
-| Integrations: 8 провайдерів | V1 — Telegram, Email, GA, GTM; решта Soon / Client | 013 |
-| Settings → SEO: GA ID | GA в трьох місцях (SEO, Integrations, Analytics) — одне джерело: Integrations | 013, 015 |
+| Integrations: 8 провайдерів | Універсального розділу немає; сервіси — Client Project, аналітика — 013 | C-97 |
+| Settings → SEO: GA ID | GA в кількох місцях — одне джерело визначить аналіз Analytics | 013 (D-63) |
 | Settings → Brand: основний колір | Механізм передачі в CSS Client не визначений | D-48 |
 | Settings → Languages: «увімкнення мультимовності» | Конфлікт із config-прапорцем | Прибрано: мов > 1 (C-81) |
 | Settings → Advanced: custom scripts | Безпека і performance | D-47 |
-| Analytics: повна сторінка | Потребує GA4 Data API + OAuth | R-17 |
+| Analytics: повна сторінка | Джерело даних не обране | 013, D-62, R-17 |
 
 ---
 
@@ -1202,6 +1245,8 @@ scheduled publish, коментарі, AI-фічі (translation, SEO, alt), imag
 crop / WebP / AVIF, version history файлів, Backup Manager / Restore Wizard / Recovery Mode UI,
 Update Checker, Setup Wizard, webhooks і retry, WhatsApp / Zapier / Slack / Discord,
 платежі в Core, розширена аналітика (custom reports, goals), E2E / visual regression,
+універсальний модуль Integrations (реєстр провайдерів, UI інтеграцій, owner-managed секрети) і
+сповіщення про заявки в Core (C-97),
 Docker / Kubernetes / IaC, canary / blue-green.
 
 В адмінці Soon — лише те, що реально наступне, не десятки карток.
@@ -1264,6 +1309,8 @@ Google Doc такими правками. Цей список — і чеклі�
 29. Б3 §18 та інші приклади `import type { … } from 'nuxt-cms-core'` — читати як
     `from 'nuxt-cms-core/types'`. Корінь пакета — `nuxt.config.ts` (Layer entry), тож типи мають
     окремий entry (006). При синхронізації Google Doc виправити.
+30. Summary §29, Блок 15 і дизайн-ТЗ §8 — примітки «довгострокове бачення; у V1 — C-97». Analytics
+    (дизайн-ТЗ §6, Б15 §19–20) — епік 013. При синхронізації Google Doc додати.
 
 ### Відкриті рішення в тексті
 
