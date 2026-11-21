@@ -19,17 +19,42 @@ const revisions = ref<CmsPageRevision[]>([])
 const loading = ref(true)
 const error = ref('')
 
+// A publication opened from Activity (`?history=`): marked in the list, or,
+// when it is older than the list, loaded on its own. The query includes the
+// page and the locale, so another page's or language's revision is not found.
+const target = session.historyTarget.value
+const older = ref<CmsPageRevision | null>(null)
+const targetMissing = ref(false)
+const targetError = ref('')
+
+async function showTarget() {
+  if (!target || revisions.value.some(revision => revision.id === target)) {
+    return
+  }
+
+  try {
+    older.value = await engine.getRevision(target)
+    targetMissing.value = older.value === null
+  } catch (cause) {
+    targetError.value = t(adminErrorKey(cause))
+  }
+}
+
 onMounted(async () => {
   await nextTick()
   drawer.value?.querySelector<HTMLElement>('h2')?.focus()
 
   try {
     revisions.value = await engine.listRevisions()
+    await showTarget()
   } catch (cause) {
     error.value = t(adminErrorKey(cause))
   } finally {
     loading.value = false
   }
+
+  await nextTick()
+  drawer.value?.querySelector<HTMLElement>('[data-history-target]')?.scrollIntoView({ block: 'nearest' })
 })
 
 // Focus goes back to the History button the drawer was opened from.
@@ -88,6 +113,7 @@ async function resetPage() {
 
 function close() {
   session.historyOpen.value = false
+  session.historyTarget.value = null
 }
 </script>
 
@@ -145,35 +171,77 @@ function close() {
       >
         {{ t('cms.editor.history.empty') }}
       </p>
-      <ol
-        v-else
-        class="ed-revisions"
-      >
-        <li
-          v-for="(revision, index) in revisions"
-          :key="revision.id"
-          class="ed-revisions__item"
+      <template v-else>
+        <p
+          v-if="targetMissing || targetError"
+          class="ed-hint ed-drawer__hint"
+          :class="{ 'ed-hint--error': targetError }"
+          role="status"
         >
-          <span
-            class="ed-revisions__dot"
-            aria-hidden="true"
-          />
-          <span class="ed-revisions__when">{{ format(revision.createdAt) }}</span>
-          <span
-            v-if="index === 0"
-            class="ed-badge"
-          >{{ t('cms.editor.history.current') }}</span>
-          <AdminButton
-            v-else-if="!engine.readOnly.value"
-            variant="secondary"
-            size="xs"
-            :aria-label="t('cms.editor.history.restoreVersion', { date: format(revision.createdAt) })"
-            @click="restore(revision)"
+          {{ targetError || t('cms.editor.history.targetMissing') }}
+        </p>
+
+        <ol
+          v-if="older"
+          class="ed-revisions ed-revisions--older"
+          :aria-label="t('cms.editor.history.fromActivity')"
+        >
+          <li
+            class="ed-revisions__item ed-revisions__item--target"
+            data-history-target
           >
-            {{ t('cms.editor.history.restore') }}
-          </AdminButton>
-        </li>
-      </ol>
+            <span
+              class="ed-revisions__dot"
+              aria-hidden="true"
+            />
+            <span class="ed-revisions__when">
+              {{ format(older.createdAt) }}
+              <span class="ed-revisions__note">{{ t('cms.editor.history.fromActivity') }}</span>
+            </span>
+            <AdminButton
+              v-if="!engine.readOnly.value"
+              variant="secondary"
+              size="xs"
+              :aria-label="t('cms.editor.history.restoreVersion', { date: format(older.createdAt) })"
+              @click="restore(older)"
+            >
+              {{ t('cms.editor.history.restore') }}
+            </AdminButton>
+          </li>
+        </ol>
+
+        <ol
+          class="ed-revisions"
+        >
+          <li
+            v-for="(revision, index) in revisions"
+            :key="revision.id"
+            class="ed-revisions__item"
+            :class="{ 'ed-revisions__item--target': revision.id === target }"
+            :data-history-target="revision.id === target ? '' : undefined"
+            :aria-current="revision.id === target ? 'true' : undefined"
+          >
+            <span
+              class="ed-revisions__dot"
+              aria-hidden="true"
+            />
+            <span class="ed-revisions__when">{{ format(revision.createdAt) }}</span>
+            <span
+              v-if="index === 0"
+              class="ed-badge"
+            >{{ t('cms.editor.history.current') }}</span>
+            <AdminButton
+              v-else-if="!engine.readOnly.value"
+              variant="secondary"
+              size="xs"
+              :aria-label="t('cms.editor.history.restoreVersion', { date: format(revision.createdAt) })"
+              @click="restore(revision)"
+            >
+              {{ t('cms.editor.history.restore') }}
+            </AdminButton>
+          </li>
+        </ol>
+      </template>
 
       <footer
         v-if="!engine.readOnly.value && engine.hasUnpublished.value"

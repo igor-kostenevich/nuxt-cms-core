@@ -17,6 +17,7 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
     'media.delete': true,
     'forms.view': true,
     'forms.manage': true,
+    'activity.view': true,
   },
   admin: {
     'settings.update': true,
@@ -30,6 +31,7 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
     'media.delete': true,
     'forms.view': true,
     'forms.manage': true,
+    'activity.view': true,
   },
   editor: {
     'settings.update': false,
@@ -43,6 +45,7 @@ const expected: Record<CmsRole, Record<CmsPermission, boolean>> = {
     'media.delete': false,
     'forms.view': false,
     'forms.manage': false,
+    'activity.view': false,
   },
 }
 

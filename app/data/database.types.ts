@@ -9,6 +9,56 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cms_activity: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_label: string | null
+          entity_type: string
+          id: string
+          locale: string | null
+          revision_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type: string
+          id?: string
+          locale?: string | null
+          revision_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type?: string
+          id?: string
+          locale?: string | null
+          revision_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cms_activity_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "cms_page_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cms_form_rate_limits: {
         Row: {
           bucket: string
@@ -310,7 +360,6 @@ export type Database = {
       }
       cms_page_revisions: {
         Row: {
-          base: boolean
           content: Json
           created_at: string
           created_by: string | null
@@ -319,7 +368,6 @@ export type Database = {
           page_id: string
         }
         Insert: {
-          base?: boolean
           content: Json
           created_at?: string
           created_by?: string | null
@@ -328,7 +376,6 @@ export type Database = {
           page_id: string
         }
         Update: {
-          base?: boolean
           content?: Json
           created_at?: string
           created_by?: string | null
@@ -502,6 +549,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cms_activity_log: {
+        Args: {
+          event_action: string
+          event_details?: Json
+          event_entity_id: string
+          event_entity_label: string
+          event_entity_type: string
+          event_locale?: string
+          event_revision_id?: string
+        }
+        Returns: undefined
+      }
       cms_can: { Args: { requested: string }; Returns: boolean }
       cms_content_get: { Args: { address: string; doc: Json }; Returns: Json }
       cms_content_remove: {

@@ -11,6 +11,7 @@ import { defaultCmsConfig } from '../../../src/config'
 import { applyTranslation } from '../../primitives/translation'
 import type { Database, Json } from '../database.types'
 import { CmsDataError } from '../errors'
+import { UUID_PATTERN } from '../ids'
 import { toMediaMap } from '../media-row'
 import type { CmsStorageAdapter } from '../storage/storage-adapter'
 import { createSupabaseStorage } from '../storage/supabase-storage'
@@ -332,6 +333,53 @@ export function createPagesRepository(request?: H3Event, options: PagesRepositor
     return data.map(row => ({ id: row.id, locale: row.locale, createdAt: row.created_at }))
   }
 
+  /**
+   * One publication of a page in a locale, for a link from Activity to a
+   * version older than the History list. The page and the locale are part of
+   * the query, so a revision of another page or language is never returned;
+   * an id that is not a uuid makes no request. Null: deleted or not this page's.
+   */
+  async function getRevision(id: string, key: string, locale: string): Promise<CmsPageRevision | null> {
+    if (!UUID_PATTERN.test(id)) {
+      return null
+    }
+
+    const { data, error } = await (await getAuthClient(request))
+      .from(REVISIONS_TABLE)
+      .select('id, locale, created_at, page:cms_pages!inner(key)')
+      .eq('id', id)
+      .eq('page.key', key)
+      .eq('locale', locale)
+      .maybeSingle()
+
+    if (error) {
+      throw toCmsDataError(error, `Failed to load a revision of page "${key}"`)
+    }
+
+    return data ? { id: data.id, locale: data.locale, createdAt: data.created_at } : null
+  }
+
+  /**
+   * Where pages open in Edit Mode, by page id: the path they were last opened
+   * at (`edit_path`), null while never opened. For links from other screens.
+   */
+  async function editPaths(ids: readonly string[]): Promise<Map<string, string | null>> {
+    if (ids.length === 0) {
+      return new Map()
+    }
+
+    const { data, error } = await (await getAuthClient(request))
+      .from('cms_pages')
+      .select('id, edit_path')
+      .in('id', [...ids])
+
+    if (error) {
+      throw toCmsDataError(error, 'Failed to load page paths')
+    }
+
+    return new Map((data ?? []).map(row => [row.id, row.edit_path]))
+  }
+
   /** Who holds the lock of a page, without the token. Null when nobody does. */
   async function getLockStatus(key: string): Promise<CmsPageLockStatus | null> {
     const { data, error } = await (await getAuthClient(request)).rpc('cms_page_lock_status', {
@@ -486,6 +534,8 @@ export function createPagesRepository(request?: H3Event, options: PagesRepositor
     releaseLock,
     forceUnlock,
     listRevisions,
+    getRevision,
+    editPaths,
     getLockStatus,
     prepareUnloadRelease,
     releaseLockOnUnload,

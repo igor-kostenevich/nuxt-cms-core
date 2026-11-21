@@ -277,7 +277,9 @@
         "reset": "Reset page to the published version",
         "resetTitle": "Reset the whole page?",
         "resetBody": "Every field returns to the published version. Save the draft to keep it.",
-        "restoreVersion": "Restore the version of {date}"
+        "restoreVersion": "Restore the version of {date}",
+        "fromActivity": "Version from the activity log",
+        "targetMissing": "The version from the activity log was not found: it was deleted with its language, or it belongs to another page or language."
       },
       "toasts": {
         "saved": "Draft saved",
@@ -553,6 +555,77 @@
         "turnedOff": "“{name}” is off"
       },
       "homePage": "Home page"
+    },
+    "activity": {
+      "title": "Activity",
+      "intro": "Who changed what in the CMS: publications, files, settings, submissions.",
+      "noAccess": "The activity log is available to owners and admins.",
+      "categoriesLabel": "Event categories",
+      "categories": {
+        "all": "All",
+        "pages": "Pages",
+        "media": "Media",
+        "settings": "Settings",
+        "submissions": "Submissions"
+      },
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "loading": "Loading…",
+      "showMore": "Show more",
+      "system": "System",
+      "homePage": "Home page",
+      "unknownPage": "Page",
+      "submission": "submission",
+      "empty": {
+        "all": "No events yet",
+        "category": "No events in this category",
+        "body": "Page publications, changes to files and settings, and actions on submissions will appear here."
+      },
+      "fields": {
+        "site_name": "site name",
+        "contact_email": "contact email",
+        "contact_phone": "contact phone",
+        "logo": "logo",
+        "favicon": "favicon",
+        "maintenance_mode": "maintenance mode"
+      },
+      "events": {
+        "page": {
+          "publish": "Published page “{name}”",
+          "restore": "Restored a version of “{name}” to the draft",
+          "force_unlock": "Unlocked page “{name}”"
+        },
+        "media": {
+          "upload": "Uploaded file “{name}”",
+          "replace": "Replaced file “{name}”",
+          "delete": "Deleted file “{name}”"
+        },
+        "language": {
+          "add": "Added language “{name}”",
+          "delete": "Deleted language “{name}” with its translations",
+          "show": "Showed language “{name}” on the site",
+          "hide": "Hid language “{name}” on the site"
+        },
+        "form": {
+          "enable": "Resumed submissions: “{name}”",
+          "disable": "Paused submissions: “{name}”"
+        },
+        "maintenanceOn": "Turned on maintenance mode",
+        "maintenanceOff": "Turned off maintenance mode",
+        "settingsUpdate": "Changed settings: {fields}",
+        "settingsUpdateAny": "Changed settings",
+        "submission": {
+          "archiveOne": "Archived a submission",
+          "archiveMany": "Archived submissions: {count}",
+          "spamOne": "Marked a submission as spam",
+          "spamMany": "Marked as spam: {count}",
+          "inboxOne": "Moved a submission back to the inbox",
+          "inboxMany": "Moved back to the inbox: {count}",
+          "deleteOne": "Deleted a submission for good",
+          "deleteMany": "Deleted for good: {count}"
+        },
+        "unknown": "Action “{action}”: {name}"
+      }
     }
   }
 }

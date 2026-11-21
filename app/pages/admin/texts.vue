@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { editorUrl } from '../../admin/edit-path'
 import { adminErrorKey } from '../../admin/error-key'
 import { displayName } from '../../admin/languages'
 import type { PageTextRow, SiteTextRow, TextGroup } from '../../admin/texts'
@@ -229,15 +230,18 @@ function savedLabel(row: PageTextRow | SiteTextRow) {
   return row.source === 'page' ? t('cms.texts.savedDraft') : t('cms.texts.savedLive')
 }
 
-function editorLink(row: PageTextRow) {
+/**
+ * Edit Mode on the field. The path is written by anyone with pages.edit, so
+ * an unsafe one (another admin screen, a query of its own) gives no link.
+ */
+function editorLink(row: PageTextRow): string | null {
   const query = new URLSearchParams({ field: row.address })
 
   if (translating.value) {
     query.set('locale', locale.value)
   }
 
-  const path = row.editPath ?? '/'
-  return `/admin/edit${path === '/' ? '/' : path}?${query}`
+  return editorUrl(row.editPath ?? '/', query)
 }
 
 /**
@@ -582,8 +586,8 @@ function pageSummary(page: DraftPage) {
                   />
                 </button>
                 <NuxtLink
-                  v-if="row.source === 'page'"
-                  :to="editorLink(row)"
+                  v-if="row.source === 'page' && editorLink(row)"
+                  :to="editorLink(row)!"
                   class="text-row__link"
                   :title="t('cms.texts.openInEditor')"
                   :aria-label="t('cms.texts.openInEditorFor', { name: rowLabel(row) })"

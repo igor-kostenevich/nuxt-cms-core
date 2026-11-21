@@ -223,6 +223,25 @@ export function createFormsRepository(request?: H3Event) {
     }
   }
 
+  /** Which of these submissions still exist: deleted ones are gone for good. */
+  async function existing(ids: readonly string[]): Promise<Set<string>> {
+    if (ids.length === 0) {
+      return new Set()
+    }
+
+    const { data, error } = await (await getAuthClient(request))
+      .from('cms_form_submissions')
+      .select('id')
+      .in('id', [...ids])
+      .returns<{ id: string }[]>()
+
+    if (error) {
+      throw toCmsDataError(error, 'Failed to check submissions')
+    }
+
+    return new Set((data ?? []).map(row => row.id))
+  }
+
   /** Deletes for good. */
   async function remove(ids: string[]) {
     if (ids.length === 0) {
@@ -298,6 +317,7 @@ export function createFormsRepository(request?: H3Event) {
     listAll,
     get,
     neighbours,
+    existing,
     setLocation,
     setRead,
     markAllRead,

@@ -200,6 +200,25 @@ watch(() => [engine.status.value, engine.fields.size] as const, async ([status])
   }
 })
 
+// ── Opening a publication from Activity ───────────────────────────────
+
+// `?history=<revision id>`: once the page is ready, History opens with that
+// publication marked. The panel checks that it belongs to this page and
+// locale. Done once per load; the query stays for a reload.
+let historyOpened = false
+
+watch(() => engine.status.value, (status) => {
+  const target = route.query.history
+
+  if (historyOpened || status !== 'ready' || typeof target !== 'string' || !target) {
+    return
+  }
+
+  historyOpened = true
+  session.historyTarget.value = target
+  session.historyOpen.value = true
+}, { immediate: true })
+
 // The page renders before it is bound: it calls useCmsPage during setup.
 // A page without useCmsPage has no CMS content and stays read-only.
 const mounted = ref(false)

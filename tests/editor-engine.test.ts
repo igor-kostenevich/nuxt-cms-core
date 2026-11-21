@@ -44,6 +44,7 @@ function fakeRepository(overrides: Partial<EditorRepository> & FakeSources = {})
     publish: vi.fn(async () => '2026-11-15T12:00:00Z'),
     restore: vi.fn(async () => '2026-11-15T13:00:00Z'),
     listRevisions: vi.fn(async () => []),
+    getRevision: vi.fn(async () => null),
     acquireLock: vi.fn(async () => 'token-1'),
     heartbeatLock: vi.fn(async () => undefined),
     releaseLock: vi.fn(async () => undefined),

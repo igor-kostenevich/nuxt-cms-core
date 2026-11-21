@@ -311,14 +311,14 @@ select results_eq(
 
 select results_eq(
   $$
-    select pub.content, r.base
+    select pub.content, r.content = pub.content
       from public.cms_page_published pub
       join public.cms_pages p on p.id = pub.page_id
       join public.cms_page_revisions r on r.page_id = pub.page_id and r.locale = pub.locale
       where p.key = 'texts-fixture' and pub.locale = 'en'
   $$,
-  $$ values ('{"hero.title": "Hello"}'::jsonb, false) $$,
-  'published with a revision of a translation'
+  $$ values ('{"hero.title": "Hello"}'::jsonb, true) $$,
+  'published with a revision of the published translation'
 );
 
 select set_config('cms_test.token2', public.cms_page_lock_acquire('texts-fixture-2')::text, true);

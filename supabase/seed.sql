@@ -141,6 +141,10 @@ $json$::jsonb
 from home;
 
 -- Every publication has a revision (C-51), the seeded ones included.
-insert into public.cms_page_revisions (page_id, locale, content, created_at, base)
-select page_id, locale, content, published_at, locale = 'en'
+insert into public.cms_page_revisions (page_id, locale, content, created_at)
+select page_id, locale, content, published_at
 from public.cms_page_published;
+
+-- Seeding is not an action of the team: the triggers of 012 logged the direct
+-- inserts above, and a fresh project starts with an empty Activity.
+delete from public.cms_activity;

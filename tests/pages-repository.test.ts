@@ -335,6 +335,26 @@ describe('PagesRepository editing functions', () => {
     expect(argsOf('order')).toEqual([['created_at', { ascending: false }]])
   })
 
+  it('reads one revision only of the given page and locale, in the query itself', async () => {
+    const id = '00000000-0000-4000-8000-0000000000a1'
+    response = { data: { id, locale: 'uk', created_at: '2026-11-15T12:00:00+00:00', page: { key: 'home' } }, error: null }
+
+    await expect(createPagesRepository().getRevision(id, 'home', 'uk')).resolves.toEqual({
+      id, locale: 'uk', createdAt: '2026-11-15T12:00:00+00:00',
+    })
+    expect(argsOf('select')[0]?.[0]).toContain('page:cms_pages!inner(key)')
+    expect(argsOf('eq')).toEqual([['id', id], ['page.key', 'home'], ['locale', 'uk']])
+  })
+
+  it('returns null for a revision that is gone or not this page\'s, and makes no request for a bad id', async () => {
+    response = { data: null, error: null }
+    await expect(createPagesRepository().getRevision('00000000-0000-4000-8000-0000000000a2', 'home', 'uk')).resolves.toBeNull()
+
+    calls.length = 0
+    await expect(createPagesRepository().getRevision('x),id.neq.(0', 'home', 'uk')).resolves.toBeNull()
+    expect(calls).toEqual([])
+  })
+
   it('reads the lock holder without the token, and null when nobody holds it', async () => {
     response = {
       data: [{

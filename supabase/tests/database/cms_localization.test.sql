@@ -331,14 +331,14 @@ select public.cms_page_publish('l10n-fixture', 'en', current_setting('cms_test.t
 
 select results_eq(
   $$
-    select r.locale::text, r.base
+    select r.locale::text
     from public.cms_page_revisions r
     join public.cms_pages p on p.id = r.page_id
     where p.key = 'l10n-fixture'
     order by r.locale desc
   $$,
-  $$ values ('uk', true), ('en', false) $$,
-  'a revision remembers whether it is the base or a translation'
+  $$ values ('uk'), ('en') $$,
+  'each locale is published with its own revision'
 );
 
 select results_eq(

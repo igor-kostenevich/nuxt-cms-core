@@ -49,6 +49,7 @@ export interface EditorRepository {
     options?: { replaceDraft?: boolean },
   ): Promise<string | null>
   listRevisions(key: string, locale: string): Promise<CmsPageRevision[]>
+  getRevision(id: string, key: string, locale: string): Promise<CmsPageRevision | null>
   acquireLock(key: string): Promise<string>
   heartbeatLock(key: string, lockToken: string): Promise<void>
   releaseLock(key: string, lockToken: string): Promise<void>
@@ -602,6 +603,11 @@ export function createEditorEngine(options: EditorEngineOptions) {
     return repository.listRevisions(requireEntity(), requireLocale())
   }
 
+  /** A publication of this page in this locale, or null (deleted, another page or language). */
+  async function getRevision(id: string) {
+    return repository.getRevision(id, requireEntity(), requireLocale())
+  }
+
   /**
    * Restores a revision into the Draft. Local unsaved changes are dropped:
    * the caller confirms that first. Resolves false when it did not happen.
@@ -1149,6 +1155,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     save,
     publish,
     listRevisions,
+    getRevision,
     restore,
     // editing
     get,

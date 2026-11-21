@@ -32,6 +32,8 @@ export function createEditorSession(options: {
 }) {
   const { engine, view, ui, t, navigate } = options
   const historyOpen = ref(false)
+  /** A publication to show in History: from `?history=` (a link from Activity). */
+  const historyTarget = ref<string | null>(null)
 
   /** Commits a field being typed in, for actions that re-render it (Undo, leave). */
   function blurActiveField() {
@@ -200,7 +202,7 @@ export function createEditorSession(options: {
     }
   }
 
-  return { save, publish, focusIssue, confirmLeave, goTo, exit, historyOpen, blurActiveField }
+  return { save, publish, focusIssue, confirmLeave, goTo, exit, historyOpen, historyTarget, blurActiveField }
 }
 
 export type EditorSession = ReturnType<typeof createEditorSession>

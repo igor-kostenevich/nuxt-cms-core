@@ -80,7 +80,7 @@ const groups = [
     label: 'cms.shell.groups.website',
     items: [
       { label: 'cms.shell.nav.analytics', icon: 'lucide:chart-column' },
-      { label: 'cms.shell.nav.activity', icon: 'lucide:activity' },
+      { label: 'cms.shell.nav.activity', icon: 'lucide:activity', to: '/admin/activity', permission: 'activity.view' },
       { label: 'cms.shell.nav.integrations', icon: 'lucide:plug' },
     ],
   },

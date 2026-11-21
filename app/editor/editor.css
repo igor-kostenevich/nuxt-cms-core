@@ -678,6 +678,27 @@
   background: var(--cms-success);
 }
 
+.cms-editor-ui .ed-revisions--older {
+  flex: none;
+  border-bottom: var(--cms-border-width) solid var(--cms-border);
+}
+
+/* An older version is not live: no green dot of the first entry. */
+.cms-editor-ui .ed-revisions--older .ed-revisions__item:first-child .ed-revisions__dot {
+  background: var(--cms-neutral-400);
+}
+
+.cms-editor-ui .ed-revisions__item--target {
+  background: var(--cms-surface-selected);
+}
+
+.cms-editor-ui .ed-revisions__note {
+  display: block;
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-helper-size);
+  line-height: var(--cms-type-helper-line);
+}
+
 .cms-editor-ui .ed-badge {
   padding: 2px var(--cms-space-2);
   border-radius: var(--cms-radius-full);
