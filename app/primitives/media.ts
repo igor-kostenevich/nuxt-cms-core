@@ -87,7 +87,8 @@ export interface ResolvedImage {
  */
 export function resolveImage(value: unknown, media: CmsMediaMap, defaults: ImageDefaults): ResolvedImage {
   const image = toImageValue(value)
-  const item = image ? media[image.mediaId] ?? null : null
+  // Own keys only: a stored mediaId such as "constructor" is not a media item.
+  const item = image && Object.hasOwn(media, image.mediaId) ? media[image.mediaId] ?? null : null
 
   // The code default renders as the code says: `decorative` in the value
   // belonged to a file that is gone.

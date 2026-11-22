@@ -691,6 +691,10 @@ export type Database = {
         Args: { next_content: Json; target_locale: string }
         Returns: undefined
       }
+      cms_page_check_translation: {
+        Args: { next_content: Json; target_locale: string; target_page: string }
+        Returns: undefined
+      }
       cms_page_get_editable: {
         Args: {
           bootstrap_locale: string
@@ -802,6 +806,10 @@ export type Database = {
       cms_page_set_texts: {
         Args: { entries: Json; page_key: string; page_locale: string }
         Returns: string
+      }
+      cms_page_text_fits: {
+        Args: { address: string; doc: Json; value: Json }
+        Returns: boolean
       }
       cms_page_text_target: {
         Args: { address: string; doc: Json }

@@ -19,10 +19,19 @@
 -- Limit: an address the original does not store yet (a field still showing
 -- its value from code) is accepted by name; a string written there where the
 -- page code expects an object is ignored by the primitive (it renders its
--- default). Edit Mode is unchanged: it saves whole values under the lock.
+-- default).
+--
+-- After the audit of 006–012 the same rule guards the translations Edit Mode
+-- saves (cms_page_save_draft below): a translation changes texts only (C-78).
 
--- The leaf `address` of the original `doc` can hold a text.
-create function public.cms_page_text_target(doc jsonb, address text)
+-- The leaf `address` of the original `doc` can take `value`: a text over a
+-- text, a rich text document over a document, `null` (clears a translated
+-- text) over either, or anything over what the original does not store.
+-- Never a property of a primitive value, an object, a list or a switch, and
+-- not below a stored scalar or rich text document. Keep identical to
+-- translationFits in app/primitives/translation.ts
+-- (tests/fixtures/translation-fits.json).
+create function public.cms_page_text_fits(doc jsonb, address text, value jsonb)
 returns boolean
 language plpgsql
 immutable
@@ -49,8 +58,30 @@ begin
   end loop;
 
   node := public.cms_content_get(doc, address);
-  return node is null or jsonb_typeof(node) in ('string', 'null');
+
+  if node is null or jsonb_typeof(node) = 'null' then
+    return true;
+  end if;
+
+  return coalesce(case jsonb_typeof(value)
+    when 'string' then jsonb_typeof(node) = 'string'
+    when 'null' then jsonb_typeof(node) = 'string' or (jsonb_typeof(node) = 'object' and node ->> 'type' = 'doc')
+    when 'object' then value ->> 'type' = 'doc' and jsonb_typeof(node) = 'object' and node ->> 'type' = 'doc'
+    else false
+  end, false);
 end;
+$$;
+
+revoke all on function public.cms_page_text_fits(jsonb, text, jsonb) from public, anon, authenticated, service_role;
+
+-- The leaf `address` of the original `doc` can hold a text.
+create function public.cms_page_text_target(doc jsonb, address text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select public.cms_page_text_fits(doc, address, '""'::jsonb);
 $$;
 
 revoke all on function public.cms_page_text_target(jsonb, text) from public, anon, authenticated;
@@ -183,5 +214,82 @@ begin
   end loop;
 
   return public.cms_page_write_draft(target_page, page_locale, current_content);
+end;
+$$;
+
+-- Translations saved by Edit Mode (audit of 006–012) --------------------------
+-- cms_page_save_draft took any translation that passed the shape check
+-- (cms_page_check_draft_shape: address format, string or rich text). A direct
+-- call could store `quote.visibility.hidden`, `hero.cta.newTab`, a string
+-- over a whole link or optional value, or a key inside a rich text document,
+-- and the language would show a block hidden elsewhere, open a link in a new
+-- tab or lose its rich text. A translation changes texts only (C-78).
+--
+-- Only the leaves a save adds or changes are checked, against the original it
+-- translates (draft ?? published of the default language). A leaf stored
+-- before, which the original changed under later, does not block the next
+-- save: the read skips it (applyTranslation) and Edit Mode prunes it. Restore
+-- writes a stored revision and is not checked here; the read guards it too.
+create function public.cms_page_check_translation(target_page uuid, target_locale text, next_content jsonb)
+returns void
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  default_code text;
+  original jsonb;
+  previous jsonb;
+  entry record;
+begin
+  select l.code::text into default_code from public.cms_languages l where l.is_default;
+
+  if default_code is null or target_locale = default_code or jsonb_typeof(next_content) is distinct from 'object' then
+    return;
+  end if;
+
+  original := coalesce(
+    (select d.content from public.cms_page_draft d where d.page_id = target_page and d.locale = default_code),
+    (select pub.content from public.cms_page_published pub where pub.page_id = target_page and pub.locale = default_code),
+    '{}'::jsonb
+  );
+  previous := coalesce(
+    (select d.content from public.cms_page_draft d where d.page_id = target_page and d.locale = target_locale),
+    (select pub.content from public.cms_page_published pub where pub.page_id = target_page and pub.locale = target_locale),
+    '{}'::jsonb
+  );
+
+  for entry in select e.key, e.value from jsonb_each(next_content) as e loop
+    if (previous -> entry.key) is distinct from entry.value
+      and not public.cms_page_text_fits(original, entry.key, entry.value) then
+      raise exception 'Address "%" is not a text of the page and cannot be translated', left(entry.key, 80)
+        using errcode = '22023';
+    end if;
+  end loop;
+end;
+$$;
+
+revoke all on function public.cms_page_check_translation(uuid, text, jsonb) from public, anon, authenticated, service_role;
+
+-- Same as in 20261115150000, plus the check above. `create or replace` keeps
+-- the grants (execute: authenticated).
+create or replace function public.cms_page_save_draft(
+  page_key text,
+  page_locale text,
+  content jsonb,
+  lock_token uuid
+)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  held_page_id uuid;
+begin
+  perform public.cms_require_permission('pages.edit');
+  held_page_id := public.cms_page_held_lock(page_key, lock_token);
+  perform public.cms_page_check_translation(held_page_id, page_locale, content);
+  return public.cms_page_write_draft(held_page_id, page_locale, content);
 end;
 $$;

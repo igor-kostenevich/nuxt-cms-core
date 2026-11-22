@@ -10,7 +10,11 @@ const EditableText = defineAsyncComponent(() => import('../../editor/fields/Edit
 // Public render of a plain text field. The value only flows in: Edit Mode
 // changes it through the Editor Engine, never through v-model (MASTER_PLAN C-47).
 const props = withDefaults(defineProps<{
-  /** Stored value; null or undefined renders the default from the slot. */
+  /**
+   * Stored value. A string renders as is (`''` included); anything else
+   * renders the default from the slot: a stored value is untrusted, and a
+   * translation or a direct write can leave an object here (C-78).
+   */
   value?: string | null
   /** Field address in the entity, e.g. `hero.title` (C-48). */
   fieldKey: string
@@ -45,7 +49,7 @@ const editor = injectCmsEditor()
     :is="tag"
     v-else
   >
-    <template v-if="value != null">{{ value }}</template>
+    <template v-if="typeof value === 'string'">{{ value }}</template>
     <slot v-else />
   </component>
 </template>

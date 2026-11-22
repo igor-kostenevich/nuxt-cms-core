@@ -37,7 +37,12 @@ watch([targetPath, () => route.query, () => route.hash], async ([path]) => {
   const resolved = router.resolve({ path, query: route.query, hash: route.hash })
   const page = resolved.matched.at(-1)
 
-  if (resolved.matched.length === 0 || isAdminPath(path) || !page?.components?.default) {
+  // The matched records decide, not the typed path: the router matches
+  // `/ADMIN/settings` to `/admin/settings`, and an admin page (or this editor
+  // itself) must never render as a client page here.
+  const admin = isAdminPath(path) || resolved.matched.some(record => isAdminPath(record.path))
+
+  if (resolved.matched.length === 0 || admin || !page?.components?.default) {
     missing.value = true
     target.value = null
     return

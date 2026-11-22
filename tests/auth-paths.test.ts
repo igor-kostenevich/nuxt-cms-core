@@ -20,4 +20,15 @@ describe('CMS path prefixes', () => {
     expect(isLoginPath('/admin/login')).toBe(true)
     expect(isLoginPath('/admin/loginx')).toBe(false)
   })
+
+  // vue-router matches case-insensitively: /ADMIN/settings opens /admin/settings,
+  // and /ADMIN/edit/x opens Edit Mode itself.
+  it('ignores case like the router does', () => {
+    expect(isAdminPath('/ADMIN/settings')).toBe(true)
+    expect(isAdminPath('/Admin')).toBe(true)
+    expect(isEditPath('/admin/EDIT/about')).toBe(true)
+    expect(isEditPath('/ADMIN/edit')).toBe(true)
+    expect(isLoginPath('/Admin/Login')).toBe(true)
+    expect(isAdminPath('/ADMINISTER')).toBe(false)
+  })
 })

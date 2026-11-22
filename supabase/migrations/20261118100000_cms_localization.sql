@@ -901,8 +901,10 @@ $$;
 
 -- Disabled languages are not served (C-83) -----------------------------------------
 -- The public site reads published rows through the API too, so the filter is
--- in the policy, not only in cms_page_get_localized. Signed-in CMS users keep
--- seeing every language: the editor works on a disabled language as well.
+-- in the policy, not only in cms_page_get_localized. CMS users keep seeing
+-- every language: the editor works on a disabled language as well. A signed-in
+-- site user without CMS access (the same Supabase Auth) is the public: an
+-- `authenticated` role alone must not reveal a disabled language.
 -- While no language exists, every locale is served (the bootstrap state).
 
 drop policy "cms_page_published_select_all" on public.cms_page_published;
@@ -920,7 +922,11 @@ create policy "cms_page_published_select_cms"
   on public.cms_page_published
   for select
   to authenticated
-  using (true);
+  using (
+    not exists (select 1 from public.cms_languages)
+    or exists (select 1 from public.cms_languages l where l.code = locale and l.active)
+    or public.cms_can('pages.edit')
+  );
 
 drop policy "cms_site_settings_translations_select_all" on public.cms_site_settings_translations;
 
@@ -936,7 +942,10 @@ create policy "cms_site_settings_translations_select_cms"
   on public.cms_site_settings_translations
   for select
   to authenticated
-  using (true);
+  using (
+    exists (select 1 from public.cms_languages l where l.code = locale and l.active)
+    or public.cms_can('pages.edit')
+  );
 
 -- Shape of a saved draft ----------------------------------------------------------
 -- A language other than the default holds a translation: a flat object of

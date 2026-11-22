@@ -117,6 +117,13 @@ SQL: `select content->'hero'->'eyebrow' from cms_page_draft;`.
 
 ---
 
+### EM-NAV-06 — Адмінка не відкривається як сторінка сайту
+**Кроки:** увійти як owner і відкрити `/admin/edit/ADMIN/settings`, `/admin/edit/Admin` і
+`/admin/edit/ADMIN/edit/about`.
+**Очікувано:** щоразу — «сторінку не знайдено» з кнопкою назад. Ні Settings, ні вкладеного редактора
+всередині рамки Edit Mode.
+**E2E:** так.
+
 ## Колекції і optional
 
 ### EM-COLL-01 — Додати, дублювати, видалити

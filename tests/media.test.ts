@@ -86,6 +86,12 @@ describe('resolveImage (C-74)', () => {
     const noFocal: CmsMediaMap = { [hero.id]: { ...hero, defaultFocal: null } }
     expect(resolveImage({ mediaId: hero.id }, noFocal, { ...code, position: '50% 0%' }).objectPosition).toBe('50% 0%')
   })
+
+  // A stored mediaId is untrusted: a key of Object.prototype is not a media item,
+  // and the image falls back to the code default instead of rendering nothing.
+  it.each(['__proto__', 'constructor', 'toString', 'hasOwnProperty'])('treats mediaId "%s" as unknown media', (mediaId) => {
+    expect(resolveImage({ mediaId }, media, code)).toMatchObject({ src: code.src, alt: code.alt, media: null })
+  })
 })
 
 describe('toImageValue', () => {

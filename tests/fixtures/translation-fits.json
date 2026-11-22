@@ -1,0 +1,43 @@
+{
+  "base": {
+    "hero": {
+      "title": "Hi",
+      "cta": { "label": "Go", "href": "/about", "newTab": false },
+      "image": { "mediaId": "00000000-0000-4000-8000-000000000001", "alt": "Studio" },
+      "lead": { "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Lead" }] }] }
+    },
+    "services": { "items": [{ "id": "a1", "title": "One" }, { "id": "b2", "title": "Two" }] },
+    "quote": { "visibility": { "hidden": true } }
+  },
+  "cases": [
+    { "address": "hero.title", "value": "Привіт", "fits": true },
+    { "address": "hero.cta.label", "value": "Вперед", "fits": true },
+    { "address": "hero.image.alt", "value": "Студія", "fits": true },
+    { "address": "hero.lead", "value": { "type": "doc", "content": [] }, "fits": true },
+    { "address": "services.items.b2.title", "value": "Два", "fits": true },
+    { "address": "services.items.default-0.title", "value": "З коду", "fits": true },
+    { "address": "about.title", "value": "Текст з коду", "fits": true },
+    { "address": "about.body", "value": { "type": "doc", "content": [] }, "fits": true },
+    { "address": "about.cta.label", "value": "Кнопка з коду", "fits": true },
+    { "address": "hero.title", "value": null, "fits": true },
+    { "address": "hero.lead", "value": null, "fits": true },
+
+    { "address": "quote.visibility.hidden", "value": "x", "fits": false },
+    { "address": "hero.cta.newTab", "value": "false", "fits": false },
+    { "address": "hero.cta.href", "value": "/x", "fits": false },
+    { "address": "hero.image.mediaId", "value": "x", "fits": false },
+    { "address": "hero.image.focal", "value": "x", "fits": false },
+    { "address": "hero.image.decorative", "value": "x", "fits": false },
+    { "address": "services.items.b2.id", "value": "x", "fits": false },
+    { "address": "about.cta.hidden", "value": "x", "fits": false },
+    { "address": "quote.visibility", "value": "x", "fits": false },
+    { "address": "hero.cta", "value": "Go!", "fits": false },
+    { "address": "services.items", "value": "x", "fits": false },
+    { "address": "hero.lead.type", "value": "x", "fits": false },
+    { "address": "hero.lead.content", "value": "x", "fits": false },
+    { "address": "hero.lead", "value": "flat", "fits": false },
+    { "address": "hero.title", "value": { "type": "doc", "content": [] }, "fits": false },
+    { "address": "hero.title.deep", "value": "x", "fits": false },
+    { "address": "quote.visibility", "value": null, "fits": false }
+  ]
+}
