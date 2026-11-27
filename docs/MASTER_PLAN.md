@@ -935,6 +935,7 @@ middleware layer.
 | 010d | Мова оригіналу незмінна (тригери, без конвертації); стабільні id колекцій із коду; «Тексти» пишуть оригінал і переклади в ті самі чернетки одним RPC, публікують вибрані сторінки з перевіркою версії; page-mutex `FOR NO KEY UPDATE`; конкурентні pgTAP через dblink | [010d](./implementation/010d-simplify.md) |
 | 011 | Форми з `cms.forms.ts`, `useCmsForm`, перший server route Core (`/api/cms/forms/[key]`) із secret-ключем; `cms_form_submit` з ідемпотентністю й лімітами; права `forms.*`; адмінка «Заявки» (інбокс, деталі, керування формами, CSV); мобільна адмінка; *доповнення C-97:* хук `cms:forms:submitted` | [011](./implementation/011-forms.md) |
 | 012 | `cms_activity` + запис у RPC і тригерах, право `activity.view`; екран `/admin/activity` (категорії, дні, keyset, SSR без hydration mismatch); перехід у History з підсвіченою або підвантаженою версією; прибрано `revisions.base` | [012](./implementation/012-activity.md) |
+| 014 | `cms_documents` як спільна identity, `cms_entries` + адреси й RPC; типи записів у `cms.content.ts`; розділи Pages і Content; Edit Mode записів і діалог Content з формою зі схеми; `useCmsEntry` / `useCmsEntries`, `<CmsEntries>` (Automatic / Manual); Archive, ручний порядок; Media usage і Activity записів | [014](./implementation/014-content.md) |
 
 ### Drift код ↔ план
 
@@ -1288,7 +1289,7 @@ read → draft → edit → publish до локалізації; Collections п�
 
 ### 014 — Pages / Content: самостійні записи
 
-`in progress` (реалізовано, рев'ю) · Фаза 4
+`done` · Фаза 4
 
 - **Ціль.** Client Project оголошує типи самостійних записів (блог, вакансії) у `cms.content.ts` і отримує
   для них той самий Draft / Publish / Revisions / Lock / переклад, що й для сторінок, без змін Core (C-99…C-112).

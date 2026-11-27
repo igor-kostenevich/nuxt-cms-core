@@ -45,7 +45,7 @@
 | 011 | Forms infrastructure | 3 | `done` | [011](./011-forms.md) |
 | 012 | Activity (Admin UI + Restore) | 3 | `done` | [012](./012-activity.md) |
 | 013 | Analytics (замість Integrations, C-97) | 3 | `todo` | — |
-| 014 | Pages / Content: самостійні записи | 4 | `in progress` (рев'ю) | [014](./014-content.md) |
+| 014 | Pages / Content: самостійні записи | 4 | `done` | [014](./014-content.md) |
 | 015 | Решта Admin + Configuration growth | 4 | `todo` | — |
 | 017 | Custom Admin Extensions (після 015, до першого publish) | 4 | `todo` | — |
 | 016 | CLI / Updates / Deploy / Publishing | 5 | `todo` | — |
@@ -198,3 +198,13 @@ Playground маршрутизує `/[[locale]]` сам: Core дає лише д�
 - `/admin/activity`: категорії, «Сьогодні / Вчора / дата», «Показати ще», посилання лише на те, що існує.
 - Подія публікації веде в History редактора з підсвіченою версією; старшу за 50 показує окремим рядком.
   Restore — наявний.
+
+### 014 — Pages / Content
+
+- Типи самостійних записів (блог, вакансії) Client оголошує в `cms.content.ts`; Core дає їм Draft / Publish /
+  Revisions / Lock / переклад сторінок без змін Core (C-99…C-112).
+- `cms_documents` — спільна identity сторінок і записів; `cms_entries`, адреси (slug у перекладах), RPC.
+- Адмінка: розділи Pages і Content, діалог запису з формою зі схеми (16 типів полів), Archive, ручний порядок,
+  множинний фільтр статусу; знятий із сайту запис — «Чернетка».
+- Public: `useCmsEntry` / `useCmsEntries`, `<CmsEntries>` (Automatic / Manual); Edit Mode записів за UUID.
+- Media usage і події Activity для записів.
