@@ -75,6 +75,8 @@ onBeforeUnmount(() => {
 })
 
 function onEscape(event: KeyboardEvent) {
+  // preventDefault too: inside a modal host, Esc must not also close the dialog.
+  event.preventDefault()
   event.stopPropagation()
   const anchor = props.anchor
   view.select(null)

@@ -22,8 +22,9 @@ const props = defineProps<{
 
 const { t } = useAdminI18n()
 const el = ref<HTMLElement | null>(null)
-const { engine, view, key, id } = useEditorField({
+const { engine, view, key, id, foreign } = useEditorField({
   kind: 'text',
+  value: () => props.value,
   fieldKey: () => props.fieldKey,
   el,
   label: () => props.fieldLabel,
@@ -36,7 +37,7 @@ const { engine, view, key, id } = useEditorField({
 
 // In a translation, a field the base cannot hold yet (an item that is still a
 // code default) takes no input (C-78).
-const editable = computed(() => view.editable.value && engine.canTranslate(key.value))
+const editable = computed(() => view.editable.value && engine.canTranslate(key.value) && !foreign.value)
 
 const seeded = ref(false)
 const editing = ref(false)

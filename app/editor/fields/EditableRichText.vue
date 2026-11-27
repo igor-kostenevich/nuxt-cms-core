@@ -22,6 +22,8 @@ const props = defineProps<{
   fieldLabel?: string
   required?: boolean
   maxLength?: number
+  /** A field of Core's entry form (014): no default from code, empty is empty. */
+  form?: boolean
 }>()
 
 const el = ref<HTMLElement | null>(null)
@@ -29,13 +31,15 @@ const editor = shallowRef<Editor | null>(null)
 // The slot renders once so its HTML can seed the editor, then Tiptap owns the element.
 const seeded = ref(false)
 
-const { engine, view, key, id } = useEditorField({
+const { engine, view, key, id, foreign } = useEditorField({
   kind: 'richText',
+  value: () => props.value,
   fieldKey: () => props.fieldKey,
   el,
   label: () => props.fieldLabel,
   required: () => props.required,
   maxLength: () => props.maxLength,
+  form: props.form,
   // What the field shows as plain text: the stored document, or the slot
   // default, for the field registry (C-84).
   defaultText: () => (isRichTextDoc(props.value)
@@ -55,7 +59,7 @@ const { engine, view, key, id } = useEditorField({
 
 // In a translation, a field the base cannot hold yet (an item that is still a
 // code default) takes no input (C-78).
-const editable = computed(() => view.editable.value && engine.canTranslate(key.value))
+const editable = computed(() => view.editable.value && engine.canTranslate(key.value) && !foreign.value)
 
 let defaultHtml = ''
 let lastWritten = ''

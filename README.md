@@ -198,6 +198,9 @@ export default defineNitroPlugin((nitroApp) => {
 
 ## Reading content
 
+> How pages and content are built on a Client Project (static pages, entries with a route, Content types, selection,
+> translations, with examples): [docs/guides/pages-and-content.md](docs/guides/pages-and-content.md).
+
 Data access always goes through a repository, so components never talk to the backend directly:
 
 ```vue

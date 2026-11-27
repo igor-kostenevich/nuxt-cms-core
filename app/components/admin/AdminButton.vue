@@ -222,6 +222,19 @@ const showTrailing = computed(() => !props.iconOnly && Boolean(slots.trailing))
   color: var(--cms-primary-active);
 }
 
+/* An icon put in the label slot (not #leading) sits on the text's center too. */
+.admin-button__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cms-space-2);
+}
+
+.admin-button__label :deep(svg) {
+  flex: none;
+  width: var(--cms-icon-size);
+  height: var(--cms-icon-size);
+}
+
 .admin-button__icon {
   display: inline-flex;
   flex: none;

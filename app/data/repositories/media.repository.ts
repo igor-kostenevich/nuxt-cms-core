@@ -53,9 +53,21 @@ function newStoragePath(mime: string): string {
   return `${crypto.randomUUID()}.${extension}`
 }
 
-function toUsage(row: { source: string, page_key: string | null, locale: string | null, is_draft: boolean }): CmsMediaUsage | null {
+function toUsage(row: {
+  source: string
+  page_key: string | null
+  locale: string | null
+  is_draft: boolean
+  entry_id?: string | null
+  entry_type?: string | null
+  entry_title?: string | null
+}): CmsMediaUsage | null {
   if (row.source === 'page' && row.page_key && row.locale) {
     return { kind: 'page', pageKey: row.page_key, locale: row.locale, draft: row.is_draft }
+  }
+
+  if (row.source === 'entry' && row.entry_id && row.entry_type && row.locale) {
+    return { kind: 'entry', type: row.entry_type, id: row.entry_id, title: row.entry_title ?? null, locale: row.locale, draft: row.is_draft }
   }
 
   if (row.source === 'brand.logo') {

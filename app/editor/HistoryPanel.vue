@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
+import { inject, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
+import { EDITOR_LAYER } from './host'
 import { useAdminI18n } from '../admin/useAdminI18n'
 import { adminErrorKey } from '../admin/error-key'
 import type { CmsPageRevision } from '../types/pages'
@@ -115,10 +116,13 @@ function close() {
   session.historyOpen.value = false
   session.historyTarget.value = null
 }
+
+// Teleported into the host's layer: <body>, or the dialog of a modal host.
+const layer = inject(EDITOR_LAYER, 'body')
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="layer">
     <aside
       ref="drawer"
       class="cms-admin cms-editor-ui ed-drawer"

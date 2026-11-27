@@ -25,6 +25,11 @@ export interface ActivityLookups {
   languageCodes: readonly string[]
   /** The name of a form, from the site texts. */
   formName: (key: string) => string
+  /**
+   * Types of cms.content.ts by key (014): the name shown for an entry event
+   * and where its editor is. A type no longer declared gives no link.
+   */
+  entryTypes?: ReadonlyMap<string, { label: string, route: string | null }>
 }
 
 export interface ActivityRow {
@@ -132,6 +137,59 @@ function submissionRow(event: CmsActivityEvent, lookups: ActivityLookups): Activ
   return { title, link: location ? `/admin/submissions?location=${location}` : '/admin/submissions' }
 }
 
+const ENTRY_ACTIONS = ['create', 'publish', 'restore', 'archive', 'unarchive', 'delete', 'force_unlock', 'reorder']
+
+/**
+ * An entry event (014): the entry's title (a snapshot) and its type. A type of
+ * Pages opens in Edit Mode (History for a publication or restore), a type of
+ * Content in its dialog; an archived one and a new order open the list.
+ */
+function entryRow(event: CmsActivityEvent, lookups: ActivityLookups): ActivityRow {
+  const { t } = lookups
+  const typeKey = typeof event.details?.type === 'string' ? event.details.type : ''
+  const type = lookups.entryTypes?.get(typeKey)
+  const typeName = type?.label ?? humanize(typeKey)
+  const name = event.entityLabel ?? t('cms.pages.type.untitled')
+  const known = ENTRY_ACTIONS.includes(event.action)
+  const title = known
+    ? t(`cms.activity.events.entry.${event.action}`, { name, type: typeName })
+    : t('cms.activity.events.unknown', { action: event.action, name })
+
+  if (!type || !lookups.can('pages.edit') || !/^[a-z][a-z0-9-]{0,39}$/.test(typeKey)) {
+    return { title, link: null }
+  }
+
+  const list = `/admin/${type.route ? 'pages' : 'content'}/${typeKey}`
+  const id = event.entityId && UUID.test(event.entityId) ? event.entityId : null
+
+  // A deleted entry has nothing to open: the list it was in.
+  if (!known || !id || event.action === 'reorder' || event.action === 'delete') {
+    return { title, link: list }
+  }
+
+  // Taken off the site: a draft in the lists (C-109), under the «Draft» filter.
+  if (event.action === 'archive') {
+    return { title, link: `${list}?status=draft` }
+  }
+
+  if (!type.route) {
+    return { title, link: `${list}?entry=${id}` }
+  }
+
+  // Edit Mode finds the entry by its id and puts its address in the path.
+  const params = new URLSearchParams({ entry: id })
+
+  if (event.locale) {
+    params.set('locale', event.locale)
+  }
+
+  if (event.revisionId && UUID.test(event.revisionId) && (event.action === 'publish' || event.action === 'restore')) {
+    params.set('history', event.revisionId)
+  }
+
+  return { title, link: editorUrl(`${type.route.slice(0, -'[slug]'.length)}${id}`, params) }
+}
+
 /** The sentence of an event and where it leads. */
 export function describeActivity(event: CmsActivityEvent, lookups: ActivityLookups): ActivityRow {
   const { t } = lookups
@@ -176,6 +234,8 @@ export function describeActivity(event: CmsActivityEvent, lookups: ActivityLooku
         link: lookups.can('forms.view') ? '/admin/submissions/forms' : null,
       }
     }
+    case 'entry':
+      return entryRow(event, lookups)
     case 'settings':
       return settingsRow(event, lookups)
     case 'submission':

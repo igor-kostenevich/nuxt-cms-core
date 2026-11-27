@@ -292,6 +292,9 @@ function onDrop(event: DragEvent) {
 
 .media-library__hidden {
   position: absolute;
+  /* At the top of its box: never stretches a scroll area below the content. */
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;

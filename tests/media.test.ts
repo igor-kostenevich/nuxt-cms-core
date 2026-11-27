@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { frameOffset, visibleFrame } from '../app/admin/media/crop'
 import { formatBytes, mediaFileProblem } from '../app/admin/media/files'
-import { usageLabels } from '../app/admin/media/usage'
+import { usageLabels, usagePlaces } from '../app/admin/media/usage'
 import { resolveImage, toImageValue } from '../app/primitives/media'
 import type { CmsMedia, CmsMediaMap } from '../app/types/media'
 
@@ -139,6 +139,16 @@ describe('usageLabels', () => {
       { kind: 'brand', slot: 'logo' },
     ], t)).toEqual(['home', 'cms.media.usage.draft:about', 'cms.media.usage.logo'])
   })
+
+  it('names entries by type and title, once each, draft-only marked (014)', () => {
+    const typeLabel = (type: string) => (type === 'vacancy' ? 'Vacancies' : type)
+
+    expect(usageLabels([
+      { kind: 'entry', type: 'vacancy', id: 'v1', title: 'Designer', locale: 'en', draft: false },
+      { kind: 'entry', type: 'vacancy', id: 'v1', title: 'Designer', locale: 'en', draft: true },
+      { kind: 'entry', type: 'post', id: 'p1', title: null, locale: 'en', draft: true },
+    ], t, typeLabel)).toEqual(['Vacancies · «Designer»', 'cms.media.usage.draft:post · «cms.pages.type.untitled»'])
+  })
 })
 
 describe('visibleFrame (focal point preview)', () => {
@@ -165,3 +175,31 @@ describe('visibleFrame (focal point preview)', () => {
     expect(frameOffset(frame, { x: 100, y: 50 })).toEqual({ left: 50, top: 0 })
   })
 })
+
+describe('usagePlaces (014)', () => {
+  const t = (key: string, params: Record<string, string | number> = {}) => (key === 'cms.media.usage.draft' ? `${params.page} (draft)` : key)
+  const POST = '00000000-0000-4000-8000-0000000000c1'
+  const VACANCY = '00000000-0000-4000-8000-0000000000c2'
+  const types = new Map([
+    ['post', { label: 'Blog posts', route: '/blog/[slug]' }],
+    ['vacancy', { label: 'Vacancies', route: null }],
+  ])
+
+  it('links an entry to its editor: Edit Mode for Pages, the dialog for Content', () => {
+    expect(usagePlaces([
+      { kind: 'entry', type: 'post', id: POST, title: 'Calm', locale: 'en', draft: false },
+      { kind: 'entry', type: 'vacancy', id: VACANCY, title: 'QA', locale: 'en', draft: true },
+      { kind: 'page', pageKey: 'home', locale: 'en', draft: false },
+    ], t, type => types.get(type) ?? null)).toEqual([
+      { label: 'home', link: null },
+      { label: 'Blog posts · «Calm»', link: `/admin/edit/blog/${POST}?entry=${POST}` },
+      { label: 'Vacancies · «QA» (draft)', link: `/admin/content/vacancy?entry=${VACANCY}` },
+    ])
+  })
+
+  it('no link for a type no longer declared', () => {
+    expect(usagePlaces([{ kind: 'entry', type: 'old', id: POST, title: null, locale: 'en', draft: false }], t))
+      .toEqual([{ label: 'old · «cms.pages.type.untitled»', link: null }])
+  })
+})
+

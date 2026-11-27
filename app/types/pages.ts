@@ -49,6 +49,10 @@ export interface CmsPageEditable {
   published: CmsPageContent | null
   publishedAt: string | null
   media: CmsMediaMap
+  /** An entry taken off the site: shown as a draft; Publish puts it back, with or without a pending draft. */
+  offSite?: boolean
+  /** An entry: its original is published (in a translation the editor cannot tell it from `publishedAt`). */
+  basePublished?: boolean
 }
 
 /** State of a page in one locale, derived from the stored rows. */

@@ -2,17 +2,20 @@
 import '../assets/admin/admin.css'
 import './editor.css'
 import { computed, onBeforeUnmount, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
-import { until, useDebounceFn, useEventListener, useIntervalFn, useResizeObserver } from '@vueuse/core'
+import { until, useDebounceFn, useEventListener, useResizeObserver } from '@vueuse/core'
 import { cmsConfig } from '#cms/config'
+import { cmsContent } from '#cms/content'
 import { useAdminI18n } from '../admin/useAdminI18n'
-import { createPagesRepository } from '../data/repositories/pages.repository'
+import { createDocumentRepository } from './document-repository'
+import { exitTarget, rememberExitFrom } from './exit'
+import { takePublishOnOpen } from './entry-route'
 import { useCmsLocaleState } from '../primitives/locale'
 import type { CmsPage } from '../types/pages'
-import { CMS_EDITOR_UI, type CmsEditorContext, type CmsEditorPageBinding } from './context'
-import { createEditorEngine, registryEntries } from './engine'
-import { createEditorView } from './view'
-import { createEditorUi, EDITOR_UI } from './ui'
-import { createEditorSession, EDITOR_LOCALE, EDITOR_SESSION } from './session'
+import type { CmsEntry } from '../types/entries'
+import type { CmsEditorEntryBinding, CmsEditorPageBinding } from './context'
+import { registryEntries } from './engine'
+import { EDITOR_LOCALE } from './session'
+import { editorShortcut, useEditorHost, type EditorHostCore } from './host'
 import EditorToolbar from './EditorToolbar.vue'
 import OverlayLayer from './OverlayLayer.vue'
 import LockBanner from './LockBanner.vue'
@@ -20,6 +23,7 @@ import LocaleBanner from './LocaleBanner.vue'
 import EditorToasts from './EditorToasts.vue'
 import EditorDialog from './EditorDialog.vue'
 import HistoryPanel from './HistoryPanel.vue'
+import EntryAddressBar from './EntryAddressBar.vue'
 // Bundled with the editor so primitives switch to the editable branch without
 // a second round trip (their own import() resolves to this chunk).
 import './fields/EditableText.vue'
@@ -29,13 +33,20 @@ const props = defineProps<{
   /** Path of the edited page on the public site, e.g. `/about`. */
   path: string
   title: string
+  /**
+   * The entry this session edits (014), opened by its id: the identity of the
+   * session. Its address follows it; the parent keys this component by the id,
+   * so a new slug does not start a new session (nor take the lock again).
+   */
+  entry?: { id: string, type: string, prefix: string, requireSlug: boolean } | null
 }>()
-
-const HEARTBEAT_MS = 30_000
 
 const { t, locale: adminLocale } = useAdminI18n()
 const route = useRoute()
 const router = useRouter()
+
+/** Publish on open waits this long after the fields are on screen: the rest of the page registers its fields. */
+const PUBLISH_SETTLE_MS = 400
 
 /** The edited locale is in the URL (`?locale=en`); none: the default locale. */
 function queryLocale(): string | null {
@@ -43,20 +54,21 @@ function queryLocale(): string | null {
   return typeof value === 'string' && value ? value : null
 }
 
-const repository = createPagesRepository(undefined, { bootstrapLocale: cmsConfig.defaultLocale })
-const engine = createEditorEngine({
+// Exit goes back to the admin screen Edit Mode was opened from.
+if (import.meta.client) {
+  rememberExitFrom(window.history.state?.back)
+}
+
+const documents = createDocumentRepository({ bootstrapLocale: cmsConfig.defaultLocale })
+const repository = documents.repository
+const { engine, view, session } = useEditorHost({
   repository,
   locale: queryLocale(),
-  historyLimit: cmsConfig.editor.historyLimit,
-})
-const view = createEditorView(engine)
-const ui = createEditorUi()
-const session = createEditorSession({
-  engine,
-  view,
-  ui,
   t,
   navigate: to => navigateTo(to),
+  exitTo: exitTarget,
+  bindPage,
+  bindEntry,
 })
 
 // ── Page binding ──────────────────────────────────────────────────────
@@ -66,8 +78,14 @@ const session = createEditorSession({
  * other key on the same page gets null: useCmsPage then reads it like the
  * public site, read-only.
  */
-function bindPage(key: string): CmsEditorPageBinding | null {
+function bindPage({ engine }: EditorHostCore, key: string): CmsEditorPageBinding | null {
   const bound = engine.entity.value
+
+  // Opened for an entry: the entry is what this session edits; a page key on
+  // the same route reads like the public site.
+  if (props.entry) {
+    return null
+  }
 
   if (bound && bound.key !== key) {
     if (import.meta.dev) {
@@ -107,11 +125,91 @@ function bindPage(key: string): CmsEditorPageBinding | null {
   }
 }
 
-const context: CmsEditorContext = { engine, view, bindPage }
-// Editor UI only; EditedRoute hands the same context to the edited page.
-provide(CMS_EDITOR_UI, context)
-provide(EDITOR_UI, ui)
-provide(EDITOR_SESSION, session)
+// ── Entry binding (014) ───────────────────────────────────────────────
+
+/**
+ * useCmsEntry of the entry this session was opened for binds the Engine to it
+ * (by id, whatever slug the route has). Another type, or an entry while
+ * another document is bound: null, read like the public site.
+ */
+function bindEntry({ engine }: EditorHostCore, type: string): CmsEditorEntryBinding | null {
+  const opened = props.entry
+
+  if (!opened || opened.type !== type) {
+    return null
+  }
+
+  const bound = engine.entity.value
+
+  if (bound && bound.key !== opened.id) {
+    return null
+  }
+
+  if (!bound) {
+    documents.edit({ kind: 'entry', type, requireSlug: opened.requireSlug })
+    void engine.load(opened.id)
+  }
+
+  const entry = computed<CmsEntry | null>(() => {
+    if (engine.status.value !== 'ready') {
+      return null
+    }
+
+    const slug = engine.get('slug')
+
+    return {
+      id: opened.id,
+      type,
+      locale: engine.locale.value ?? '',
+      defaultLocale: engine.defaultLocale.value ?? '',
+      content: engine.document.value,
+      publishedAt: engine.publishedAt.value ?? '',
+      firstPublishedAt: null,
+      media: engine.media.value,
+      // The editor shows the locale being edited, translated or not.
+      translated: true,
+      slug: typeof slug === 'string' ? slug : null,
+      slugs: {},
+    }
+  })
+  const pending = computed(() => engine.status.value === 'loading' || engine.status.value === 'idle')
+  const error = computed(() => (engine.loadError.value as Error | null) ?? null)
+
+  return {
+    entry,
+    pending,
+    error,
+    refresh: () => engine.reload(),
+    ready: until(pending).toBe(false).then(() => undefined),
+  }
+}
+
+/** Static pages next to the route of the edited entry's type: addresses no entry can take. */
+const reserved = computed(() => cmsContent.types.find(type => type.key === props.entry?.type)?.reserved ?? [])
+
+// The address follows the entry: once a new slug is saved (or published, or
+// restored), the path becomes the new one, with the same `?entry`. Unsaved
+// typing does not move the path.
+watch(
+  () => [engine.draftSavedAt.value, engine.publishedAt.value, engine.hasDraft.value, engine.locale.value, engine.dirty.value] as const,
+  () => {
+    const opened = props.entry
+    const slug = engine.get('slug')
+
+    if (!opened || engine.dirty.value || engine.status.value !== 'ready' || typeof slug !== 'string' || !slug) {
+      return
+    }
+
+    const target = `${opened.prefix}${slug}`
+
+    if (target !== props.path) {
+      void router.replace({ path: `/admin/edit${target}`, query: route.query, hash: route.hash })
+    }
+  },
+)
+
+// The host provides the context to the editor UI; EditedRoute hands the same
+// context to the edited page.
 
 // ── Locale ────────────────────────────────────────────────────────────
 
@@ -219,6 +317,25 @@ watch(() => engine.status.value, (status) => {
   session.historyOpen.value = true
 }, { immediate: true })
 
+// Publish in a list of entries (the history state of that navigation, never the
+// address: see `publishOnOpenState`): once the page is ready and its fields are
+// on screen, Publish is tried as if the toolbar's was pressed: the checks of the
+// page, the question. The state is taken at once, so a reload does not ask again.
+const publishAsked = props.entry ? takePublishOnOpen(props.entry.id) : false
+const stopPublishAsk = watch(() => publishAsked && engine.status.value === 'ready' && engine.fields.size > 0, async (go) => {
+  if (!go) {
+    return
+  }
+
+  stopPublishAsk()
+  // Fields register as the page renders: let the rest of it settle.
+  await new Promise(resolve => setTimeout(resolve, PUBLISH_SETTLE_MS))
+
+  if (!engine.readOnly.value) {
+    void session.publish()
+  }
+}, { immediate: true })
+
 // The page renders before it is bound: it calls useCmsPage during setup.
 // A page without useCmsPage has no CMS content and stays read-only.
 const mounted = ref(false)
@@ -229,45 +346,16 @@ onMounted(() => {
   mounted.value = true
 })
 
-// ── Lock lifetime ─────────────────────────────────────────────────────
+// ── Leaving ───────────────────────────────────────────────────────────
 
-// Reads the runtime config now, in setup, for the release on tab close.
-void engine.prepareUnloadRelease().catch(() => undefined)
-
-useIntervalFn(() => {
-  void engine.heartbeat()
-  void engine.refreshLockStatus()
-  void engine.prepareUnloadRelease().catch(() => undefined)
-}, HEARTBEAT_MS)
-
-useEventListener(window, 'pagehide', () => {
-  engine.releaseOnUnload()
-})
-
-// Back from the back/forward cache: the lock was released on pagehide.
-useEventListener(window, 'pageshow', (event: PageTransitionEvent) => {
-  if (event.persisted && engine.status.value === 'ready' && engine.lock.value === 'held') {
-    void engine.takeOver()
-  }
-})
-
-useEventListener(window, 'beforeunload', (event: BeforeUnloadEvent) => {
-  // A lost lock included: the changes are still only in this tab.
-  if (engine.dirty.value) {
-    event.preventDefault()
-  }
-})
-
-// Back / forward buttons and links outside the toolbar. Navigation through
+// The host keeps the lock alive and releases it. Back / forward buttons and links outside the toolbar. Navigation through
 // goTo() asked already, so the Engine is clean by then and this passes.
 onBeforeRouteLeave(() => session.confirmLeave())
-onBeforeRouteUpdate((to, from) => (to.path === from.path && to.query.locale === from.query.locale)
+// The same document in the same locale is no leave: a query change, or a new
+// address of the same entry (`?entry` stays).
+onBeforeRouteUpdate((to, from) => (to.query.locale === from.query.locale
+  && (to.path === from.path || (props.entry != null && to.query.entry === props.entry.id)))
   || session.confirmLeave())
-
-onBeforeUnmount(() => {
-  ui.dispose()
-  void engine.dispose()
-})
 
 // ── Preview: links stay inside Edit Mode ──────────────────────────────
 
@@ -307,10 +395,9 @@ function ownsKeyboard(target: EventTarget | null) {
 }
 
 useEventListener(window, 'keydown', (event: KeyboardEvent) => {
-  const mod = event.metaKey || event.ctrlKey
+  const shortcut = editorShortcut(event)
 
-  // event.code, not event.key: the shortcut works in any keyboard layout.
-  if (mod && event.code === 'KeyS') {
+  if (shortcut === 'save') {
     event.preventDefault()
 
     if (!document.querySelector('dialog[open]')) {
@@ -320,11 +407,11 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
     return
   }
 
-  if (mod && event.code === 'KeyZ' && !view.preview.value && !ownsKeyboard(event.target)) {
+  if (shortcut && !view.preview.value && !ownsKeyboard(event.target)) {
     event.preventDefault()
     session.blurActiveField()
 
-    if (event.shiftKey) {
+    if (shortcut === 'redo') {
       engine.redo()
     } else {
       engine.undo()
@@ -399,9 +486,17 @@ function retryLoad() {
         :title="title"
         :path="path"
         :unbound="unbound"
+        :entry="Boolean(entry)"
       />
       <LockBanner />
       <LocaleBanner />
+      <EntryAddressBar
+        v-if="entry && entry.requireSlug && engine.status.value === 'ready'"
+        :type="entry.type"
+        :entry-id="entry.id"
+        :prefix="entry.prefix"
+        :reserved="reserved"
+      />
     </div>
 
     <div class="cms-edit__viewport">

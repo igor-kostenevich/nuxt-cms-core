@@ -7,9 +7,11 @@ const { t } = useCmsText()
 const nav = [
   { label: 'nav.home', to: '/' },
   { label: 'nav.about', to: '/about' },
-  { label: 'nav.services', to: '/#services' },
-  { label: 'nav.work', to: '/#work' },
-  { label: 'nav.contact', to: '/#contact' },
+  { label: 'nav.services', to: '/services' },
+  { label: 'nav.work', to: '/work' },
+  { label: 'nav.blog', to: '/blog' },
+  { label: 'nav.careers', to: '/careers' },
+  { label: 'nav.contact', to: '/contact' },
 ]
 
 const year = new Date().getFullYear()
@@ -32,9 +34,13 @@ if (typeof prefix === 'string' && prefix
   throw createError({ statusCode: 404, statusMessage: 'Page not found', fatal: true })
 }
 
+// The header is outside the page Edit Mode renders, so there `route` is the
+// edit route (`/admin/edit/about`): the page of the site is what follows it.
+const sitePath = computed(() => route.path.replace(/^\/admin\/edit(?=\/|$)/, '') || '/')
+
 /** The current page in another language. */
 function switchTo(code: string) {
-  const neutral = route.path.replace(/^\/[a-z]{2,3}(-[A-Za-z0-9]+)?(?=\/|$)/, (match) =>
+  const neutral = sitePath.value.replace(/^\/[a-z]{2,3}(-[A-Za-z0-9]+)?(?=\/|$)/, (match) =>
     languages.value.some(language => `/${language.code}` === match) ? '' : match) || '/'
   return localePath(neutral, code === defaultLocale.value ? null : code)
 }

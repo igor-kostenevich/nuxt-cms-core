@@ -160,6 +160,7 @@ export function translationLeaf(kind: string, address: string): string | null {
   switch (kind) {
     case 'text':
     case 'richText':
+    case 'input':
       return address
     case 'link':
     case 'button':

@@ -21,6 +21,7 @@ const { t } = useAdminI18n()
 const el = ref<HTMLElement | null>(null)
 const { engine } = useEditorField({
   kind: 'image',
+  value: () => props.value,
   fieldKey: () => props.fieldKey,
   el,
   label: () => props.fieldLabel,

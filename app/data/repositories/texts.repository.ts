@@ -41,7 +41,8 @@ export interface PageContents {
 interface PageRow {
   key: string
   edit_path: string | null
-  fields: {
+  /** Fields belong to the document (014): page → document → fields. */
+  document: { fields: {
     address: string
     kind: string
     label: string | null
@@ -50,13 +51,14 @@ interface PageRow {
     position: number | null
     tag: string | null
     item: number | null
-  }[] | null
+  }[] | null } | null
 }
 
 interface ContentRow {
   locale: string
   content: CmsPageContent
-  page: { key: string } | null
+  /** The document's page; null for a document of another kind (an entry, 014). */
+  document: { page: { key: string } | null } | null
 }
 
 interface DraftRow extends ContentRow {
@@ -78,7 +80,7 @@ export function createTextsRepository(request?: H3Event) {
   async function listPages(): Promise<RegisteredPage[]> {
     const { data, error } = await (await getAuthClient(request))
       .from('cms_pages')
-      .select('key, edit_path, fields:cms_page_fields(address, kind, label, default_text, section, position, tag, item)')
+      .select('key, edit_path, document:cms_documents!inner(fields:cms_page_fields(address, kind, label, default_text, section, position, tag, item))')
       .order('key')
       .returns<PageRow[]>()
 
@@ -87,11 +89,11 @@ export function createTextsRepository(request?: H3Event) {
     }
 
     return data
-      .filter(row => (row.fields?.length ?? 0) > 0)
+      .filter(row => (row.document?.fields?.length ?? 0) > 0)
       .map(row => ({
         key: row.key,
         editPath: row.edit_path,
-        fields: (row.fields ?? [])
+        fields: (row.document?.fields ?? [])
           .map(field => ({
             address: field.address,
             kind: field.kind,
@@ -111,7 +113,7 @@ export function createTextsRepository(request?: H3Event) {
   /** Draft and published content of every page in the given locales. */
   async function listContents(locales: string[]): Promise<PageContents[]> {
     const client = await getAuthClient(request)
-    const columns = 'locale, content, page:cms_pages!inner(key)'
+    const columns = 'locale, content, document:cms_documents!inner(page:cms_pages!inner(key))'
     const [drafts, published] = await Promise.all([
       client.from('cms_page_draft').select(`${columns}, updated_at`).in('locale', locales).returns<DraftRow[]>(),
       client.from('cms_page_published').select(columns).in('locale', locales).returns<ContentRow[]>(),
@@ -137,16 +139,20 @@ export function createTextsRepository(request?: H3Event) {
     }
 
     for (const row of drafts.data ?? []) {
-      if (row.page) {
-        const found = entry(row.page.key, row.locale)
+      const page = row.document?.page
+
+      if (page) {
+        const found = entry(page.key, row.locale)
         found.draft = row.content
         found.draftUpdatedAt = row.updated_at
       }
     }
 
     for (const row of published.data ?? []) {
-      if (row.page) {
-        entry(row.page.key, row.locale).published = row.content
+      const page = row.document?.page
+
+      if (page) {
+        entry(page.key, row.locale).published = row.content
       }
     }
 

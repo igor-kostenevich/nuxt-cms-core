@@ -9,6 +9,7 @@ import LinkPanel from './LinkPanel.vue'
 import ImagePanel from './ImagePanel.vue'
 import CollectionPanel from './CollectionPanel.vue'
 import OptionalPanel from './OptionalPanel.vue'
+import EntriesPanel from './EntriesPanel.vue'
 
 // Controls of the selected field, kept next to it (MASTER_PLAN C-66: popover,
 // not a side panel). Items have no panel: ItemControls covers them.
@@ -75,5 +76,13 @@ const label = computed(() => props.field.label ?? t(`cms.editor.kinds.${props.fi
     toolbar
   >
     <OptionalPanel :field="field" />
+  </FloatingPanel>
+  <FloatingPanel
+    v-else-if="field.kind === 'entries'"
+    :anchor="field.el"
+    :label="label"
+    placement="bottom-start"
+  >
+    <EntriesPanel :field="field" />
   </FloatingPanel>
 </template>

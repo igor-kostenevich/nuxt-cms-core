@@ -18,7 +18,7 @@ export interface CmsActivityEvent {
   details: Record<string, unknown> | null
 }
 
-export const CMS_ACTIVITY_CATEGORIES = ['all', 'pages', 'media', 'settings', 'submissions'] as const
+export const CMS_ACTIVITY_CATEGORIES = ['all', 'pages', 'content', 'media', 'settings', 'submissions'] as const
 
 export type CmsActivityCategory = (typeof CMS_ACTIVITY_CATEGORIES)[number]
 

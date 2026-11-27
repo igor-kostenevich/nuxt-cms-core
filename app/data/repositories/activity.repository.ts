@@ -15,6 +15,7 @@ const COLUMNS = 'id, created_at, actor_email, action, entity_type, entity_id, en
 /** Entity types of each category. "all" has no filter. */
 export const ACTIVITY_CATEGORY_TYPES: Record<Exclude<CmsActivityCategory, 'all'>, readonly string[]> = {
   pages: ['page'],
+  content: ['entry'],
   media: ['media'],
   settings: ['settings', 'language', 'form'],
   submissions: ['submission'],

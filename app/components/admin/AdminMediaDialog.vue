@@ -2,7 +2,9 @@
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import { adminErrorKey } from '../../admin/error-key'
 import { formatBytes, MEDIA_ACCEPT, MediaFileError, mediaTypeLabel } from '../../admin/media/files'
-import { usageLabels } from '../../admin/media/usage'
+import { cmsContent } from '#cms/content'
+import { contentLabel } from '../../admin/content-label'
+import { usagePlaces } from '../../admin/media/usage'
 import type { AdminMedia } from '../../admin/useAdminMedia'
 import { useAdminI18n } from '../../admin/useAdminI18n'
 import type { CmsFocalPoint, CmsMedia } from '../../types/media'
@@ -31,7 +33,12 @@ const confirmingDelete = ref(false)
 
 const current = computed(() => props.media)
 const usage = computed(() => (current.value ? props.library.usageOf(current.value.id) : []))
-const labels = computed(() => usageLabels(usage.value, t))
+const places = computed(() => usagePlaces(usage.value, t, (type) => {
+  const declared = cmsContent.types.find(item => item.key === type)
+  return declared ? { label: contentLabel(declared.label, locale.value), route: declared.route } : null
+}))
+/** A file in use cannot be deleted (C-77): the place has to stop using it first. */
+const inUse = computed(() => places.value.length > 0)
 const canEdit = computed(() => props.library.canEdit())
 const canDelete = computed(() => props.library.canDelete())
 const isSvg = computed(() => current.value?.mime === 'image/svg+xml')
@@ -199,12 +206,19 @@ function remove() {
 
         <section class="media-dialog__usage">
           <h3>{{ t('cms.media.usedIn') }}</h3>
-          <ul v-if="labels.length">
+          <ul v-if="places.length">
             <li
-              v-for="label in labels"
-              :key="label"
+              v-for="place in places"
+              :key="place.label"
             >
-              {{ label }}
+              <NuxtLink
+                v-if="place.link"
+                :to="place.link"
+                class="media-dialog__place-link"
+              >{{ place.label }}</NuxtLink>
+              <template v-else>
+                {{ place.label }}
+              </template>
             </li>
           </ul>
           <p
@@ -213,12 +227,19 @@ function remove() {
           >
             {{ t('cms.media.unusedLong') }}
           </p>
+          <p
+            v-if="inUse && canDelete"
+            class="media-dialog__unused"
+            data-test="media-in-use"
+          >
+            {{ t('cms.media.inUse') }}
+          </p>
         </section>
 
         <AdminAlert
           v-if="confirmingDelete"
           tone="warning"
-          :title="labels.length ? t('cms.media.deleteUsed', { count: labels.length }) : t('cms.media.deleteUnused')"
+          :title="t('cms.media.deleteUnused')"
         >
           <template #action>
             <div class="media-dialog__confirm">
@@ -246,7 +267,7 @@ function remove() {
 
     <template #footer>
       <AdminButton
-        v-if="canDelete && !confirmingDelete"
+        v-if="canDelete && !inUse && !confirmingDelete"
         variant="ghost"
         size="sm"
         class="media-dialog__delete"
@@ -370,6 +391,18 @@ function remove() {
   color: var(--cms-info-text);
   font-size: var(--cms-type-caption-size);
   line-height: var(--cms-type-caption-line);
+}
+
+.media-dialog__place-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.media-dialog__place-link:focus-visible {
+  border-radius: var(--cms-radius-sm);
+  outline: none;
+  box-shadow: var(--cms-focus-ring);
 }
 
 .media-dialog__unused {

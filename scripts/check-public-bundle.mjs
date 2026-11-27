@@ -27,7 +27,8 @@ const SERVER_ENTRY = join(OUTPUT, 'server', 'index.mjs')
 const PUBLIC_DIR = join(OUTPUT, 'public')
 const ASSETS_DIR = join(PUBLIC_DIR, '_nuxt')
 
-const PUBLIC_ROUTES = ['/', '/about']
+// 014: the blog list and posts (one with its own Ukrainian address).
+const PUBLIC_ROUTES = ['/', '/about', '/blog', '/blog/calm-interfaces', '/uk/blog/spokiini-interfeisy', '/careers']
 const SERVER_START_TIMEOUT_MS = 20_000
 
 // `expected`: the marker must occur somewhere in the client build outside the
@@ -49,6 +50,12 @@ const MARKERS = [
   { name: 'editor overlay', pattern: 'data-cms-overlay', expected: true },
   { name: 'editor runtime guard', pattern: 'must run inside Edit Mode', expected: true },
   { name: 'editor UI class', pattern: 'cms-editor-ui', expected: true },
+  // 014: the registry of content types (#cms/content) is for the admin only.
+  { name: 'content registry (#cms/content)', pattern: 'Blog posts', expected: true },
+  // Core's form of a Content type declared with `fields` (C-103), and the
+  // date picker it uses (@vuepic/vue-datepicker).
+  { name: 'entry form renderer', pattern: 'entry-form-field', expected: true },
+  { name: 'date picker', pattern: 'dp--theme-light', expected: true },
 ]
 
 function fail(message) {

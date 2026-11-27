@@ -123,6 +123,8 @@ describe('toCmsDataError', () => {
     ['CMSCF', 'conflict'],
     ['CMSLK', 'locked'],
     ['CMSLL', 'lock_lost'],
+    ['CMSMU', 'media_in_use'],
+    ['CMSSL', 'slug_taken'],
     ['08006', 'unknown'],
     ['constructor', 'unknown'],
   ])('maps %s to %s and keeps the backend error as cause', (code, expected) => {

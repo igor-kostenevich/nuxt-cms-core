@@ -7,6 +7,9 @@ const ERROR_KEYS = {
   conflict: 'cms.errors.conflict',
   locked: 'cms.errors.locked',
   lock_lost: 'cms.errors.lockLost',
+  media_in_use: 'cms.errors.mediaInUse',
+  slug_taken: 'cms.errors.slugTaken',
+  entry_live: 'cms.errors.entryLive',
   unknown: 'cms.errors.unknown',
 } as const satisfies Record<CmsDataErrorCode, string>
 

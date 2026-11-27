@@ -8,6 +8,11 @@ import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch 
 // the list read as one box with a divider. Keyboard follows the WAI-ARIA
 // select-only combobox: focus stays on the button, the active option is
 // announced through aria-activedescendant.
+//
+// `multiple` (with `v-model:values`) chooses several options: each click
+// toggles one, the menu stays open, chosen options carry a check. The
+// `option` slot draws an option (in the menu and in the field), e.g. as a
+// status badge in a filter.
 export interface AdminSelectOption<V extends string = string> {
   value: V
   label: string
@@ -23,15 +28,28 @@ const props = withDefaults(defineProps<{
   error?: string
   /** `sm` is the compact height of toolbars (31.5px), `md` of forms. */
   size?: 'sm' | 'md'
+  /** Several options at once, bound with `v-model:values`. */
+  multiple?: boolean
+  /** A `multiple` field shows this many chosen options, then "+N". */
+  maxShown?: number
 }>(), {
   labelPlacement: 'top',
   placeholder: '',
   disabled: false,
   error: undefined,
   size: 'md',
+  multiple: false,
+  maxShown: 3,
 })
 
-const model = defineModel<T | null>({ required: true })
+const model = defineModel<T | null>({ default: null })
+/** The chosen options of a `multiple` select. */
+const values = defineModel<T[]>('values', { default: () => [] })
+
+defineSlots<{
+  /** One option, in the menu and (chosen) in the field. */
+  option?: (props: { option: AdminSelectOption<T> }) => unknown
+}>()
 
 /** Type-ahead keeps collecting letters this long after the last key. */
 const TYPEAHEAD_RESET = 500
@@ -60,6 +78,19 @@ let typedTimer: ReturnType<typeof setTimeout> | undefined
 
 const selectedIndex = computed(() => props.options.findIndex(option => option.value === model.value))
 const selected = computed(() => props.options[selectedIndex.value] ?? null)
+/** What the field shows: the chosen option, or every chosen one of a `multiple` select. */
+const shown = computed(() => (props.multiple
+  ? props.options.filter(option => values.value.includes(option.value))
+  : selected.value ? [selected.value] : []))
+
+/** Chosen options past `maxShown`: counted, not drawn. */
+const hidden = computed(() => (props.multiple ? Math.max(0, shown.value.length - props.maxShown) : 0))
+const visible = computed(() => (hidden.value ? shown.value.slice(0, props.maxShown) : shown.value))
+
+function isChosen(index: number) {
+  const option = props.options[index]
+  return Boolean(option) && (props.multiple ? values.value.includes(option!.value) : index === selectedIndex.value)
+}
 const optionId = (index: number) => `${id}-option-${index}`
 
 function show() {
@@ -124,6 +155,17 @@ function stopPositioningMenu() {
 function choose(index: number) {
   const option = props.options[index]
 
+  if (props.multiple) {
+    // A toggle; the menu stays open for the next one.
+    if (option) {
+      values.value = values.value.includes(option.value)
+        ? values.value.filter(value => value !== option.value)
+        : props.options.filter(item => item.value === option.value || values.value.includes(item.value)).map(item => item.value)
+    }
+
+    return
+  }
+
   if (option) {
     model.value = option.value
   }
@@ -155,7 +197,7 @@ function typeahead(char: string) {
 
   if (open.value) {
     active.value = match
-  } else {
+  } else if (!props.multiple) {
     model.value = props.options[match]!.value
   }
 }
@@ -287,8 +329,24 @@ onBeforeUnmount(() => {
       >
         <span
           class="admin-select__value"
-          :class="{ 'admin-select__value--placeholder': !selected }"
-        >{{ selected?.label ?? placeholder }}</span>
+          :class="{ 'admin-select__value--placeholder': shown.length === 0, 'admin-select__value--many': multiple }"
+        >
+          <template v-if="shown.length === 0">{{ placeholder }}</template>
+          <span
+            v-for="(option, index) in visible"
+            v-else
+            :key="option.value"
+            class="admin-select__item"
+          ><slot
+            name="option"
+            :option="option"
+          >{{ option.label }}{{ index < visible.length - 1 ? ',' : '' }}</slot></span>
+          <span
+            v-if="hidden"
+            class="admin-select__more"
+            :title="shown.slice(maxShown).map(option => option.label).join(', ')"
+          >+{{ hidden }}</span>
+        </span>
         <Icon
           name="lucide:chevron-down"
           class="admin-select__chevron"
@@ -303,6 +361,7 @@ onBeforeUnmount(() => {
         class="admin-select__menu"
         :class="{ 'admin-select__menu--up': side === 'top', 'admin-select__menu--placed': side !== null }"
         :aria-labelledby="labelId"
+        :aria-multiselectable="multiple ? 'true' : undefined"
         tabindex="-1"
       >
         <li
@@ -313,14 +372,27 @@ onBeforeUnmount(() => {
           class="admin-select__option"
           :class="{
             'admin-select__option--active': index === active,
-            'admin-select__option--selected': index === selectedIndex,
+            'admin-select__option--selected': !multiple && isChosen(index),
           }"
-          :aria-selected="index === selectedIndex"
+          :aria-selected="isChosen(index)"
           @pointermove="active = index"
           @mousedown.prevent
           @click="choose(index)"
         >
-          {{ option.label }}
+          <slot
+            name="option"
+            :option="option"
+          >
+            {{ option.label }}
+          </slot>
+          <!-- At the end, so the options line up with the value in the field. -->
+          <Icon
+            v-if="multiple"
+            name="lucide:check"
+            class="admin-select__check"
+            :class="{ 'admin-select__check--on': isChosen(index) }"
+            aria-hidden="true"
+          />
         </li>
       </ul>
     </div>
@@ -336,6 +408,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .admin-select {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--cms-space-1);
@@ -363,6 +436,8 @@ onBeforeUnmount(() => {
 
 .admin-select--label-hidden .admin-select__label {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;
@@ -449,6 +524,36 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.admin-select__item + .admin-select__item {
+  margin-inline-start: var(--cms-space-1);
+}
+
+.admin-select__value--many {
+  display: flex;
+  align-items: center;
+}
+
+.admin-select__value--many .admin-select__item {
+  flex: none;
+}
+
+/* The chosen options that do not fit: a count in a circle. */
+.admin-select__more {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  margin-inline-start: var(--cms-space-1);
+  padding: 0 var(--cms-space-1);
+  border-radius: var(--cms-radius-full);
+  background: var(--cms-surface-secondary);
+  color: var(--cms-text-secondary);
+  font-size: var(--cms-type-caption-size);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .admin-select__value--placeholder {
   color: var(--cms-text-secondary);
 }
@@ -497,6 +602,9 @@ onBeforeUnmount(() => {
 }
 
 .admin-select__option {
+  display: flex;
+  align-items: center;
+  gap: var(--cms-space-2);
   padding: var(--cms-space-1) var(--cms-space-2);
   border-radius: var(--cms-radius-sm);
   color: var(--cms-foreground);
@@ -513,6 +621,19 @@ onBeforeUnmount(() => {
 .admin-select__option--selected {
   background: var(--cms-primary-subtle);
   color: var(--cms-primary);
+}
+
+.admin-select__check {
+  flex: none;
+  margin-inline-start: auto;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--cms-primary);
+  visibility: hidden;
+}
+
+.admin-select__check--on {
+  visibility: visible;
 }
 
 .admin-select__error {

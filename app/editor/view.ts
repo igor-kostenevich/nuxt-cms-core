@@ -27,6 +27,11 @@ export function createEditorView(engine: EditorEngine) {
   })
 
   function select(id: string | null, source: SelectionSource = 'pointer') {
+    // A field with another entry's data is not edited here (014 §7): no selection, no panel.
+    if (id && engine.fields.get(id)?.foreign?.()) {
+      id = null
+    }
+
     if (selection.value !== id) {
       engine.endEdit()
     }

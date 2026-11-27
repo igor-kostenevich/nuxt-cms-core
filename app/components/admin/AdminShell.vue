@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { cmsContent } from '#cms/content'
 import { onKeyStroke, useMediaQuery, useMounted } from '@vueuse/core'
 import { useAdminUnreadSubmissions } from '../../admin/useAdminForms'
 import { useAdminI18n } from '../../admin/useAdminI18n'
@@ -70,7 +71,8 @@ const groups = [
   {
     label: 'cms.shell.groups.content',
     items: [
-      { label: 'cms.shell.nav.pages', icon: 'lucide:file' },
+      { label: 'cms.shell.nav.pages', icon: 'lucide:file', to: '/admin/pages' },
+      { label: 'cms.shell.nav.content', icon: 'lucide:layers', to: '/admin/content' },
       { label: 'cms.shell.nav.media', icon: 'lucide:image', to: '/admin/media' },
       { label: 'cms.shell.nav.texts', icon: 'lucide:languages', to: '/admin/texts' },
       { label: 'cms.shell.nav.submissions', icon: 'lucide:inbox', to: '/admin/submissions', permission: 'forms.view' },
@@ -91,7 +93,14 @@ const groups = [
   },
 ] as const
 
+/** Content appears once the site declares a type with fields and no route (014, C-103). */
+const hasContent = cmsContent.types.some(type => type.section === 'content')
+
 function visible(item: object) {
+  if ('to' in item && item.to === '/admin/content' && !hasContent) {
+    return false
+  }
+
   return !('permission' in item) || can(item.permission as CmsPermission)
 }
 

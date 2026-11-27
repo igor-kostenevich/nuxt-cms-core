@@ -15,7 +15,8 @@ import { UUID_PATTERN } from '../ids'
 import { toMediaMap } from '../media-row'
 import type { CmsStorageAdapter } from '../storage/storage-adapter'
 import { createSupabaseStorage } from '../storage/supabase-storage'
-import { getSupabaseClient, readSupabasePublicConfig, toCmsDataError } from '../supabase'
+import { getSupabaseClient, toCmsDataError } from '../supabase'
+import { createUnloadRelease } from '../unload-release'
 
 const REVISIONS_TABLE = 'cms_page_revisions'
 /** The History panel lists this many latest publications. */
@@ -36,7 +37,12 @@ async function getAuthClient(request?: H3Event) {
 // results are typed non-null there, so nullable columns are widened here.
 type Nullable<T> = { [K in keyof T]: T[K] | null }
 type LocalizedPageRow = Nullable<Database['public']['Functions']['cms_page_get_localized']['Returns'][number]>
-type EditablePageRow = Nullable<Database['public']['Functions']['cms_page_get_editable']['Returns'][number]>
+type EditablePageRow = Nullable<Database['public']['Functions']['cms_page_get_editable']['Returns'][number]> & {
+  /** Entries only: taken off the site (a draft to the editor, Publish puts it back). */
+  off_site?: boolean | null
+  /** Entries only: the original is published (a live entry is taken off the site before it is deleted). */
+  base_published?: boolean | null
+}
 
 function isContent(value: Json): value is { [key: string]: Json | undefined } {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -88,7 +94,8 @@ function toCmsPage(
   }
 }
 
-function toCmsPageEditable(
+/** Editable state of a document (a page, or an entry by its id: 014). */
+export function toCmsPageEditable(
   key: string,
   requested: string | null,
   row: EditablePageRow,
@@ -106,6 +113,9 @@ function toCmsPageEditable(
     published: toContent(row.published, 'Published page'),
     publishedAt: row.published_at,
     media: toMediaMap(row.media ?? [], storage),
+    // Only entries have it; a page has no such state.
+    ...(row.off_site === undefined ? {} : { offSite: Boolean(row.off_site) }),
+    ...(row.base_published === undefined ? {} : { basePublished: Boolean(row.base_published) }),
   }
 }
 
@@ -320,8 +330,8 @@ export function createPagesRepository(request?: H3Event, options: PagesRepositor
   async function listRevisions(key: string, locale: string): Promise<CmsPageRevision[]> {
     const { data, error } = await (await getAuthClient(request))
       .from(REVISIONS_TABLE)
-      .select('id, locale, created_at, page:cms_pages!inner(key)')
-      .eq('page.key', key)
+      .select('id, locale, created_at, document:cms_documents!inner(page:cms_pages!inner(key))')
+      .eq('document.page.key', key)
       .eq('locale', locale)
       .order('created_at', { ascending: false })
       .limit(REVISIONS_LIMIT)
@@ -346,9 +356,9 @@ export function createPagesRepository(request?: H3Event, options: PagesRepositor
 
     const { data, error } = await (await getAuthClient(request))
       .from(REVISIONS_TABLE)
-      .select('id, locale, created_at, page:cms_pages!inner(key)')
+      .select('id, locale, created_at, document:cms_documents!inner(page:cms_pages!inner(key))')
       .eq('id', id)
-      .eq('page.key', key)
+      .eq('document.page.key', key)
       .eq('locale', locale)
       .maybeSingle()
 
@@ -378,6 +388,41 @@ export function createPagesRepository(request?: H3Event, options: PagesRepositor
     }
 
     return new Map((data ?? []).map(row => [row.id, row.edit_path]))
+  }
+
+  /**
+   * Pages the database knows, for the Pages screen (014): where they open in
+   * Edit Mode and whether they are published, have a draft, or both. One
+   * request: drafts and publications come through the document.
+   */
+  async function listForAdmin(): Promise<{ key: string, editPath: string | null, published: boolean, hasDraft: boolean, updatedAt: string | null }[]> {
+    const { data, error } = await (await getAuthClient(request))
+      .from('cms_pages')
+      .select('key, edit_path, document:cms_documents!inner(published:cms_page_published(published_at), drafts:cms_page_draft(updated_at))')
+      .order('key')
+      .returns<{
+        key: string
+        edit_path: string | null
+        document: { published: { published_at: string }[] | null, drafts: { updated_at: string }[] | null } | null
+      }[]>()
+
+    if (error) {
+      throw toCmsDataError(error, 'Failed to load the pages')
+    }
+
+    return data.map((row) => {
+      const published = row.document?.published ?? []
+      const drafts = row.document?.drafts ?? []
+      const times = [...published.map(item => item.published_at), ...drafts.map(item => item.updated_at)].sort()
+
+      return {
+        key: row.key,
+        editPath: row.edit_path,
+        published: published.length > 0,
+        hasDraft: drafts.length > 0,
+        updatedAt: times.at(-1) ?? null,
+      }
+    })
   }
 
   /** Who holds the lock of a page, without the token. Null when nobody does. */
@@ -414,41 +459,17 @@ export function createPagesRepository(request?: H3Event, options: PagesRepositor
     }
   }
 
-  // Release on tab close (MASTER_PLAN R-18, C-69). `navigator.sendBeacon`
-  // cannot send an Authorization header, and the Supabase client reads the
-  // session asynchronously, which is too late on `pagehide`. So the URL, key
-  // and access token are cached ahead of time, and the release is a plain
-  // `fetch` with `keepalive`, started synchronously. Best effort: when it does
-  // not arrive, the lock expires after its TTL.
-  let unload: { url: string, apiKey: string, accessToken: string | null } | null = null
+  // Release on tab close (MASTER_PLAN R-18, C-69): see unload-release.ts.
+  const unloadRelease = createUnloadRelease(request)
 
   /** Caches what the release on tab close needs. First call during setup: it reads the runtime config. */
-  async function prepareUnloadRelease(): Promise<void> {
-    if (!unload) {
-      const { url, key: apiKey } = readSupabasePublicConfig()
-      unload = { url, apiKey, accessToken: null }
-    }
-
-    const { data } = await (await getAuthClient(request)).auth.getSession()
-    unload.accessToken = data.session?.access_token ?? null
+  function prepareUnloadRelease(): Promise<void> {
+    return unloadRelease.prepare()
   }
 
   /** Starts the lock release synchronously, so it survives the tab closing. */
   function releaseLockOnUnload(key: string, lockToken: string): void {
-    if (!unload?.accessToken) {
-      return
-    }
-
-    void fetch(`${unload.url}/rest/v1/rpc/cms_page_lock_release`, {
-      method: 'POST',
-      keepalive: true,
-      headers: {
-        'apikey': unload.apiKey,
-        'Authorization': `Bearer ${unload.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ page_key: key, lock_token: lockToken }),
-    }).catch(() => undefined)
+    unloadRelease.release('cms_page_lock_release', { page_key: key, lock_token: lockToken })
   }
 
   /**
@@ -536,6 +557,7 @@ export function createPagesRepository(request?: H3Event, options: PagesRepositor
     listRevisions,
     getRevision,
     editPaths,
+    listForAdmin,
     getLockStatus,
     prepareUnloadRelease,
     releaseLockOnUnload,

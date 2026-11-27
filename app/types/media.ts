@@ -65,6 +65,8 @@ export interface CmsImageValue {
 export type CmsMediaUsage =
   | { kind: 'page', pageKey: string, locale: string, draft: boolean }
   | { kind: 'brand', slot: 'logo' | 'favicon' }
+  /** An entry of a type declared by the Client (014), archived ones included. */
+  | { kind: 'entry', type: string, id: string, title: string | null, locale: string, draft: boolean }
 
 /** Filters of the media library list. */
 export interface CmsMediaQuery {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
+import { computed, inject, ref, shallowRef } from 'vue'
+import { EDITOR_LAYER } from './host'
 import { useEventListener, useRafFn } from '@vueuse/core'
 import { useAdminI18n } from '../admin/useAdminI18n'
 import { sameBox, toBox, type Box } from './geometry'
@@ -361,12 +362,16 @@ const chipTarget = computed(() => {
     return null
   }
 
-  return fieldsWithBoxes.value.find(entry => entry.field.id === id) ?? null
+  const entry = fieldsWithBoxes.value.find(item => item.field.id === id) ?? null
+  // A form control (input, select of an entry editor) shows hover and focus
+  // itself: no frame, no name chip over it.
+  return entry && !KIND_TRAITS[entry.field.kind].control ? entry : null
 })
 
 const selectedBox = computed(() => {
   const id = view.selection.value
-  return id ? fieldsWithBoxes.value.find(entry => entry.field.id === id)?.box ?? null : null
+  const entry = id ? fieldsWithBoxes.value.find(item => item.field.id === id) : undefined
+  return entry && !KIND_TRAITS[entry.field.kind].control ? entry.box : null
 })
 
 const focusedItem = computed(() => {
@@ -421,10 +426,13 @@ function boxStyle(box: Box, pad = PAD) {
     height: `${box.h + pad * 2}px`,
   }
 }
+
+// Teleported into the host's layer: <body>, or the dialog of a modal host.
+const layer = inject(EDITOR_LAYER, 'body')
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="layer">
     <div
       class="cms-admin cms-editor-ui overlay"
       data-cms-overlay

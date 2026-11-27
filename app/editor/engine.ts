@@ -14,7 +14,7 @@ import type { CmsCollectionItem } from '../types/primitives'
 import { withOverrides } from '../primitives/collection'
 import { applyTranslation, pruneTranslation, translationLeaf, type CmsTranslation } from '../primitives/translation'
 import type { CmsPageFieldRegistration } from '../data/repositories/pages.repository'
-import type { FieldKind, FieldRegistration } from './kinds'
+import type { FieldIssueKind, FieldKind, FieldRegistration } from './kinds'
 import {
   canSetAt,
   cloneDocument,
@@ -59,12 +59,17 @@ export interface EditorRepository {
   prepareUnloadRelease(): Promise<void>
   /** Starts the release synchronously, so it survives the tab closing. */
   releaseLockOnUnload(key: string, lockToken: string): void
+  /** Deletes the document for good (entries only: a page cannot be deleted). */
+  remove?(key: string, lockToken: string): Promise<void>
+  /** Takes the document off the site (entries only), under the lock this session holds. */
+  takeOff?(key: string, lockToken: string): Promise<void>
 }
 
 export interface ValidationIssue {
   fieldId: string
   key: string
-  kind: 'required' | 'maxLength'
+  /** `range`: outside the field's min / max; `format` / `option`: see FieldIssueKind. */
+  kind: FieldIssueKind
   label?: string
 }
 
@@ -227,6 +232,10 @@ export function createEditorEngine(options: EditorEngineOptions) {
   const savedSnapshot = ref(stableStringify({}))
   const publishedSnapshot = ref(stableStringify({}))
   const hasDraft = ref(false)
+  /** The document is off the site (an entry taken off): a draft to the editor, which Publish puts back. */
+  const offSite = ref(false)
+  /** An entry: its original is published (in a translation `publishedAt` is of the translation). */
+  const basePublished = ref(false)
   const draftSavedAt = ref<string | null>(null)
   const publishedAt = ref<string | null>(null)
 
@@ -234,6 +243,10 @@ export function createEditorEngine(options: EditorEngineOptions) {
   const saveError = shallowRef<unknown>(null)
   const publishing = ref(false)
   const publishError = shallowRef<unknown>(null)
+  const removing = ref(false)
+  const takingOff = ref(false)
+  const takeOffError = shallowRef<unknown>(null)
+  const removeError = shallowRef<unknown>(null)
 
   const lock = ref<LockState>('none')
   const lockHolder = shallowRef<CmsPageLockStatus | null>(null)
@@ -268,13 +281,45 @@ export function createEditorEngine(options: EditorEngineOptions) {
   /** Id of the last Undo step; 0 when there is none. */
   const lastStepId = computed(() => undoStack.at(-1)?.id ?? 0)
   /** Something differs from Published: a saved Draft or local changes. */
-  const hasUnpublished = computed(() => hasDraft.value || current.value !== publishedSnapshot.value)
+  /** Publish of the original puts an entry taken off the site back; a translation does not. */
+  const putsBack = computed(() => offSite.value && !translating.value)
+  const hasUnpublished = computed(() => hasDraft.value || putsBack.value || current.value !== publishedSnapshot.value)
 
   const issues = computed<ValidationIssue[]>(() => {
     const result: ValidationIssue[] = []
 
     for (const field of fields.values()) {
-      const text = textOf(getAt(document.value, field.key))
+      const stored = getAt(document.value, field.key)
+
+      // A field of Core's entry form judges its own value (014, C-103).
+      if (field.validate) {
+        const kind = field.validate(stored)
+
+        if (kind) {
+          result.push({ fieldId: field.id, key: field.key, kind, label: field.label })
+        }
+
+        continue
+      }
+
+      const form = field.form || field.kind === 'input' || field.kind === 'value'
+
+      // An image or a link of a form is empty without its file / address.
+      if (form && (field.kind === 'image' || field.kind === 'link')) {
+        if (field.required && !hasTarget(stored, field.kind)) {
+          result.push({ fieldId: field.id, key: field.key, kind: 'required', label: field.label })
+        }
+
+        continue
+      }
+
+      if (typeof stored === 'number' && ((field.min !== undefined && stored < field.min) || (field.max !== undefined && stored > field.max))) {
+        result.push({ fieldId: field.id, key: field.key, kind: 'range', label: field.label })
+      }
+
+      // A primitive without a value shows its default from code; a form field
+      // has none, so no value there is an empty field.
+      const text = stored === undefined && form ? '' : textOf(stored)
 
       if (text === null) {
         continue
@@ -345,6 +390,8 @@ export function createEditorEngine(options: EditorEngineOptions) {
     publishedSnapshot.value = stableStringify(published)
     publishedAt.value = editable.publishedAt
     hasDraft.value = Boolean(draft)
+    offSite.value = Boolean(editable.offSite)
+    basePublished.value = Boolean(editable.basePublished)
     draftSavedAt.value = draft ? editable.draftUpdatedAt : null
     savedSnapshot.value = stableStringify(start)
 
@@ -578,13 +625,16 @@ export function createEditorEngine(options: EditorEngineOptions) {
         return false
       }
 
-      if (!hasDraft.value || !lockToken) {
+      // Nothing to publish, unless the document is off the site: then Publish puts it back.
+      if ((!hasDraft.value && !putsBack.value) || !lockToken) {
         return true
       }
 
       publishedAt.value = await repository.publish(requireEntity(), requireLocale(), lockToken)
       publishedSnapshot.value = savedSnapshot.value
       hasDraft.value = false
+      offSite.value = false
+      basePublished.value = basePublished.value || !translating.value
       draftSavedAt.value = null
       // Undo must not step back past what is now live (C-64).
       undoStack.splice(0)
@@ -596,6 +646,78 @@ export function createEditorEngine(options: EditorEngineOptions) {
       return false
     } finally {
       publishing.value = false
+    }
+  }
+
+  /**
+   * Can the document be deleted for good from here: an entry (not a page) whose
+   * lock this session holds, and that is not on the site: taken off it, or its
+   * original never published (the same rule as `cms_entry_delete`, C-108).
+   */
+  const removable = computed(() => lock.value === 'held'
+    && Boolean(repository.remove)
+    && status.value === 'ready'
+    && (offSite.value || !(translating.value ? basePublished.value : publishedAt.value)))
+
+  /**
+   * The document is on the site with nothing newer to publish: the editor may
+   * take it off (instead of publishing). Of the original: a translation is
+   * not taken off on its own.
+   */
+  const canTakeOff = computed(() => lock.value === 'held'
+    && Boolean(repository.takeOff)
+    && status.value === 'ready'
+    && !translating.value
+    && !offSite.value
+    && Boolean(publishedAt.value)
+    && !hasUnpublished.value)
+
+  /** Takes the document off the site; it becomes a draft to the editor, which Publish puts back. */
+  async function takeOff(): Promise<boolean> {
+    if (!canTakeOff.value || !lockToken || !repository.takeOff) {
+      return false
+    }
+
+    takingOff.value = true
+    takeOffError.value = null
+
+    try {
+      await repository.takeOff(requireEntity(), lockToken)
+      offSite.value = true
+      return true
+    } catch (error) {
+      handleLockError(error)
+      takeOffError.value = error
+      return false
+    } finally {
+      takingOff.value = false
+    }
+  }
+
+  /** Deletes the document for good. The lock goes with it; nothing is left to save or release. */
+  async function remove(): Promise<boolean> {
+    if (!removable.value || !lockToken || !repository.remove) {
+      return false
+    }
+
+    removing.value = true
+    removeError.value = null
+
+    try {
+      await repository.remove(requireEntity(), lockToken)
+      lockToken = null
+      lock.value = 'none'
+      // Nothing of it is unsaved any more: leaving is not a loss.
+      savedSnapshot.value = current.value
+      undoStack.splice(0)
+      redoStack.splice(0)
+      return true
+    } catch (error) {
+      handleLockError(error)
+      removeError.value = error
+      return false
+    } finally {
+      removing.value = false
     }
   }
 
@@ -664,7 +786,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
   /** Writes a value. Inside an edit session the change joins one Undo step. */
   function set(key: string, value: unknown) {
-    if (readOnly.value) {
+    if (readOnly.value || !writable(key)) {
       return
     }
 
@@ -800,6 +922,78 @@ export function createEditorEngine(options: EditorEngineOptions) {
     return keys
   })
 
+  /**
+   * The languages whose translation lacks texts the original has, with how many
+   * (for the question before Publish). Only the fields on screen are known to
+   * the Engine, which is what the editor sees. The edited translation counts
+   * as it is on screen, the others as they are stored (Draft, else Published).
+   * A language that cannot be read is left out: this is a hint, not a gate.
+   */
+  async function translationGaps(locales: string[]): Promise<Array<{ locale: string, missing: number }>> {
+    const key = entity.value?.key
+
+    if (!key || locales.length === 0) {
+      return []
+    }
+
+    const original = translating.value ? base.value : document.value
+    const addresses = new Set<string>()
+
+    for (const field of fields.values()) {
+      const address = translationLeaf(field.kind, field.key)
+
+      if (!address || field.kind === 'background') {
+        continue
+      }
+
+      if (field.kind === 'image'
+        && (field.api.decorative() || (getAt(original, field.key) as CmsImageValue | undefined)?.decorative)) {
+        continue
+      }
+
+      if (!canSetAt(original, field.key)) {
+        continue
+      }
+
+      // Text to translate: stored in the original, or the default from the page's code.
+      const fromCode = field.defaultText?.()
+        ?? (field.kind === 'link' || field.kind === 'button' ? field.api.defaultLabel() : undefined)
+        ?? (field.kind === 'image' ? field.api.defaultAlt() : undefined)
+
+      if ((textOf(getAt(original, address)) ?? '').trim() !== '' || (fromCode ?? '').trim() !== '') {
+        addresses.add(address)
+      }
+    }
+
+    if (addresses.size === 0) {
+      return []
+    }
+
+    const gaps: Array<{ locale: string, missing: number }> = []
+
+    for (const code of locales) {
+      try {
+        const stored = translating.value && code === locale.value
+          ? translation.value
+          : await readTranslation(key, code)
+        const missing = [...addresses].filter(address => !Object.hasOwn(stored, address)).length
+
+        if (missing > 0) {
+          gaps.push({ locale: code, missing })
+        }
+      } catch {
+        // Left out.
+      }
+    }
+
+    return gaps
+  }
+
+  async function readTranslation(key: string, code: string): Promise<CmsTranslation> {
+    const editable = await repository.getEditable(key, code)
+    return toDocument(editable.draft ?? editable.published) as CmsTranslation
+  }
+
   /** Value of a field in the default locale, for "Original" hints in a translation. */
   function baseValue(key: string): unknown {
     return getAt(base.value, key)
@@ -807,7 +1001,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
   /** Starts typing in a field: everything until `endEdit` is one Undo step. Idempotent. */
   function beginEdit(key: string) {
-    if (editSession?.key === key) {
+    if (editSession?.key === key || !writable(key)) {
       return
     }
 
@@ -861,6 +1055,10 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
   /** Back to the published value of one field. */
   function reset(key: string) {
+    if (!writable(key)) {
+      return
+    }
+
     if (!translating.value) {
       set(key, publishedValue(key))
       return
@@ -1019,7 +1217,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
   /** Adds an item after `afterId`, or at the end. Returns the new id. */
   function addItem(key: string, template: Record<string, unknown> = {}, afterId?: string): string | null {
-    if (readOnly.value || translating.value) {
+    if (readOnly.value || translating.value || !writable(key)) {
       return null
     }
 
@@ -1048,7 +1246,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
 
   function removeItem(key: string, id: string) {
     // A stale or missing item is not a change: no Undo step, no copied defaults.
-    if (readOnly.value || translating.value || !collectionItems(key).some(item => item.id === id)) {
+    if (readOnly.value || translating.value || !writable(key) || !collectionItems(key).some(item => item.id === id)) {
       return
     }
 
@@ -1065,7 +1263,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     const target = Math.max(0, Math.min(items.length - 1, toIndex))
 
     // Up on the first item, down on the last: nothing to record.
-    if (readOnly.value || translating.value || from < 0 || from === target) {
+    if (readOnly.value || translating.value || !writable(key) || from < 0 || from === target) {
       return
     }
 
@@ -1075,6 +1273,70 @@ export function createEditorEngine(options: EditorEngineOptions) {
       const [item] = list.splice(list.findIndex(entry => entry.id === id), 1)
       list.splice(target, 0, item!)
     })
+  }
+
+  // ── Foreign values (014 §7) ──────────────────────────────────────────
+
+  /**
+   * Value of an address as the page shows it: the document, or for an item of
+   * a collection that is not stored yet, its code default (as CmsCollection
+   * renders it). What a primitive of this page must have been given.
+   */
+  function valueOf(key: string): unknown {
+    const stored = getAt(document.value, key)
+
+    if (stored !== undefined) {
+      return stored
+    }
+
+    const segments = splitPath(key)
+
+    for (let index = 1; index < segments.length; index++) {
+      const prefix = segments.slice(0, index).join('.')
+
+      if (collectionDefaults.has(prefix) && !Array.isArray(getAt(document.value, prefix))) {
+        const item = collectionItems(prefix).find(candidate => candidate.id === segments[index])
+        const rest = segments.slice(index + 1).join('.')
+        return item ? (rest ? getAt(item, rest) : item) : undefined
+      }
+    }
+
+    return undefined
+  }
+
+  /**
+   * The value did not come from the edited document at this address. A field
+   * with no value shows nothing but the default from the page's code: it
+   * cannot show data of another entry, even where the document (or the
+   * defaults of its collection) holds something else, e.g. a cover that is a
+   * file path from code and no media value.
+   */
+  function isForeign(key: string, value: unknown): boolean {
+    if (value === null || value === undefined) {
+      return false
+    }
+
+    return stableStringify(value) !== stableStringify(valueOf(key) ?? null)
+  }
+
+  /**
+   * An address the editor may write: no field holds it, or at least one of the
+   * fields that do is the page's own. Only foreign fields: refused.
+   */
+  function writable(key: string): boolean {
+    let held = false
+
+    for (const field of fields.values()) {
+      if (field.key === key) {
+        if (!field.foreign?.()) {
+          return true
+        }
+
+        held = true
+      }
+    }
+
+    return !held
   }
 
   // ── Fields ───────────────────────────────────────────────────────────
@@ -1087,7 +1349,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     }
   }
 
-  function updateField(id: string, patch: Partial<Pick<FieldRegistration, 'key' | 'el' | 'label' | 'required' | 'maxLength'>>) {
+  function updateField(id: string, patch: Partial<Pick<FieldRegistration, 'key' | 'el' | 'label' | 'required' | 'maxLength' | 'min' | 'max'>>) {
     const field = fields.get(id)
 
     if (field) {
@@ -1125,6 +1387,15 @@ export function createEditorEngine(options: EditorEngineOptions) {
     readOnly,
     hasDraft,
     hasUnpublished,
+    offSite,
+    canTakeOff,
+    takingOff,
+    takeOffError,
+    takeOff,
+    removable,
+    removing,
+    removeError,
+    remove,
     draftSavedAt,
     publishedAt,
     saveStatus,
@@ -1175,6 +1446,7 @@ export function createEditorEngine(options: EditorEngineOptions) {
     undo,
     redo,
     registerCollectionDefaults,
+    translationGaps,
     collectionItems,
     addItem,
     duplicateItem,
@@ -1183,6 +1455,9 @@ export function createEditorEngine(options: EditorEngineOptions) {
     registerField,
     updateField,
     addMedia,
+    valueOf,
+    isForeign,
+    writable,
   }
 }
 
@@ -1198,9 +1473,20 @@ function markField<T extends FieldRegistration>(field: T): T {
 }
 
 /** Plain text of a value for required / maxLength checks; null when not text. */
+/** A form image has a file; a form link has an address. */
+function hasTarget(value: unknown, kind: 'image' | 'link'): boolean {
+  const target = typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[kind === 'image' ? 'mediaId' : 'href'] : null
+  return typeof target === 'string' && target.trim() !== ''
+}
+
 function textOf(value: unknown): string | null {
   if (typeof value === 'string') {
     return value
+  }
+
+  // A number field: required means any number.
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : ''
   }
 
   if (isRichTextDoc(value)) {

@@ -2,7 +2,11 @@
 --
 -- Real sessions over dblink (see cms_texts_concurrency.test.sql for why TCP
 -- and a password). Their rows commit: they use the form key `concurrency`
--- and buckets `…:test-conc…`, removed at the start and at the end.
+-- and buckets `…:test-conc…`, removed at the start and at the end, together
+-- with the Activity events this run wrote (removing a submission writes one)
+-- and the form's total bucket as it was before the run (`total:concurrency`:
+-- rows of earlier runs stay as they are, also those cms_form_submit purges as
+-- expired while the test submits). Events of earlier runs stay.
 --
 -- Checked:
 --   1. the same token and values at once: one submission, one counted attempt;
@@ -14,7 +18,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(8);
+select plan(10);
 
 select set_config(
   'cms_test.conn',
@@ -27,14 +31,38 @@ select set_config(
   true
 );
 
+-- Events written from here on are this run's.
+select set_config('cms_test.started', clock_timestamp()::text, true);
+
+-- The form's total bucket as it was: the cleanup puts it back.
+select set_config(
+  'cms_test.totals',
+  coalesce((select jsonb_agg(jsonb_build_object('window_start', window_start, 'count', count))::text
+    from public.cms_form_rate_limits where bucket = 'total:concurrency'), '[]'),
+  true
+);
+
 create function pg_temp.cleanup()
 returns void
 language sql
 as $$
-  select dblink_exec(current_setting('cms_test.conn'), $sql$
+  select dblink_exec(current_setting('cms_test.conn'), format($sql$
     delete from public.cms_form_submissions where form_key = 'concurrency';
-    delete from public.cms_form_rate_limits where bucket like '%test-conc%';
-  $sql$);
+    delete from public.cms_form_rate_limits where bucket like '%%test-conc%%';
+    delete from public.cms_activity
+      where created_at >= %L::timestamptz
+        and entity_type = 'submission'
+        and entity_label = 'concurrency';
+    delete from public.cms_form_rate_limits l
+      where l.bucket = 'total:concurrency'
+        and not exists (select 1 from jsonb_array_elements(%L::jsonb) t
+          where (t->>'window_start')::timestamptz = l.window_start);
+    -- Back as it was, the windows cms_form_submit purged as expired too.
+    insert into public.cms_form_rate_limits (bucket, window_start, count)
+      select 'total:concurrency', (t->>'window_start')::timestamptz, (t->>'count')::integer
+        from jsonb_array_elements(%L::jsonb) t
+      on conflict (bucket, window_start) do update set count = excluded.count;
+  $sql$, current_setting('cms_test.started'), current_setting('cms_test.totals'), current_setting('cms_test.totals')));
 $$;
 
 select pg_temp.cleanup();
@@ -137,6 +165,24 @@ select is(
 select dblink_disconnect('cms_a');
 select dblink_disconnect('cms_b');
 select pg_temp.cleanup();
+
+select is(
+  (select n from dblink(current_setting('cms_test.conn'), format(
+     $sql$ select count(*)::int from public.cms_activity where created_at >= %L::timestamptz and entity_label = 'concurrency' $sql$,
+     current_setting('cms_test.started'))) as t (n int)),
+  0,
+  'the run leaves no Activity event behind'
+);
+
+select is(
+  (select n from dblink(current_setting('cms_test.conn'), $sql$
+     select coalesce(jsonb_agg(jsonb_build_object('window_start', window_start, 'count', count) order by window_start), '[]')::text
+       from public.cms_form_rate_limits where bucket = 'total:concurrency'
+   $sql$) as t (n text))::jsonb,
+  (select coalesce(jsonb_agg(t order by (t->>'window_start')::timestamptz), '[]')
+     from jsonb_array_elements(current_setting('cms_test.totals')::jsonb) t),
+  'the run leaves the form total bucket as it was'
+);
 
 select * from finish();
 

@@ -1,11 +1,52 @@
 import { readFileSync, realpathSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
-import { addTemplate, addTypeTemplate, createResolver, defineNuxtModule, useLogger } from '@nuxt/kit'
+import { addTemplate, addTypeTemplate, addVitePlugin, createResolver, defineNuxtModule, useLogger } from '@nuxt/kit'
+import type { NuxtPage } from '@nuxt/schema'
 import { loadConfig } from 'c12'
+import { adminCssPlugin } from './admin-css'
 import { ADMIN_GATE, findAdminRouteViolations, formatAdminRouteViolations } from './admin-routes'
 import { resolveCmsConfig, type CmsConfig, type CmsRuntimeConfig } from './config'
 import { MAX_FIELDS, MAX_FORMS, MAX_TEXT_LENGTH, resolveCmsForms, type CmsFormsIgnoredReason } from './forms'
 import { resolveCmsTexts } from './texts'
+import { resolveCmsContent, type CmsContentIgnoredReason } from './content'
+import { fieldValueType, type CmsContentFieldProblem } from './content-fields'
+import { findTypeRoutes, reservedSlugs, routePattern } from './content-route'
+
+const CONTENT_WARNINGS: Record<CmsContentIgnoredReason, string> = {
+  'type-key': 'the type key must match ^[a-z][a-z0-9-]{0,39}$ (it is stored with every entry)',
+  'type-shape': 'a type is `{ label, route }` (Pages) or `{ label, fields }` (Content)',
+  'type-label': 'the label must be a non-empty string or `{ en, uk, … }`',
+  'type-text': '`text` takes only newButton, newTitle, editTitle, each a non-empty string or `{ en, uk, … }`',
+  'no-route-or-fields': 'a type needs `route` (Pages) or `fields` (Content)',
+  'editor-removed': '`editor` is no longer supported: describe the form of a Content type with `fields`',
+  'route-and-fields': 'a type with a route is edited on its page in Edit Mode: `fields` is for Content types',
+  'route-format': 'the route must be static segments and `[slug]` last, e.g. `/blog/[slug]`',
+  'order': 'order is one of newest, manual, title',
+  'route-manual': 'a type with a route cannot have `order: \'manual\'` (Pages has no manual ordering); use newest or title',
+  'unknown-key': 'unknown key (a type has label, route or fields, order, text; a page has label, path; the file has pages, types)',
+  'page-key': 'the page key is the one useCmsPage takes: ^[a-z][a-z0-9_-]{0,79}$',
+  'page-shape': 'a page is `{ label, path }`',
+  'page-path': 'the path is a site path without a language prefix, e.g. `/careers`',
+  'page-duplicate-path': 'another page has the same path',
+}
+
+const FIELD_WARNINGS: Record<CmsContentFieldProblem, string> = {
+  'fields-shape': '`fields` is an object of fields, e.g. `{ title: { type: \'text\', label: \'Title\' } }`',
+  'fields-title': 'every entry needs `title: { type: \'text\', label }` (lists, search and Activity show it)',
+  'fields-count': 'a type has at most 40 fields',
+  'field-key': 'the field key is its address in the entry: ^[a-z][a-zA-Z0-9_]{0,39}$',
+  'field-type': 'type is one of text, textarea, richText, number, select, radio, multiselect, boolean, date, datetime, dateRange, email, url, phone, image, link',
+  'field-label': 'label, hint and placeholder must be a non-empty string or `{ en, uk, … }`',
+  'field-unknown-key': 'unknown key for this field type (all: type, label, hint, required, width; plus maxLength, rows, min, max, options, appearance, default, placeholder where the type has them)',
+  'field-length': 'maxLength is a positive integer',
+  'field-rows': 'rows is an integer from 2 to 20',
+  'field-range': 'min and max are of the field\'s kind (number; count for multiselect; YYYY-MM-DD for dates; UTC ISO for datetime), min ≤ max',
+  'field-options': 'options are `[{ value, label }]`: at least one, values unique, letters, digits, "_" or "-"',
+  'field-width': 'width is full, half or quarter',
+  'field-appearance': 'appearance of a boolean is switch or checkbox',
+  'field-required': 'required is true / false, and a boolean cannot be required (false is an answer)',
+  'field-default': 'default must be a value the field accepts (an option, within min / max, YYYY-MM-DD or UTC ISO)',
+}
 
 const FORM_WARNINGS: Record<CmsFormsIgnoredReason, string> = {
   'form-key': 'the form key must start with a letter and use letters, digits, "_" or "-"',
@@ -28,6 +69,8 @@ export default defineNuxtModule({
   },
   async setup(_options, nuxt) {
     const resolver = createResolver(import.meta.url)
+    // Library stylesheets of the admin stay inside `.cms-admin` (src/admin-css.ts).
+    addVitePlugin(adminCssPlugin())
     const { version } = JSON.parse(
       readFileSync(resolver.resolve('../package.json'), 'utf8'),
     ) as { version: string }
@@ -90,8 +133,23 @@ export default defineNuxtModule({
       }
     }
 
-    // Restart the dev server when the project changes its CMS config, texts or forms.
-    for (const file of [configFile, textsFile, formsFile]) {
+    // Content (014): cms.content.ts next to cms.config.ts. Optional.
+    const { config: contentInput, configFile: contentFile } = await loadConfig<Record<string, unknown>>({
+      configFile: 'cms.content',
+      cwd: nuxt.options.rootDir,
+      rcFile: false,
+      globalRc: false,
+      dotenv: false,
+    })
+    const { content: cmsContent, ignored: ignoredContent } = resolveCmsContent(contentInput)
+
+    // An invalid declaration drops a whole section of the site: reported with
+    // the route checks below, so a production build fails (author, 2d).
+    const declarationProblems = ignoredContent.map(({ kind, key, reason }) => `${kind} "${key}": ${
+      kind === 'field' ? FIELD_WARNINGS[reason as CmsContentFieldProblem] : CONTENT_WARNINGS[reason as CmsContentIgnoredReason]}`)
+
+    // Restart the dev server when the project changes its CMS config, texts, forms or content.
+    for (const file of [configFile, textsFile, formsFile, contentFile]) {
       if (file) {
         nuxt.options.watch.push(file)
       }
@@ -240,6 +298,102 @@ export default defineNuxtModule({
       }
     })
 
+    // ── Content (014) ─────────────────────────────────────────────────────
+
+    const contentProblems: string[] = [...declarationProblems]
+
+    /** What only the routes can tell, filled when Nuxt has resolved the pages. */
+    const contentRoutes: Record<string, { reserved: string[] }> = {}
+
+    const contentTemplate = addTemplate({
+      filename: 'cms/content.mjs',
+      getContents: () => `export const cmsContent = ${JSON.stringify({
+        pages: cmsContent.pages,
+        types: cmsContent.types.map(type => ({ ...type, reserved: contentRoutes[type.key]?.reserved ?? [] })),
+      }, null, 2)}`,
+    })
+
+    nuxt.options.alias['#cms/content'] = contentTemplate.dst
+
+    // The declared order of each type, for public reads (useCmsEntries): only
+    // keys and orders, so the site does not carry the labels of the admin.
+    const orderTemplate = addTemplate({
+      filename: 'cms/content-order.mjs',
+      getContents: () => `export const cmsContentOrder = ${JSON.stringify(Object.fromEntries(cmsContent.types.map(type => [type.key, type.order])))}`,
+    })
+
+    nuxt.options.alias['#cms/content-order'] = orderTemplate.dst
+
+    const typeKeys = cmsContent.types.map(type => JSON.stringify(type.key)).join(' | ') || 'never'
+
+    addTypeTemplate({
+      filename: 'cms/content.d.ts',
+      getContents: () => [
+        `declare module '#cms/content' {`,
+        `  import type { ResolvedCmsContent } from 'nuxt-cms-core/config'`,
+        `  /** Keys of the entry types this project declares in cms.content.ts. */`,
+        `  export type CmsEntryTypeKey = ${typeKeys}`,
+        `  /**`,
+        `   * The stored content of each entry type with \`fields\` (014, C-103), for the`,
+        `   * site's own components: \`entry.content as CmsEntryContent['vacancy']\`.`,
+        `   * Every field but the title may be missing (a draft, a field added later).`,
+        `   */`,
+        `  export interface CmsEntryContent {`,
+        ...cmsContent.types.flatMap(type => (type.fields
+          ? [`    ${JSON.stringify(type.key)}: { ${Object.entries(type.fields)
+              .map(([key, field]) => `${key}${key === 'title' ? '' : '?'}: ${fieldValueType(field)}`).join('; ')} }`]
+          : [])),
+        `  }`,
+        `  export const cmsContent: { pages: ResolvedCmsContent['pages'], types: (ResolvedCmsContent['types'][number] & { reserved: string[] })[] }`,
+        `}`,
+        `declare module '#cms/content-order' {`,
+        `  import type { CmsContentOrder } from 'nuxt-cms-core/config'`,
+        `  /** Declared order of each entry type: the default of useCmsEntries. */`,
+        `  export const cmsContentOrder: Record<string, CmsContentOrder>`,
+        `}`,
+      ].join('\n'),
+    })
+
+    nuxt.hook('pages:resolved', (pages) => {
+      const routes = flattenPages(pages)
+      const problems = [...contentProblems]
+      const owners = new Map<string, string>()
+
+      for (const type of cmsContent.types) {
+        if (!type.route) {
+          continue
+        }
+
+        // A catch-all of the site (a 404 page) does not cover the route: the
+        // router ranks it below any route with a param, so it is no conflict.
+        const matches = findTypeRoutes(routes, type.route)
+
+        if (owners.has(type.route)) {
+          problems.push(`type "${type.key}": route ${type.route} is already the route of type "${owners.get(type.route)}"`)
+        }
+
+        owners.set(type.route, type.key)
+
+        if (matches.length === 0) {
+          problems.push(`type "${type.key}": no page for route ${type.route} (expected e.g. pages/blog/[slug].vue or pages/[[locale]]/blog/[slug].vue)`)
+        } else if (matches.length > 1) {
+          problems.push(`type "${type.key}": route ${type.route} matches ${matches.length} pages: ${matches.map(route => route.path).join(', ')}`)
+        }
+
+        contentRoutes[type.key] = { reserved: reservedSlugs(routes, type.route) }
+      }
+
+      for (const page of cmsContent.pages) {
+        if (!routes.some(route => routePattern(route.path) === page.path)) {
+          problems.push(`page "${page.key}": no page for path ${page.path}`)
+        }
+      }
+
+      if (problems.length > 0) {
+        reportAdminViolation(`nuxt-cms-core: cms.content.ts does not match the pages of the site:\n${problems.map(problem => `  - ${problem}`).join('\n')}`)
+      }
+    })
+
     // Vite emits <link rel="prefetch"> for every dynamic import of the app
     // entry, so a public page would download admin pages, the auth chunk and
     // admin CSS. Prefetch stays only for the Client Project's own modules
@@ -270,6 +424,14 @@ export default defineNuxtModule({
     })
   },
 })
+
+/** Full paths of all routes, children included (their paths are relative). */
+function flattenPages(pages: NuxtPage[], parent = ''): { path: string, name?: string }[] {
+  return pages.flatMap((page) => {
+    const path = page.path.startsWith('/') ? page.path : `${parent.replace(/\/$/, '')}/${page.path}`
+    return [{ path, name: page.name }, ...flattenPages(page.children ?? [], path)]
+  })
+}
 
 /** Symlinks resolved (the playground links Core); a virtual file stays as given. */
 function realPath(file: string): string {

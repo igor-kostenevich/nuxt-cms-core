@@ -7,7 +7,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(31);
+select plan(32);
 
 -- Fixture -------------------------------------------------------------------------
 
@@ -231,9 +231,30 @@ select throws_ok(
 
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-8000-0000000009a1", "role": "authenticated"}', true);
 
+-- Media in use cannot be deleted (C-77 since 014 / 2c): here Brand and the page use it.
+select throws_ok(
+  $$ select public.cms_media_delete(current_setting('cms_test.media')::uuid) $$,
+  'CMSMU', null, 'media in use cannot be deleted, even by an admin'
+);
+
+-- The page stops using it (its content is put back below, as a Restore of an
+-- old revision would: revisions are not usage).
+reset role;
+update public.cms_site_settings set logo_media_id = null, favicon_media_id = null;
+create temporary table media_fixture_content on commit drop as
+  select 'published' as kind, page_id, locale, content from public.cms_page_published
+    where page_id = (select id from public.cms_pages where key = 'media-fixture')
+  union all
+  select 'draft', page_id, locale, content from public.cms_page_draft
+    where page_id = (select id from public.cms_pages where key = 'media-fixture');
+update public.cms_page_published set content = '{}' where page_id = (select id from public.cms_pages where key = 'media-fixture');
+update public.cms_page_draft set content = '{}' where page_id = (select id from public.cms_pages where key = 'media-fixture');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub": "00000000-0000-4000-8000-0000000009a1", "role": "authenticated"}', true);
+
 select lives_ok(
   $$ select public.cms_media_delete(current_setting('cms_test.media')::uuid) $$,
-  'an admin deletes media'
+  'an admin deletes media nobody uses any more'
 );
 
 select throws_ok(
@@ -247,6 +268,10 @@ select is_empty(
 );
 
 reset role;
+update public.cms_page_published pub set content = f.content
+  from media_fixture_content f where f.kind = 'published' and f.page_id = pub.page_id and f.locale = pub.locale;
+update public.cms_page_draft d set content = f.content
+  from media_fixture_content f where f.kind = 'draft' and f.page_id = d.page_id and f.locale = d.locale;
 set local role anon;
 
 select is_empty(

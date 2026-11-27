@@ -92,6 +92,9 @@
 
 .cms-editor-ui .ed-visually-hidden {
   position: absolute;
+  /* At the top of its box: never stretches a scroll area below the content. */
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;
@@ -514,6 +517,38 @@
 .cms-editor-ui .ed-dialog__text {
   margin: 0;
   color: var(--cms-text-secondary);
+}
+
+.cms-editor-ui .ed-dialog__notice {
+  margin: 0;
+  padding: var(--cms-space-2) var(--cms-space-3);
+  border-radius: var(--cms-radius-sm);
+  background: var(--cms-warning-subtle);
+  color: var(--cms-warning);
+  font-size: var(--cms-type-body-small-size);
+  line-height: var(--cms-type-body-small-line);
+}
+
+.cms-editor-ui .ed-dialog__notice-text {
+  margin: 0;
+}
+
+.cms-editor-ui .ed-dialog__notice-details summary {
+  width: fit-content;
+  margin-top: var(--cms-space-1);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cms-editor-ui .ed-dialog__notice-details ul {
+  max-height: 9rem;
+  margin: var(--cms-space-1) 0 0;
+  padding-inline-start: var(--cms-space-4);
+  overflow-y: auto;
+}
+
+.cms-editor-ui .ed-dialog__remember {
+  margin-top: var(--cms-space-1);
 }
 
 .cms-editor-ui .ed-dialog__actions {

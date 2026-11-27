@@ -5,6 +5,8 @@ export interface CmsToast {
   message: string
   tone: 'neutral' | 'success' | 'error'
   action?: { label: string, run: () => void }
+  /** Stays as long as an error: a message with something to read. */
+  long?: boolean
 }
 
 /** Plain messages go away on their own; one with an action (Undo) or an error stays longer. */
@@ -27,12 +29,34 @@ export function createToasts() {
   let nextId = 1
 
   function toast(message: string, options: Partial<Omit<CmsToast, 'id' | 'message'>> = {}) {
-    const id = nextId++
     const tone = options.tone ?? 'neutral'
-    toasts.push({ id, message, tone, action: options.action })
+
+    // The same message again (two saves in a row) refreshes the one shown
+    // instead of stacking a copy. A toast with an action is its own thing.
+    const same = options.action ? undefined : toasts.find(item => !item.action && item.message === message && item.tone === tone)
+
+    if (same) {
+      const timer = timers.get(same.id)
+
+      // A hovered (paused) toast stays paused; it gets its full time again.
+      if (timer) {
+        const running = Boolean(timer.handle)
+        pause(same.id)
+        timer.remaining = tone === 'error' || options.long ? LONG_TOAST_DURATION_MS : TOAST_DURATION_MS
+
+        if (running) {
+          resume(same.id)
+        }
+      }
+
+      return same.id
+    }
+
+    const id = nextId++
+    toasts.push({ id, message, tone, action: options.action, long: options.long })
     timers.set(id, {
       handle: null,
-      remaining: options.action || tone === 'error' ? LONG_TOAST_DURATION_MS : TOAST_DURATION_MS,
+      remaining: options.action || options.long || tone === 'error' ? LONG_TOAST_DURATION_MS : TOAST_DURATION_MS,
       startedAt: 0,
     })
     resume(id)

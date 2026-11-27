@@ -67,6 +67,11 @@ const ERROR_CODES: Record<string, CmsDataErrorCode> = {
   CMSCF: 'conflict',
   CMSLK: 'locked',
   CMSLL: 'lock_lost',
+  // 014: media in use cannot be deleted; an entry address is taken.
+  CMSMU: 'media_in_use',
+  CMSSL: 'slug_taken',
+  // 014: an entry on the site is taken off it before it is deleted.
+  CMSEL: 'entry_live',
 }
 
 function toErrorCode(code: string): CmsDataErrorCode {

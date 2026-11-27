@@ -44,8 +44,10 @@
     "@tiptap/pm": "^3.34.0",
     "@tiptap/starter-kit": "^3.34.0",
     "@tiptap/vue-3": "^3.34.0",
+    "@vuepic/vue-datepicker": "14.0.0",
     "@vueuse/core": "^15.0.0",
     "c12": "^3.3.4",
+    "date-fns": "^4.4.0",
     "vee-validate": "^4.15.1"
   },
   "devDependencies": {

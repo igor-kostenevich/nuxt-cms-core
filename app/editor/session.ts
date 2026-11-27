@@ -1,4 +1,4 @@
-import { ref, type InjectionKey } from 'vue'
+import { ref, type InjectionKey, type Ref } from 'vue'
 import { adminErrorKey } from '../admin/error-key'
 import { ADMIN_PATH, EDIT_PATH, isAdminPath, isEditPath } from '../auth/paths'
 import type { EditorEngine } from './engine'
@@ -29,14 +29,107 @@ export function createEditorSession(options: {
   ui: EditorUi
   t: Translate
   navigate: (to: string) => Promise<unknown> | unknown
+  /** Where Exit leads: the admin screen Edit Mode was opened from; the dashboard by default. */
+  exitTo?: () => string | null
+  /**
+   * Whether Publish asks first (a personal preference, off by «Don't ask
+   * again»). Not given: Publish does not ask.
+   */
+  askBeforePublish?: Ref<boolean>
+  /**
+   * The languages left without a translation of some texts: each as a line
+   * («Ukrainian (3 fields)»), and how many languages the site shows, the
+   * original included. A
+   * hint for the question before Publish and the toast after it: it may fail
+   * or be missing, and Publish is never blocked by it.
+   */
+  translationGaps?: () => Promise<{ total: number, items: string[] }>
 }) {
   const { engine, view, ui, t, navigate } = options
   const historyOpen = ref(false)
+
+  /** The entry's name in toasts and questions: its title, or «Untitled». */
+  function entryName(): string {
+    const title = engine.get('title')
+    return typeof title === 'string' && title.trim() ? title.trim() : t('cms.pages.type.untitled')
+  }
+
+  /** Takes the entry off the site from its editor. Resolves true when done; a failure is said here. */
+  async function takeOff(): Promise<boolean> {
+    if (!engine.canTakeOff.value) {
+      return false
+    }
+
+    blurActiveField()
+
+    if (await engine.takeOff()) {
+      return true
+    }
+
+    if (engine.lock.value !== 'lost') {
+      ui.toast(`${t('cms.editor.takeOff.failed')}: ${t(adminErrorKey(engine.takeOffError.value))}`, { tone: 'error' })
+    }
+
+    return false
+  }
+
+  /**
+   * Deletes the entry for good, after asking. Resolves true when it is gone;
+   * the host then closes or leaves. A failure is said here.
+   */
+  async function remove(title: string): Promise<boolean> {
+    if (!engine.removable.value) {
+      return false
+    }
+
+    blurActiveField()
+    const choice = await ui.confirm({
+      title: t('cms.editor.remove.title', { title }),
+      body: t('cms.editor.remove.body'),
+      confirm: t('cms.editor.remove.confirm'),
+      cancel: t('cms.editor.remove.cancel'),
+      destructive: true,
+    })
+
+    if (choice !== 'confirm') {
+      return false
+    }
+
+    if (await engine.remove()) {
+      return true
+    }
+
+    if (engine.lock.value !== 'lost') {
+      ui.toast(`${t('cms.editor.remove.failed')}: ${t(adminErrorKey(engine.removeError.value))}`, { tone: 'error' })
+    }
+
+    return false
+  }
+
+  /** Up to this many languages are named in a line; more are counted and listed on request. */
+  const NAMED_LANGUAGES = 3
+
+  const noGaps = { total: 0, items: [] as string[] }
+
+  /** The warning about untranslated languages, short however many there are. */
+  function gapsMessage(gaps: { total: number, items: string[] }, key: 'publish.untranslated' | 'toasts.publishedUntranslated') {
+    return gaps.items.length <= NAMED_LANGUAGES
+      ? t(`cms.editor.${key}`, { languages: gaps.items.join(', ') })
+      // The original counts too: it is whole by definition.
+      : t(`cms.editor.${key}Many`, { done: gaps.total - gaps.items.length, total: gaps.total })
+  }
+
+  /** What the last successful Publish said, for a host whose own toasts go away with it. */
+  const publishedText = ref('')
   /** A publication to show in History: from `?history=` (a link from Activity). */
   const historyTarget = ref<string | null>(null)
 
   /** Commits a field being typed in, for actions that re-render it (Undo, leave). */
   function blurActiveField() {
+    if (typeof document === 'undefined') {
+      return
+    }
+
     const active = document.activeElement
 
     if (active instanceof HTMLElement && active.closest('[data-cms-field]')) {
@@ -46,9 +139,11 @@ export function createEditorSession(options: {
 
   /**
    * Saves without moving focus: the editor keeps typing where they were.
-   * A read-only page or one with nothing to save stays quiet.
+   * A read-only page or one with nothing to save stays quiet. `quiet`: no
+   * toast on success (a save the editor did not ask for, e.g. before switching
+   * the language); a failure is always said.
    */
-  async function save() {
+  async function save(options: { quiet?: boolean } = {}) {
     if (engine.readOnly.value || engine.status.value !== 'ready') {
       return false
     }
@@ -57,10 +152,24 @@ export function createEditorSession(options: {
       return true
     }
 
+    // A draft may be unfinished (an empty required field), but not wrong: a
+    // value over the limit or in a bad format is not stored. It would only
+    // come back to block Publish.
+    const wrong = engine.issues.value.filter(issue => issue.kind !== 'required')
+
+    if (wrong.length > 0) {
+      focusIssue(wrong[0]!.fieldId)
+      ui.toast(t('cms.editor.status.saveIssues', { count: wrong.length }), { tone: 'error' })
+      return false
+    }
+
     engine.endEdit()
 
     if (await engine.save()) {
-      ui.toast(t('cms.editor.toasts.saved'), { tone: 'success' })
+      if (!options.quiet) {
+        ui.toast(t('cms.editor.toasts.saved'), { tone: 'success' })
+      }
+
       return true
     }
 
@@ -88,10 +197,49 @@ export function createEditorSession(options: {
       return false
     }
 
+    // What goes public goes at once: ask first, once the form is valid.
+    const ask = options.askBeforePublish
+    const asked = ask?.value === true
+
+    if (asked) {
+      const gaps = await options.translationGaps?.().catch(() => noGaps) ?? noGaps
+      const choice = await ui.confirm({
+        title: t('cms.editor.publish.title'),
+        body: t('cms.editor.publish.body'),
+        notice: gaps.items.length > 0 ? gapsMessage(gaps, 'publish.untranslated') : undefined,
+        noticeItems: gaps.items.length > NAMED_LANGUAGES ? gaps.items : undefined,
+        noticeToggle: t('cms.editor.publish.showLanguages'),
+        confirm: t('cms.editor.publish.confirm'),
+        cancel: t('cms.editor.publish.cancel'),
+        focusCancel: true,
+        checkbox: t('cms.editor.publish.dontAsk'),
+        remember: (checked) => {
+          if (checked) {
+            ask.value = false
+          }
+        },
+      })
+
+      if (choice !== 'confirm') {
+        return false
+      }
+
+      // The form may have changed while the dialog was open.
+      if (engine.readOnly.value) {
+        return false
+      }
+    }
+
     engine.endEdit()
 
     if (await engine.publish()) {
-      ui.toast(t('cms.editor.toasts.published'), { tone: 'success' })
+      // Not asked (the question is off): the untranslated languages are said
+      // here instead, so that a publish is never silent about them.
+      const gaps = ask && !asked ? await options.translationGaps?.().catch(() => noGaps) ?? noGaps : noGaps
+      publishedText.value = gaps.items.length > 0
+        ? gapsMessage(gaps, 'toasts.publishedUntranslated')
+        : t('cms.editor.toasts.published')
+      ui.toast(publishedText.value, { tone: gaps.items.length > 0 ? 'neutral' : 'success', long: gaps.items.length > 0 })
       return true
     }
 
@@ -198,11 +346,11 @@ export function createEditorSession(options: {
 
   async function exit() {
     if (await confirmLeave()) {
-      await navigate(ADMIN_PATH)
+      await navigate(options.exitTo?.() ?? ADMIN_PATH)
     }
   }
 
-  return { save, publish, focusIssue, confirmLeave, goTo, exit, historyOpen, historyTarget, blurActiveField }
+  return { save, publish, takeOff, remove, entryName, publishedText, focusIssue, confirmLeave, goTo, exit, historyOpen, historyTarget, blurActiveField }
 }
 
 export type EditorSession = ReturnType<typeof createEditorSession>

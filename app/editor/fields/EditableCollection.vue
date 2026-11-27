@@ -32,8 +32,9 @@ const { t } = useAdminI18n()
 const el = ref<HTMLElement | null>(null)
 const canAdd = computed(() => props.max === undefined || props.items.length < props.max)
 
-const { engine, view, key, id } = useEditorField({
+const { engine, view, key, id, foreign } = useEditorField({
   kind: 'collection',
+  value: () => props.value,
   fieldKey: () => props.fieldKey,
   el,
   label: () => props.fieldLabel,
@@ -108,7 +109,7 @@ function add(afterId?: string): string | null {
     >
       <span>{{ t('cms.editor.collection.empty') }}</span>
       <button
-        v-if="view.editable.value && !engine.translating.value"
+        v-if="view.editable.value && !engine.translating.value && !foreign"
         type="button"
         class="cms-collection-empty__add"
         @click="add()"

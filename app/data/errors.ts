@@ -9,6 +9,11 @@ export type CmsDataErrorCode =
   | 'locked'
   /** This editing session no longer holds the lock: taken over or force-unlocked. */
   | 'lock_lost'
+  /** The media item is used on the site and cannot be deleted (C-77, 014). */
+  | 'media_in_use'
+  /** The address (slug) of an entry is taken by another entry in that language (014). */
+  | 'slug_taken'
+  | 'entry_live'
   | 'unknown'
 
 /** Serializable part of a CmsDataError, kept in `data` so the code survives wrapping. */

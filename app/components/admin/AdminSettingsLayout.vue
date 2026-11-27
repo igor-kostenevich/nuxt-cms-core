@@ -15,6 +15,7 @@ const items = [
   { to: '/admin/settings', key: 'general', icon: 'lucide:globe' },
   { to: '/admin/settings/brand', key: 'brand', icon: 'lucide:palette' },
   { to: '/admin/settings/languages', key: 'languages', icon: 'lucide:languages' },
+  { to: '/admin/settings/editing', key: 'editing', icon: 'lucide:pencil-line' },
 ] as const
 
 function isCurrent(to: string) {

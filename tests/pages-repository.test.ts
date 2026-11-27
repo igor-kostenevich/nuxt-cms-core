@@ -321,7 +321,7 @@ describe('PagesRepository editing functions', () => {
 
   it('lists revisions of one page and locale, newest first, without content', async () => {
     response = {
-      data: [{ id: 'r2', locale: 'uk', created_at: '2026-11-15T12:00:00+00:00', page: { key: 'home' } }],
+      data: [{ id: 'r2', locale: 'uk', created_at: '2026-11-15T12:00:00+00:00', document: { page: { key: 'home' } } }],
       error: null,
     }
 
@@ -331,19 +331,19 @@ describe('PagesRepository editing functions', () => {
     expect(calls.every(call => call.client === 'session')).toBe(true)
     expect(argsOf('from')).toEqual([['cms_page_revisions']])
     expect(argsOf('select')[0]?.[0]).not.toContain('content')
-    expect(argsOf('eq')).toEqual([['page.key', 'home'], ['locale', 'uk']])
+    expect(argsOf('eq')).toEqual([['document.page.key', 'home'], ['locale', 'uk']])
     expect(argsOf('order')).toEqual([['created_at', { ascending: false }]])
   })
 
   it('reads one revision only of the given page and locale, in the query itself', async () => {
     const id = '00000000-0000-4000-8000-0000000000a1'
-    response = { data: { id, locale: 'uk', created_at: '2026-11-15T12:00:00+00:00', page: { key: 'home' } }, error: null }
+    response = { data: { id, locale: 'uk', created_at: '2026-11-15T12:00:00+00:00', document: { page: { key: 'home' } } }, error: null }
 
     await expect(createPagesRepository().getRevision(id, 'home', 'uk')).resolves.toEqual({
       id, locale: 'uk', createdAt: '2026-11-15T12:00:00+00:00',
     })
-    expect(argsOf('select')[0]?.[0]).toContain('page:cms_pages!inner(key)')
-    expect(argsOf('eq')).toEqual([['id', id], ['page.key', 'home'], ['locale', 'uk']])
+    expect(argsOf('select')[0]?.[0]).toContain('document:cms_documents!inner(page:cms_pages!inner(key))')
+    expect(argsOf('eq')).toEqual([['id', id], ['document.page.key', 'home'], ['locale', 'uk']])
   })
 
   it('returns null for a revision that is gone or not this page\'s, and makes no request for a bad id', async () => {

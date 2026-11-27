@@ -17,8 +17,9 @@ const { t } = useAdminI18n()
 const el = ref<HTMLElement | null>(null)
 const hidden = computed(() => props.value?.hidden === true)
 
-const { engine, view, key } = useEditorField({
+const { engine, view, key, foreign } = useEditorField({
   kind: 'optional',
+  value: () => props.value,
   fieldKey: () => props.fieldKey,
   el,
   label: () => props.fieldLabel,
@@ -45,7 +46,7 @@ const name = computed(() => props.fieldLabel ?? props.fieldKey)
       {{ t('cms.editor.field.hidden', { name }) }}
     </span>
     <button
-      v-if="view.editable.value && !engine.translating.value"
+      v-if="view.editable.value && !engine.translating.value && !foreign"
       type="button"
       class="cms-hidden-block__show"
       @click.stop="toggle"

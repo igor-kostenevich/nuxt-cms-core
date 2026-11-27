@@ -2,6 +2,7 @@
 import type {
   CmsButtonValue,
   CmsCollectionItem,
+  CmsEntrySelectionValue,
   CmsImageValue,
   CmsLinkValue,
   CmsOptionalValue,
@@ -34,12 +35,14 @@ interface HomeContent {
   quote?: { visibility?: CmsOptionalValue, text?: string, author?: string, role?: string }
   faq?: { title?: string, items?: CmsCollectionItem[] }
   contact?: { title?: string, text?: string, cta?: CmsButtonValue }
+  /** 014: which posts the section shows; choosing them in Edit Mode is stage 6. */
+  blog?: { title?: string, posts?: CmsEntrySelectionValue }
 }
 
 const { t } = useCmsText()
 useHead({ title: () => t('meta.homeTitle') })
 
-const { page } = useCmsPage('home')
+const { page, ready: pageReady } = useCmsPage('home')
 useLocaleHead(page, '/')
 const content = computed(() => (page.value?.content ?? {}) as HomeContent)
 const hero = computed(() => content.value.hero ?? {})
@@ -49,6 +52,13 @@ const work = computed(() => content.value.work ?? {})
 const quote = computed(() => content.value.quote ?? {})
 const faq = computed(() => content.value.faq ?? {})
 const contact = computed(() => content.value.contact ?? {})
+const blog = computed(() => content.value.blog ?? {})
+
+// From the blog (014): the newest three (Automatic), or posts the editor chose
+// in this section (Manual), in their order. The choice is in the page's
+// content: read it first, or the server renders the default and no posts.
+await pageReady
+const { entries: latestPosts } = useCmsEntries('post', () => cmsEntrySelection(blog.value.posts, { limit: 3 }))
 
 // Items from code have stable ids (C-88): translations and text changes stay
 // on the item when the order here changes.
@@ -392,6 +402,37 @@ function coverValue(item: CmsCollectionItem) {
     </section>
 
     <section
+      id="blog"
+      class="section blog-teaser"
+      data-test="home-blog"
+    >
+      <div class="container">
+        <CmsText
+          :value="blog.title"
+          field-key="blog.title"
+          tag="h2"
+          class="section-title"
+        >
+          From the blog
+        </CmsText>
+        <CmsEntries
+          :entries="latestPosts"
+          :value="blog.posts"
+          field-key="blog.posts"
+          type="post"
+          :limit="3"
+          :max="6"
+          field-label="Featured posts"
+          class="blog-teaser__grid"
+        >
+          <template #default="{ entry }">
+            <PostCard :entry="entry" />
+          </template>
+        </CmsEntries>
+      </div>
+    </section>
+
+    <section
       id="contact"
       class="section contact"
     >
@@ -660,5 +701,10 @@ function coverValue(item: CmsCollectionItem) {
   .about__decor {
     display: none;
   }
+}
+.blog-teaser__grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 </style>

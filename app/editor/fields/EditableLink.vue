@@ -28,6 +28,7 @@ const text = computed(() => props.value?.label)
 
 useEditorField({
   kind: props.as,
+  value: () => props.value,
   fieldKey: () => props.fieldKey,
   el,
   label: () => props.fieldLabel,

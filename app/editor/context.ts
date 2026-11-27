@@ -1,5 +1,6 @@
 import { hasInjectionContext, inject, type InjectionKey } from 'vue'
 import type { CmsPage } from '../types/pages'
+import type { CmsEntry } from '../types/entries'
 import type { EditorEngine } from './engine'
 import type { EditorView } from './view'
 
@@ -18,6 +19,15 @@ export interface CmsEditorPageBinding {
   ready: Promise<void>
 }
 
+/** useCmsEntry in Edit Mode of its entry (014): the entry comes from the Engine. */
+export interface CmsEditorEntryBinding {
+  entry: Readonly<{ value: CmsEntry | null }>
+  pending: Readonly<{ value: boolean }>
+  error: Readonly<{ value: Error | null | undefined }>
+  refresh: () => Promise<void>
+  ready: Promise<void>
+}
+
 export interface CmsEditorContext {
   engine: EditorEngine
   view: EditorView
@@ -27,6 +37,13 @@ export interface CmsEditorContext {
    * public site, and its primitives stay public.
    */
   bindPage: (key: string) => CmsEditorPageBinding | null
+  /**
+   * Called by useCmsEntry in Edit Mode: when the session edits an entry of this
+   * type (opened by its id, `?entry=`), the entry comes from the Engine. Null
+   * otherwise: the entry is read like the public site (its fields are another
+   * document's, read-only here, 014 §7).
+   */
+  bindEntry: (type: string) => CmsEditorEntryBinding | null
 }
 
 /**

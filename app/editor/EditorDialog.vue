@@ -17,7 +17,7 @@ watch(() => ui.state.dialog, async (open) => {
   if (open && !dialog.value?.open) {
     returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
     dialog.value?.showModal()
-    dialog.value?.querySelector<HTMLElement>(open.destructive ? '[data-cancel]' : '[data-confirm]')?.focus()
+    dialog.value?.querySelector<HTMLElement>(open.destructive || open.focusCancel ? '[data-cancel]' : '[data-confirm]')?.focus()
   } else if (!open && dialog.value?.open) {
     dialog.value.close()
 
@@ -81,6 +81,35 @@ function onBackdrop(event: MouseEvent) {
         >
           {{ ui.state.dialog.body }}
         </p>
+        <div
+          v-if="ui.state.dialog.notice"
+          class="ed-dialog__notice"
+          role="note"
+        >
+          <p class="ed-dialog__notice-text">
+            {{ ui.state.dialog.notice }}
+          </p>
+          <details
+            v-if="ui.state.dialog.noticeItems?.length"
+            class="ed-dialog__notice-details"
+          >
+            <summary>{{ ui.state.dialog.noticeToggle }}</summary>
+            <ul>
+              <li
+                v-for="item in ui.state.dialog.noticeItems"
+                :key="item"
+              >
+                {{ item }}
+              </li>
+            </ul>
+          </details>
+        </div>
+        <AdminCheckbox
+          v-if="ui.state.dialog.checkbox"
+          v-model="ui.state.dialog.checked"
+          :label="ui.state.dialog.checkbox"
+          class="ed-dialog__remember"
+        />
         <div class="ed-dialog__actions">
           <AdminButton
             variant="secondary"

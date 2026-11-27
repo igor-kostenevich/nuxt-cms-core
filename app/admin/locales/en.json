@@ -49,7 +49,8 @@
         "settings": "Settings",
         "editSite": "Edit site",
         "texts": "Texts",
-        "submissions": "Submissions"
+        "submissions": "Submissions",
+        "content": "Content"
       },
       "soon": "Coming soon",
       "logoutFailed": "Could not log out. Try again.",
@@ -80,7 +81,8 @@
         "label": "Settings sections",
         "general": "General",
         "brand": "Brand",
-        "languages": "Languages"
+        "languages": "Languages",
+        "editing": "Editing"
       },
       "siteNameTranslationHint": "Leave empty to show the name in the default language.",
       "languages": {
@@ -120,7 +122,12 @@
       },
       "siteNameDefaultHint": "In {language}, the main language of the site.",
       "siteNameOther": "Site name in other languages",
-      "siteNameFilled": "{filled} of {total} filled in"
+      "siteNameFilled": "{filled} of {total} filled in",
+      "editing": {
+        "scope": "These preferences apply only to you, in this browser.",
+        "confirmPublish": "Confirm before publishing",
+        "confirmPublishHint": "Before Publish, show a reminder that the changes appear on the site right away."
+      }
     },
     "validation": {
       "required": "Fill in this field.",
@@ -136,7 +143,10 @@
       "conflict": "This would replace changes that are not published yet.",
       "locked": "Someone else is editing this page.",
       "lockLost": "Your editing session is no longer active.",
-      "unknown": "Something went wrong. Try again."
+      "mediaInUse": "This file is used on the site. Remove it from those places first, then delete it.",
+      "slugTaken": "This address is already taken. Choose another one.",
+      "unknown": "Something went wrong. Try again.",
+      "entryLive": "This entry is on the site. Take it off the site first, then delete it."
     },
     "editor": {
       "toolbar": {
@@ -157,11 +167,13 @@
         "unsaved": "Unsaved changes",
         "saving": "Saving…",
         "draft": "Draft not published",
+        "changed": "Has changes",
         "published": "Published",
         "error": "Not saved",
         "retry": "Retry",
         "readOnly": "Read only",
-        "issues": "Issues blocking publish: {count}"
+        "issues": "Issues blocking publish: {count}",
+        "saveIssues": "Not saved: fix the fields with errors ({count})"
       },
       "kinds": {
         "text": "Text",
@@ -172,7 +184,10 @@
         "background": "Background",
         "collection": "List",
         "item": "Item",
-        "optional": "Block"
+        "optional": "Block",
+        "input": "Field",
+        "value": "Option",
+        "entries": "Entries"
       },
       "field": {
         "reset": "Reset",
@@ -283,7 +298,9 @@
         "saved": "Draft saved",
         "published": "Published",
         "publishFailed": "Not published",
-        "saveFailed": "Draft not saved"
+        "saveFailed": "Draft not saved",
+        "publishedUntranslated": "Published. Not translated: {languages}. These languages show the original.",
+        "publishedUntranslatedMany": "Published. Fully translated: {done} of {total} languages."
       },
       "load": {
         "failed": "The page could not be opened for editing.",
@@ -291,7 +308,8 @@
         "back": "Back to the dashboard"
       },
       "pages": {
-        "home": "Home"
+        "home": "Home",
+        "untitled": "Untitled"
       },
       "documentTitle": "{page} · Edit",
       "discard": {
@@ -301,7 +319,10 @@
       },
       "issues": {
         "required": "{name}: required",
-        "maxLength": "{name}: too long"
+        "maxLength": "{name}: too long",
+        "range": "{name}: out of range",
+        "format": "{name}: check the format",
+        "option": "{name}: value no longer offered"
       },
       "locale": {
         "switcher": "Language of the content",
@@ -324,7 +345,122 @@
         "bannerBody": "Texts, link labels and alt texts are translated here. Structure, images and links are changed in {code}.",
         "onlyUntranslated": "Only untranslated ({count})",
         "allTranslated": "All translated",
-        "hiddenOnSite": "hidden on the site"
+        "hiddenOnSite": "hidden on the site",
+        "titleFirst": "Enter the title first: a language needs the original, which is saved with the first switch."
+      },
+      "address": {
+        "label": "Page link",
+        "required": "A link is required.",
+        "tooLong": "At most {max} characters.",
+        "format": "Use lowercase Latin letters, digits and single hyphens.",
+        "reserved": "A page of the site already uses this link.",
+        "taken": "This link is taken by “{title}”.",
+        "takenArchived": "This link is held by “{title}”, taken off the site.",
+        "leaving": "after publishing, {path} stops working",
+        "checking": "checking…",
+        "hint": "The last part of the link: lowercase Latin letters, digits and hyphens."
+      },
+      "entries": {
+        "mode": "How entries are chosen",
+        "automatic": "Automatic",
+        "manual": "Manual",
+        "limit": "How many",
+        "automaticHint": "Shows the {count} newest published entries. A new publication appears here by itself.",
+        "manualHint": "Chosen: {count} of {max}. The site shows them in this order.",
+        "add": "Add an entry",
+        "search": "Search by title",
+        "addOne": "Add",
+        "remove": "Remove «{title}»",
+        "full": "The section already has {max} entries. Remove one to add another.",
+        "nothing": "Nothing found.",
+        "empty": "No entries to show. Choose them in the panel of this section.",
+        "missing": "Not found: the site does not show it.",
+        "archived": "Taken off the site: not shown.",
+        "unpublished": "Not published: not shown.",
+        "untranslated": "No {code} translation: the original is shown.",
+        "locked": "The choice of entries is the same in every language; change it in {code}."
+      },
+      "form": {
+        "required": "Required.",
+        "maxLength": "Too long: {count} of {max} characters.",
+        "rangeBoth": "From {min} to {max}.",
+        "rangeMin": "At least {min}.",
+        "rangeMax": "At most {max}.",
+        "original": "Original: {text}",
+        "structure": "Same in every language; changed in {code}.",
+        "empty": "—",
+        "link": {
+          "label": "Link text",
+          "href": "Address",
+          "hrefHint": "A page of this site (/careers) or a full address (https://…).",
+          "newTab": "Open in a new tab",
+          "invalid": "This address cannot be used. Start with /, https://, mailto: or tel:."
+        },
+        "richTextHint": "Select text to make it bold or italic, or to add a link.",
+        "rangeCount": "Choose from {min} to {max}.",
+        "rangeTime": "Outside the allowed time.",
+        "option": "“{value}” is no longer offered. Choose another.",
+        "unknownOption": "{value} (no longer offered)",
+        "addOption": "Add…",
+        "format": {
+          "text": "Check the value.",
+          "textarea": "Check the value.",
+          "email": "Enter an email, e.g. name@site.com.",
+          "url": "Enter an address starting with https://.",
+          "phone": "Digits, +, spaces, brackets and hyphens only.",
+          "number": "Enter a number.",
+          "date": "Enter a date.",
+          "datetime": "Enter a date and a time.",
+          "dateRange": "The start must be on or before the end.",
+          "select": "Choose a value.",
+          "radio": "Choose a value.",
+          "multiselect": "Choose values from the list.",
+          "boolean": "Choose yes or no."
+        },
+        "time": "Time",
+        "zone": "Time in {zone}{offset}",
+        "timeNonexistent": "This time does not exist on this day: the clocks go forward. Choose another time.",
+        "timeAmbiguous": "This time happens twice on this day (the clocks go back). Which one?",
+        "image": {
+          "drop": "Drop an image or browse",
+          "limits": "JPG, PNG, WebP or SVG up to 5 MB",
+          "choose": "Choose from the library",
+          "replace": "Replace",
+          "remove": "Remove",
+          "none": "No image chosen.",
+          "uploading": "Uploading…",
+          "failed": "The file was not uploaded. Try again."
+        }
+      },
+      "publish": {
+        "title": "Publish to the site?",
+        "body": "The changes will appear on the site right away.",
+        "confirm": "Publish",
+        "cancel": "Cancel",
+        "dontAsk": "Don’t ask again",
+        "untranslated": "Not translated: {languages}. These languages will show the original on the site.",
+        "fields": {
+          "one": "{count} field",
+          "few": "{count} fields",
+          "many": "{count} fields",
+          "other": "{count} fields"
+        },
+        "untranslatedMany": "Fully translated: {done} of {total} languages. The rest will show the original on the site.",
+        "showLanguages": "Show languages"
+      },
+      "remove": {
+        "label": "Delete for good",
+        "title": "Delete “{title}” for good?",
+        "body": "The entry, all its languages and its history will be gone. This cannot be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel",
+        "done": "“{title}” was deleted.",
+        "failed": "Not deleted",
+        "short": "Delete",
+        "unavailable": "An entry on the site cannot be deleted. Take it off the site first."
+      },
+      "takeOff": {
+        "failed": "Not taken off the site"
       }
     },
     "media": {
@@ -358,7 +494,7 @@
       "drop": "Drop files to upload",
       "usedIn": "Used in:",
       "unused": "Unused",
-      "unusedLong": "Not used anywhere on the site.",
+      "unusedLong": "Not used in any content.",
       "usage": {
         "logo": "Brand · Logo",
         "favicon": "Brand · Favicon",
@@ -382,12 +518,12 @@
       "replace": "Replace file",
       "replaced": "File replaced. Every place that uses it shows the new file.",
       "delete": "Delete",
-      "deleteUsed": "Places that use this file: {count}. After deleting, they show the default image from the site code.",
       "deleteUnused": "Delete this file from the library?",
       "deleteConfirm": "Delete file",
       "cancel": "Cancel",
       "choose": "Choose",
-      "frameHint": "The bright frame is what the page shows at this screen width."
+      "frameHint": "The bright frame is what the page shows at this screen width.",
+      "inUse": "Used in content (drafts included), so it cannot be deleted. Remove it from these places first."
     },
     "texts": {
       "language": "Language",
@@ -562,6 +698,7 @@
       "categories": {
         "all": "All",
         "pages": "Pages",
+        "content": "Content",
         "media": "Media",
         "settings": "Settings",
         "submissions": "Submissions"
@@ -577,7 +714,7 @@
       "empty": {
         "all": "No events yet",
         "category": "No events in this category",
-        "body": "Page publications, changes to files and settings, and actions on submissions will appear here."
+        "body": "Publications of pages and entries, changes to files and settings, and actions on submissions will appear here."
       },
       "fields": {
         "site_name": "site name",
@@ -622,8 +759,80 @@
           "deleteOne": "Deleted a submission for good",
           "deleteMany": "Deleted for good: {count}"
         },
-        "unknown": "Action “{action}”: {name}"
+        "unknown": "Action “{action}”: {name}",
+        "entry": {
+          "create": "Created “{name}” · {type}",
+          "publish": "Published “{name}” · {type}",
+          "restore": "Restored a version of “{name}” to the draft · {type}",
+          "archive": "Took “{name}” off the site · {type}",
+          "unarchive": "Put “{name}” back on the site · {type}",
+          "force_unlock": "Unlocked “{name}” · {type}",
+          "reorder": "Changed the order of {type}",
+          "delete": "Deleted “{name}” for good · {type}"
+        }
       }
+    },
+    "pages": {
+      "title": "Pages",
+      "pagesTitle": "Pages of the site",
+      "typesTitle": "Collections with pages",
+      "empty": "No pages yet. Pages appear here once they are declared in cms.content.ts or opened in Edit Mode.",
+      "edit": "Edit",
+      "manage": "Manage",
+      "new": "New",
+      "updated": "Updated {date}",
+      "notDeclared": "Not declared in cms.content.ts",
+      "status": {
+        "none": "Not edited",
+        "draft": "Draft",
+        "published": "Published",
+        "changed": "Has changes"
+      },
+      "type": {
+        "search": "Search",
+        "searchPlaceholder": "Search by title",
+        "untitled": "Untitled",
+        "archive": "Take off the site",
+        "archived": "“{title}” is off the site.",
+        "undo": "Undo",
+        "empty": "No entries yet.",
+        "emptySearch": "Nothing matches the search.",
+        "pagination": "Pages of the list",
+        "shown": "{from}–{to} of {total}",
+        "previous": "Previous",
+        "next": "Next",
+        "notFound": "This collection is not declared in cms.content.ts.",
+        "back": "All pages",
+        "statusFilter": "Status",
+        "statusAll": "All statuses",
+        "openOnSite": "Open on the site",
+        "notOnSite": "Not on the site yet",
+        "emptyFiltered": "No entries with these statuses."
+      },
+      "create": {
+        "title": "New entry",
+        "titleLabel": "Title",
+        "slugLabel": "Address",
+        "submit": "Create",
+        "cancel": "Cancel",
+        "titleRequired": "A title is required.",
+        "created": "“{title}” created as a draft."
+      }
+    },
+    "content": {
+      "listChanged": "The list changed meanwhile. It is shown as it is now.",
+      "title": "Content",
+      "typesTitle": "Content types",
+      "empty": "No content types. Declare a type with fields in cms.content.ts.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "dragHandle": "Drag to reorder «{title}»",
+      "dialog": {
+        "new": "New, not saved yet",
+        "newDefault": "New entry — {type}",
+        "editDefault": "{type} — {title}"
+      },
+      "notFound": "This content type is not declared in cms.content.ts."
     }
   }
 }

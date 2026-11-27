@@ -45,8 +45,9 @@
 | 011 | Forms infrastructure | 3 | `done` | [011](./011-forms.md) |
 | 012 | Activity (Admin UI + Restore) | 3 | `done` | [012](./012-activity.md) |
 | 013 | Analytics (замість Integrations, C-97) | 3 | `todo` | — |
-| 014 | Collections UI (інфраструктура Core) | 4 | `todo` | — |
+| 014 | Pages / Content: самостійні записи | 4 | `in progress` (рев'ю) | [014](./014-content.md) |
 | 015 | Решта Admin + Configuration growth | 4 | `todo` | — |
+| 017 | Custom Admin Extensions (після 015, до першого publish) | 4 | `todo` | — |
 | 016 | CLI / Updates / Deploy / Publishing | 5 | `todo` | — |
 
 ---

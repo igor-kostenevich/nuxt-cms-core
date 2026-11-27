@@ -91,6 +91,10 @@ const describedBy = computed(() => [props.error ? errorId : null, props.hint ? h
 </template>
 
 <style scoped>
+.admin-input {
+  position: relative;
+}
+
 .admin-input__label {
   display: block;
   margin: 0 0 var(--cms-space-2);
@@ -201,8 +205,13 @@ const describedBy = computed(() => [props.error ? errorId : null, props.hint ? h
   color: var(--cms-text-disabled);
   cursor: not-allowed;
 }
+
+/* Visually hidden, but laid out at the field: without a positioned parent it
+   would be placed against the dialog and stretch its scroll area. */
 .admin-input__label--hidden {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;

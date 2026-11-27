@@ -5,6 +5,11 @@ import { useEditor } from './inject'
 
 // A thin strip under the toolbar while a translation is edited: what can be
 // changed in this language, and what belongs to the default one (C-78).
+const props = withDefaults(defineProps<{
+  /** The "only untranslated" filter dims the page through the Overlay; a form has none. */
+  filter?: boolean
+}>(), { filter: true })
+
 const { t } = useAdminI18n()
 const { engine, view } = useEditor()
 
@@ -35,6 +40,7 @@ watch([remaining, engine.translating], ([count, translating]) => {
       {{ t('cms.editor.locale.bannerBody', { code: defaultCode }) }}
     </span>
     <button
+      v-if="props.filter"
       type="button"
       class="locale-banner__filter"
       :aria-pressed="view.onlyUntranslated.value"

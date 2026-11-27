@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, useId, useTemplateRef } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { useAdminI18n } from '../admin/useAdminI18n'
+import { useAdminToast } from '../admin/useAdminToast'
 import { isAdminPath } from '../auth/paths'
 import { useEditor } from './inject'
 import { pagePath, pageTitle } from './page-title'
@@ -14,6 +15,8 @@ const props = defineProps<{
   path: string
   /** The page has no CMS content: nothing to edit or save. */
   unbound: boolean
+  /** The session edits an entry (not a page): it can be deleted from here when it is off the site. */
+  entry?: boolean
 }>()
 
 const { t } = useAdminI18n()
@@ -28,6 +31,26 @@ const isMac = import.meta.client && /Mac|iPhone|iPad/.test(navigator.platform)
 const mod = isMac ? '⌘' : 'Ctrl+'
 
 const canPublish = computed(() => can('pages.publish'))
+const toasts = useAdminToast()
+
+/** Takes the entry off the site; Edit Mode stays open on it, now a draft with Publish to put it back. */
+async function takeOffEntry() {
+  const name = session.entryName()
+
+  if (await session.takeOff()) {
+    ui.toast(t('cms.pages.type.archived', { title: name }), { tone: 'success' })
+  }
+}
+
+/** Deletes the entry for good (asked here) and leaves for where Edit Mode was opened from. */
+async function removeEntry() {
+  const name = session.entryName()
+
+  if (await session.remove(name)) {
+    toasts.toast(t('cms.editor.remove.done', { title: name }), { tone: 'success' })
+    await session.exit()
+  }
+}
 const disabled = computed(() => props.unbound || engine.readOnly.value || engine.status.value !== 'ready')
 
 type StatusTone = 'neutral' | 'warning' | 'info' | 'success' | 'error'
@@ -53,8 +76,14 @@ const status = computed<{ text: string, tone: StatusTone }>(() => {
     return { text: t('cms.editor.status.unsaved'), tone: 'warning' }
   }
 
-  if (engine.hasDraft.value) {
+  // As in the lists: an entry taken off the site is a draft; a published one
+  // with a newer draft has changes.
+  if (engine.offSite.value || (engine.hasDraft.value && !engine.publishedAt.value)) {
     return { text: t('cms.editor.status.draft'), tone: 'info' }
+  }
+
+  if (engine.hasDraft.value) {
+    return { text: t('cms.editor.status.changed'), tone: 'info' }
   }
 
   return { text: t('cms.editor.status.published'), tone: 'success' }
@@ -79,9 +108,7 @@ onClickOutside(issuesBox, () => {
 
 function issueText(issue: (typeof engine.issues.value)[number]) {
   const name = issue.label ?? issue.key
-  return issue.kind === 'required'
-    ? t('cms.editor.issues.required', { name })
-    : t('cms.editor.issues.maxLength', { name })
+  return t(`cms.editor.issues.${issue.kind}`, { name })
 }
 
 function goToIssue(fieldId: string) {
@@ -349,6 +376,30 @@ async function discard() {
     </div>
 
     <div class="toolbar__end">
+      <!-- Deleting is for an entry that is not on the site: with one on the site the button is
+           there but off, and the tooltip says why. -->
+      <span
+        v-if="entry && can('pages.publish')"
+        class="tb-delete-wrap"
+        :title="engine.removable.value ? t('cms.editor.remove.label') : t('cms.editor.remove.unavailable')"
+      >
+        <AdminButton
+          variant="secondary"
+          size="md"
+          icon-only
+          class="tb-delete"
+          :disabled="!engine.removable.value"
+          :aria-label="t('cms.editor.remove.label')"
+          :loading="engine.removing.value"
+          data-test="entry-delete"
+          @click="removeEntry"
+        >
+          <Icon
+            name="lucide:trash-2"
+            aria-hidden="true"
+          />
+        </AdminButton>
+      </span>
       <AdminButton
         variant="secondary"
         size="md"
@@ -418,8 +469,20 @@ async function discard() {
       >
         {{ t('cms.editor.toolbar.save') }}
       </AdminButton>
+      <!-- On the site with nothing newer to publish: the action is taking it off the site. -->
       <AdminButton
-        v-if="canPublish"
+        v-if="canPublish && entry && engine.canTakeOff.value"
+        variant="secondary"
+        size="md"
+        class="tb-take-off"
+        :loading="engine.takingOff.value"
+        data-test="entry-take-off"
+        @click="takeOffEntry"
+      >
+        {{ t('cms.pages.type.archive') }}
+      </AdminButton>
+      <AdminButton
+        v-else-if="canPublish"
         variant="primary"
         size="md"
         :disabled="publishDisabled"
@@ -433,6 +496,23 @@ async function discard() {
 </template>
 
 <style scoped>
+.tb-delete:not(:disabled) {
+  border-color: color-mix(in srgb, var(--cms-destructive) 45%, var(--cms-border));
+  background: var(--cms-destructive-subtle);
+  color: var(--cms-destructive-text);
+}
+
+.tb-delete:hover:not(:disabled),
+.tb-delete:focus-visible {
+  border-color: var(--cms-destructive);
+  background: color-mix(in srgb, var(--cms-destructive) 12%, var(--cms-card));
+  color: var(--cms-destructive-text);
+}
+
+.tb-delete-wrap {
+  display: inline-flex;
+}
+
 .toolbar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

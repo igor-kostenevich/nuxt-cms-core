@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { cmsContent } from '#cms/content'
 import { describeActivity, groupByDay, submissionForm } from '../../../admin/activity-view'
+import { contentLabel } from '../../../admin/content-label'
 import { adminErrorKey } from '../../../admin/error-key'
 import { formName } from '../../../admin/forms-view'
 import { useAdminActivity } from '../../../admin/useAdminActivity'
@@ -50,6 +52,9 @@ const fullFormat = computed(() => new Intl.DateTimeFormat(adminLocale.value, { d
 const dayFormat = computed(() => new Intl.DateTimeFormat(adminLocale.value, { day: 'numeric', month: 'long', timeZone: timeZone.value }))
 const dayYearFormat = computed(() => new Intl.DateTimeFormat(adminLocale.value, { day: 'numeric', month: 'long', year: 'numeric', timeZone: timeZone.value }))
 
+// Types of cms.content.ts: names and editors of entry events (014).
+const entryTypes = computed(() => new Map(cmsContent.types.map(type => [type.key, { label: contentLabel(type.label, adminLocale.value), route: type.route }])))
+
 const rows = computed(() => log.items.value.map((event) => {
   const { title, link } = describeActivity(event, {
     t,
@@ -58,6 +63,7 @@ const rows = computed(() => log.items.value.map((event) => {
     existingSubmissions: log.existingSubmissions.value,
     languageCodes: languageCodes.value,
     formName: key => formName(key, text),
+    entryTypes: entryTypes.value,
   })
   const form = submissionForm(event)
   const date = new Date(event.createdAt)

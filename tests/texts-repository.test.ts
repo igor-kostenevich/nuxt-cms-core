@@ -31,15 +31,15 @@ describe('TextsRepository.listContents', () => {
     queries.length = 0
     tables = {
       cms_page_draft: {
-        data: [{ locale: 'en', content: { 'hero.title': 'Hello' }, updated_at: '2026-11-18T12:36:42.041292+00:00', page: { key: 'home' } }],
+        data: [{ locale: 'en', content: { 'hero.title': 'Hello' }, updated_at: '2026-11-18T12:36:42.041292+00:00', document: { page: { key: 'home' } } }],
         error: null,
       },
       cms_page_published: {
         data: [
-          { locale: 'en', content: { 'hero.title': 'Hi' }, page: { key: 'home' } },
-          { locale: 'uk', content: { hero: { title: 'Привіт' } }, page: { key: 'about' } },
+          { locale: 'en', content: { 'hero.title': 'Hi' }, document: { page: { key: 'home' } } },
+          { locale: 'uk', content: { hero: { title: 'Привіт' } }, document: { page: { key: 'about' } } },
           // A row the session cannot see the page of is left out.
-          { locale: 'uk', content: {}, page: null },
+          { locale: 'uk', content: {}, document: { page: null } },
         ],
         error: null,
       },
@@ -67,5 +67,42 @@ describe('TextsRepository.listContents', () => {
     const error = await createTextsRepository().listContents(['uk']).catch((cause: unknown) => cause)
     expect(error).toBeInstanceOf(CmsDataError)
     expect((error as CmsDataError).code).toBe('permission_denied')
+  })
+})
+
+describe('TextsRepository.listPages', () => {
+  it('reads fields through the document (014) and keeps pages with fields only', async () => {
+    queries.length = 0
+    tables = {
+      cms_pages: {
+        data: [
+          {
+            key: 'home',
+            edit_path: '/',
+            document: {
+              fields: [
+                { address: 'b', kind: 'text', label: null, default_text: null, section: null, position: 1, tag: null, item: null },
+                { address: 'a', kind: 'text', label: 'Title', default_text: 'Hi', section: 'Hero', position: 0, tag: 'h1', item: null },
+              ],
+            },
+          },
+          { key: 'empty', edit_path: null, document: { fields: [] } },
+        ],
+        error: null,
+      },
+    }
+
+    const pages = await createTextsRepository().listPages()
+
+    expect(pages).toEqual([{
+      key: 'home',
+      editPath: '/',
+      fields: [
+        { address: 'a', kind: 'text', label: 'Title', defaultText: 'Hi', section: 'Hero', position: 0, tag: 'h1', item: null },
+        { address: 'b', kind: 'text', label: null, defaultText: null, section: null, position: 1, tag: null, item: null },
+      ],
+    }])
+    expect(queries[0]!.calls.find(([method]) => method === 'select')?.[1][0])
+      .toContain('document:cms_documents!inner(fields:cms_page_fields(')
   })
 })

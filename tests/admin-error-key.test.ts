@@ -27,6 +27,12 @@ describe('adminErrorKey', () => {
     expect(adminErrorKey(revived)).toBe('cms.errors.notFound')
   })
 
+  it('names media in use and a taken address (014)', () => {
+    expect(adminErrorKey(new CmsDataError('media_in_use', 'used'))).toBe('cms.errors.mediaInUse')
+    expect(adminErrorKey(createError(new CmsDataError('slug_taken', 'taken')))).toBe('cms.errors.slugTaken')
+    expect(adminErrorKey(createError(new CmsDataError('entry_live', 'live')))).toBe('cms.errors.entryLive')
+  })
+
   it('falls back to unknown for foreign errors and unknown codes', () => {
     expect(adminErrorKey(new Error('boom'))).toBe('cms.errors.unknown')
     expect(adminErrorKey({ data: { cmsCode: 'toString' } })).toBe('cms.errors.unknown')

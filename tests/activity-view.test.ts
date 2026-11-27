@@ -48,6 +48,57 @@ function event(overrides: Partial<CmsActivityEvent>): CmsActivityEvent {
   }
 }
 
+const ENTRY = '00000000-0000-4000-8000-0000000000c1'
+const REVISION = '00000000-0000-4000-8000-0000000000d1'
+const entryTypes = new Map([
+  ['post', { label: 'Статті', route: '/blog/[slug]' }],
+  ['vacancy', { label: 'Вакансії', route: null }],
+])
+
+describe('describeActivity: entries (014)', () => {
+  const entry = (overrides: Partial<CmsActivityEvent>) => event({
+    entityType: 'entry',
+    entityId: ENTRY,
+    entityLabel: 'Спокійні інтерфейси',
+    revisionId: REVISION,
+    details: { type: 'post' },
+    ...overrides,
+  })
+
+  it('names the entry and its type; a publication of a Pages type opens History in Edit Mode', () => {
+    expect(describeActivity(entry({}), lookups({ entryTypes }))).toEqual({
+      title: 'Опубліковано «Спокійні інтерфейси» · Статті',
+      link: `/admin/edit/blog/${ENTRY}?entry=${ENTRY}&locale=uk&history=${REVISION}`,
+    })
+  })
+
+  it('a Content type opens its dialog; an archived entry and a new order open the list', () => {
+    const vacancy = { details: { type: 'vacancy' }, entityLabel: 'QA engineer', locale: null, revisionId: null }
+    expect(describeActivity(entry({ ...vacancy, action: 'create' }), lookups({ entryTypes })).link)
+      .toBe(`/admin/content/vacancy?entry=${ENTRY}`)
+    expect(describeActivity(entry({ ...vacancy, action: 'archive' }), lookups({ entryTypes }))).toEqual({
+      title: 'Прибрано з сайту «QA engineer» · Вакансії',
+      link: '/admin/content/vacancy?status=draft',
+    })
+    expect(describeActivity(entry({ action: 'reorder', entityId: null, entityLabel: 'vacancy', details: { type: 'vacancy' } }), lookups({ entryTypes })))
+      .toEqual({ title: 'Змінено порядок: Вакансії', link: '/admin/content/vacancy' })
+  })
+
+  it('no link for a type no longer declared, or without pages.edit', () => {
+    expect(describeActivity(entry({ details: { type: 'old-type' } }), lookups({ entryTypes })))
+      .toEqual({ title: 'Опубліковано «Спокійні інтерфейси» · Old type', link: null })
+    expect(describeActivity(entry({}), lookups({ entryTypes, can: () => false })).link).toBeNull()
+  })
+
+  it('has every entry event in both languages', () => {
+    for (const dictionary of [en, uk]) {
+      for (const action of ['create', 'publish', 'restore', 'archive', 'unarchive', 'delete', 'force_unlock', 'reorder']) {
+        expect(describeActivity(entry({ action }), lookups({ t: translate(dictionary), entryTypes })).title).not.toContain('{')
+      }
+    }
+  })
+})
+
 describe('describeActivity: pages', () => {
   it('names the page from its path and links to Edit Mode in the locale of the event', () => {
     expect(describeActivity(event({}), lookups())).toEqual({

@@ -165,3 +165,38 @@ export {
   type CmsFormFieldType,
   type CmsFormsInput,
 } from './forms'
+// Content (014) is declared next to the config, in cms.content.ts.
+export {
+  defineCmsContent,
+  type CmsContentInput,
+  type CmsContentLabel,
+  type CmsContentOrder,
+  type CmsContentPage,
+  type CmsContentPageInput,
+  type CmsContentType,
+  type CmsContentTypeInput,
+  type ResolvedCmsContent,
+} from './content'
+export type {
+  CmsContentBooleanField,
+  CmsContentDateField,
+  CmsContentDateRangeField,
+  CmsContentDateRangeValue,
+  CmsContentDateTimeField,
+  CmsContentEmailField,
+  CmsContentField,
+  CmsContentFieldType,
+  CmsContentFieldWidth,
+  CmsContentImageField,
+  CmsContentLinkField,
+  CmsContentMultiselectField,
+  CmsContentNumberField,
+  CmsContentPhoneField,
+  CmsContentRadioField,
+  CmsContentRichTextField,
+  CmsContentSelectField,
+  CmsContentSelectOption,
+  CmsContentTextareaField,
+  CmsContentTextField,
+  CmsContentUrlField,
+} from './content-fields'

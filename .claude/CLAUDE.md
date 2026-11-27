@@ -69,7 +69,7 @@ playground/           Тестовий Client Project
 scripts/              Dev-скрипти (не публікуються): check-public-bundle.mjs
 tests/                Vitest
 docs/                 MASTER_PLAN, source/architecture.md, implementation/, testing/ (сценарії
-                      ручної перевірки, кандидати в e2e)
+                      ручної перевірки, кандидати в e2e), guides/ (як будувати сайт на Core: основа клієнтської доки)
 ```
 
 ## Команди

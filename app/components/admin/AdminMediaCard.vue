@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { formatBytes, mediaTypeLabel } from '../../admin/media/files'
+import { cmsContent } from '#cms/content'
+import { contentLabel } from '../../admin/content-label'
 import { usageLabels } from '../../admin/media/usage'
 import { useAdminI18n } from '../../admin/useAdminI18n'
 import type { CmsMedia, CmsMediaUsage } from '../../types/media'
@@ -18,7 +20,8 @@ const props = defineProps<{
 defineEmits<{ activate: [media: CmsMedia] }>()
 
 const { t, locale } = useAdminI18n()
-const labels = computed(() => usageLabels(props.usage, t))
+const labels = computed(() => usageLabels(props.usage, t, type =>
+  contentLabel(cmsContent.types.find(item => item.key === type)?.label, locale.value) || type))
 const isSvg = computed(() => props.media.mime === 'image/svg+xml')
 </script>
 

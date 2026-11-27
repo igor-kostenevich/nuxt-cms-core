@@ -10,11 +10,25 @@ export interface EditorDialogOptions {
   /** Optional third choice, e.g. «Leave without saving». */
   alternative?: string
   destructive?: boolean
+  /** The initial focus goes to Cancel (as for a destructive one), so a stray Enter does nothing. */
+  focusCancel?: boolean
+  /** A warning under the text, e.g. the languages left untranslated. */
+  notice?: string
+  /** Details of the warning, folded away: one line each. */
+  noticeItems?: string[]
+  /** The label that opens the folded details. */
+  noticeToggle?: string
+  /** An unticked checkbox under the text, e.g. «Don't ask again». */
+  checkbox?: string
+  /** Called with the checkbox when the dialog is confirmed (not on cancel). */
+  remember?: (checked: boolean) => void
 }
 
 export type EditorDialogResult = 'confirm' | 'alternative' | 'cancel'
 
 interface OpenDialog extends EditorDialogOptions {
+  /** The checkbox, ticked or not (bound by the dialog). */
+  checked: boolean
   resolve: (result: EditorDialogResult) => void
 }
 
@@ -29,8 +43,15 @@ export function createEditorUi() {
     return new Promise((resolve) => {
       state.dialog = {
         ...options,
+        checked: false,
         resolve: (result) => {
+          const open = state.dialog
           state.dialog = null
+
+          if (result === 'confirm' && open?.checkbox) {
+            options.remember?.(open.checked)
+          }
+
           resolve(result)
         },
       }

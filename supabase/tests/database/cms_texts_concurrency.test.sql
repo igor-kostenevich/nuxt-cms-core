@@ -3,23 +3,26 @@
 -- Two sessions at once cannot be shown inside one transaction, so the test
 -- opens real sessions to this database with dblink. Their fixtures commit:
 -- the users and the page have keys of their own and are removed at the end
--- (and at the start, after an interrupted run). Nothing else is touched.
+-- (and at the start, after an interrupted run), with the Activity events this
+-- run wrote (014: a test must not leave events in the database it runs on).
+-- Nothing else is touched: events of earlier runs stay.
 --
 -- Checked:
 --   1. two writes of different texts of one page keep both (page mutex);
 --   2. publishing a language waits for a write and skips the draft it changed;
 --   3. taking the Edit Mode lock waits for a write, so the editor loads it;
 --   4. no foreign key deadlock: Edit Mode holds its lock row and inserts a
---      draft and a revision (FK checks take FOR KEY SHARE on the page row)
---      while the Texts screen holds the page mutex and waits for that lock
---      row. FOR NO KEY UPDATE lets the FK checks pass; FOR UPDATE would not.
+--      draft and a revision (FK checks take FOR KEY SHARE on the document
+--      row, cms_documents since 014; on the page row before) while the Texts
+--      screen holds the page mutex and waits for that lock row. FOR NO KEY
+--      UPDATE lets the FK checks pass; FOR UPDATE would not.
 
 begin;
 
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 
-select plan(13);
+select plan(14);
 
 -- dblink refuses a connection without a password for a non-superuser, and
 -- local connections over the socket are trusted. So the sessions connect over
@@ -37,6 +40,9 @@ select set_config(
 );
 
 select dblink_connect('cms_setup', current_setting('cms_test.conn'));
+
+-- Events written from here on are this run's.
+select set_config('cms_test.started', clock_timestamp()::text, true);
 
 select dblink_exec('cms_setup', $sql$
   delete from public.cms_pages where key = 'concurrency-fixture';
@@ -243,11 +249,24 @@ select dblink_disconnect('cms_a');
 select dblink_disconnect('cms_b');
 select dblink_disconnect('cms_p');
 
-select dblink_exec('cms_setup', $sql$
+select dblink_exec('cms_setup', format($sql$
+  delete from public.cms_activity
+    where created_at >= %L::timestamptz
+      and entity_type = 'page'
+      and entity_label = 'concurrency-fixture';
   delete from public.cms_pages where key = 'concurrency-fixture';
   delete from public.cms_users where user_id in ('00000000-0000-4000-8000-00000000d001', '00000000-0000-4000-8000-00000000d002');
   delete from auth.users where id in ('00000000-0000-4000-8000-00000000d001', '00000000-0000-4000-8000-00000000d002');
-$sql$);
+$sql$, current_setting('cms_test.started')));
+
+select is(
+  (select n from dblink('cms_setup', format(
+     $sql$ select count(*)::int from public.cms_activity where created_at >= %L::timestamptz and entity_label = 'concurrency-fixture' $sql$,
+     current_setting('cms_test.started'))) as t (n int)),
+  0,
+  'the run leaves no Activity event behind'
+);
+
 select dblink_disconnect('cms_setup');
 
 select * from finish();

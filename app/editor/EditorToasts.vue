@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import { useAdminI18n } from '../admin/useAdminI18n'
 import { useEditorUi } from './ui'
+import { EDITOR_LAYER } from './host'
 
 // Toasts pause while hovered or focused (WCAG 2.2.1); errors are alerts.
 const { t, locale } = useAdminI18n()
 const ui = useEditorUi()
+// Teleported into the host's layer: <body>, or the dialog of a modal host.
+const layer = inject(EDITOR_LAYER, 'body')
 
 function run(id: number, action: () => void) {
   action()
@@ -13,7 +17,7 @@ function run(id: number, action: () => void) {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport :to="layer">
     <div
       class="cms-admin cms-editor-ui ed-toasts"
       :lang="locale"
